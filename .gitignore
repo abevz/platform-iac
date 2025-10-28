@@ -1,0 +1,37 @@
+# --- Terraform ---
+# Игнорируем локальные файлы состояния
+*.tfstate
+*.tfstate.backup
+
+# Игнорируем плагины и кэш провайдеров
+.terraform/
+.terraform.lock.hcl
+
+# --- Ansible ---
+# Игнорием виртуальное окружение Python
+.venv/
+
+# Игнорируем файлы повторов Ansible
+*.retry
+
+# Игнорируем кэш инвентаря Ansible
+.ansible_inventory_cache.json
+
+# Игнорируем временные инвентари от iac-wrapper.sh
+iac_inventory_*.ini
+
+# --- SOPS (Расшифрованные файлы) ---
+# ВАЖНО: Git должен хранить *только* зашифрованные файлы (*.sops.yml)
+# Вы должны явно игнорировать пути к *расшифрованным* версиям.
+config/secrets/certbot/dns-multi.ini
+
+# --- Общие ---
+# Временные файлы редакторов и бэкапы
+*.bak
+*.tmp
+*.temp
+*.swp
+*~
+
+# Временный каталог
+tmp/
