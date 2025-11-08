@@ -195,8 +195,25 @@ apply)
     log "Установка прав на скрипт инвентаря..."
     chmod +x "${INVENTORY_SCRIPT}"
 
-    # Получаем первый IP из JSON, используя Python-скрипт (если не найдет, вернет {} и jq вернет пустую строку)
-    FIRST_IP=$("${INVENTORY_SCRIPT}" --list | jq -r '._meta.hostvars | values | .[0].ansible_host // empty')
+    log "Получение первого IP из динамического инвентаря..."
+    # ИСПРАВЛЕНО: Надежное извлечение первого IP из JSON, который выводит tofu_inventory.py.
+    # Используем to_entries[0].value для получения первой пары хост:данные.
+    INVENTORY_JSON=$("${INVENTORY_SCRIPT}" --list)
+
+    FIRST_IP=$(echo "$INVENTORY_JSON" | jq -r '
+        ._meta.hostvars | to_entries[0].value.ansible_host // empty
+    ')
+
+    if [ -z "$FIRST_IP" ] || [ "$FIRST_IP" == "unknown" ]; then
+      log "Ошибка: Не удалось получить IP первого хоста ($FIRST_IP) через динамический инвентарь. Не могу проверить SSH."
+      exit 1
+    fi
+
+    log "Ожидание доступности SSH (${FIRST_IP}:22)..."
+    while ! nc -z -w5 "$FIRST_IP" 22; do
+      log "Ожидание 5 секунд ($FIRST_IP:22)..."
+      sleep 5
+    done
 
     if [ -z "$FIRST_IP" ]; then
       log "Ошибка: Не удалось получить IP первого хоста через динамический инвентарь. Не могу проверить SSH."

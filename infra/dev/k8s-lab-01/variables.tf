@@ -62,6 +62,12 @@ variable "vm_user" {
   default     = "ansible"
 }
 
+variable "ssh_port" {
+  description = "Proxmox ssh port for the VM template"
+  type        = number
+  default     = "22006" # Ваш шаблон
+}
+
 variable "ssh_public_key" {
   description = "Содержимое <ssh-private-key>.pub"
   type        = string
