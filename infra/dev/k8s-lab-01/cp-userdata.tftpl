@@ -1,0 +1,91 @@
+#cloud-config
+# Set the hostname
+hostname: ${hostname}
+fqdn: ${hostname}
+preserve_hostname: false
+manage_etc_hosts: true
+
+# Add hostname to /etc/hosts
+write_files:
+  - path: /etc/hosts
+    content: |
+      127.0.0.1 localhost
+      127.0.1.1 ${hostname}
+
+      # The following lines are desirable for IPv6 capable hosts
+      ::1     ip6-localhost ip6-loopback
+      fe00::0 ip6-localnet
+      ff00::0 ip6-mcastprefix
+      ff02::1 ip6-allnodes
+      ff02::2 ip6-allrouters
+    append: false
+  
+  # Добавляем sudoers и пользователя abevz
+  - path: /etc/sudoers.d/90-cloud-init-users
+    permissions: '0440'
+    content: |
+      ${vm_user} ALL=(ALL) NOPASSWD:ALL
+
+users:
+  - name: ${vm_user}
+    groups: [sudo]
+    shell: /bin/bash
+    ssh_authorized_keys:
+      - ${ssh_public_key}
+
+runcmd:
+  # Generate unique machine-id first
+  - |
+    echo "Generating unique machine-id for ${hostname}..." > /var/log/machine-id-setup.log
+    SHELL_HOSTNAME=$(hostname)
+    MAC_ADDRESS=$(cat /sys/class/net/$(ip route show default | awk "/default/ {print \\$5}")/address 2>/dev/null || echo "unknown")
+    RANDOM_DATA=$(dd if=/dev/urandom bs=512 count=1 2>/dev/null | md5sum)
+    TIMESTAMP=$(date +%s%N)
+    UNIQUE_ID="${hostname}-$SHELL_HOSTNAME-$MAC_ADDRESS-$RANDOM_DATA-$TIMESTAMP-$(uuidgen)"
+    MACHINE_ID=$(echo $UNIQUE_ID | md5sum | cut -c1-32)
+    
+    if [ -f /etc/machine-id ]; then
+      echo "Previous machine-id: $(cat /etc/machine-id)" >> /var/log/machine-id-setup.log
+      rm -f /etc/machine-id
+    fi
+    if [ -f /var/lib/dbus/machine-id ]; then
+      rm -f /var/lib/dbus/machine-id
+    fi
+    
+    echo $MACHINE_ID > /etc/machine-id
+    chmod 444 /etc/machine-id
+    mkdir -p /var/lib/dbus
+    cp /etc/machine-id /var/lib/dbus/machine-id
+    chmod 444 /var/lib/dbus/machine-id
+    
+    echo "New machine-id: $MACHINE_ID" >> /var/log/machine-id-setup.log
+  
+  # Apply hostname changes
+  - hostnamectl set-hostname ${hostname}
+  - echo "${hostname}" > /etc/hostname
+  - hostname ${hostname}
+  
+  # For Ubuntu specifically
+  - 'echo "network:" > /etc/cloud/cloud.cfg.d/99-disable-network-config.cfg'
+  - 'echo "  config: disabled" >> /etc/cloud/cloud.cfg.d/99-disable-network-config.cfg'
+  
+  # Ensure cloud-init doesn't change hostname on next boot
+  - 'echo "preserve_hostname: true" > /etc/cloud/cloud.cfg.d/99-preserve-hostname.cfg'
+  
+  # Restart network services
+  - |
+    echo "Restarting network services..." >> /var/log/machine-id-setup.log
+    systemctl restart systemd-networkd || true
+    systemctl restart systemd-resolved || true
+    if systemctl is-active NetworkManager >/dev/null 2>&1; then
+      systemctl restart NetworkManager || true
+    fi
+    if command -v netplan >/dev/null 2>&1; then
+      netplan apply || true
+    fi
+    echo "Machine-ID setup completed at $(date)" >> /var/log/machine-id-setup.log
+  
+  # Установка QEMU Agent и Python
+  - apt-get update
+  - apt-get install -y qemu-guest-agent python3
+  - systemctl enable --now qemu-guest-agent.service
