@@ -1,0 +1,13 @@
+---
+- name: Install Falco on Kubernetes Cluster (via Helm)
+  # 'hosts: all', так как 'iac-wrapper.sh' будет ограничивать
+  # выполнение с помощью --limit.
+  hosts: all
+  
+  # 'become: no', так как модули kubernetes.core (helm)
+  # работают с Kube-API и не требуют sudo.
+  become: no 
+  
+  roles:
+    # Имя роли, которую мы создали ранее
+    - role: falco-helm

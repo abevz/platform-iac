@@ -1,0 +1,31 @@
+---
+# Используем современный eBPF-драйвер вместо kernel-module
+# Это избавляет от необходимости компилировать модули ядра на каждой ноде
+driver:
+  kind: ebpf
+
+collectors:
+  # Включаем сборщик для Kubernetes (для обогащения событий)
+  kubernetes:
+    enabled: true
+  # Включаем сборщик для Containerd (Ваш основной runtime)
+  containerd:
+    enabled: true
+    socket: /run/containerd/containerd.sock
+
+# Включаем Falcosidekick - это ОБЯЗАТЕЛЬНО.
+# Sam Falco только пишет в логи, Falcosidekick отправляет алерты
+# (например, в Slack, Loki, Elasticsearch и т.д.)
+falcosidekick:
+  enabled: true
+  # Включаем WebUI для Falcosidekick (очень полезно)
+  webui:
+    enabled: true
+    # Вы можете настроить Ingress для доступа к WebUI здесь
+    # ingress:
+    #   enabled: true
+    #   hosts:
+    #     - host: falco.bevz.net
+    #       paths:
+    #         - path: /
+    #           pathType: ImplementationSpecific

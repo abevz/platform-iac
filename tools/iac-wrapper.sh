@@ -13,6 +13,7 @@ set -euo pipefail
 REPO_ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/..
 SSH_KEY="~/.ssh/id_rsa"
 STATIC_INVENTORY="${REPO_ROOT}/config/inventory/static.ini"
+ANSIBLE_CONFIG_FILE="${REPO_ROOT}/config/ansible.cfg"
 
 # Конфигурация S3 Backend (Бакет должен существовать)
 readonly TF_STATE_BUCKET="terraform-state-bevz-net"
@@ -31,7 +32,7 @@ log() {
 # Очистка временных файлов
 trap 'rm -f /tmp/iac_inventory_*.ini' EXIT
 
-# Проверка зависимостей
+# Функция проверки зависимостей
 check_deps() {
   local missing=0
   for cmd in terraform ansible-playbook sops yq jq nc; do
@@ -40,7 +41,14 @@ check_deps() {
       missing=1
     fi
   done
-  [ "$missing" -eq 1 ] && exit 1
+
+  if [ "$missing" -eq 1 ]; then
+    exit 1
+  fi
+
+  # --- ИСПРАВЛЕНИЕ ЗДЕСЬ ---
+  # Явно возвращаем 0 (успех), чтобы 'set -e' не остановил скрипт.
+  return 0
 }
 
 # Загрузка секретов Proxmox в переменные окружения
@@ -258,6 +266,8 @@ apply)
       sleep 5
     done
 
+    export ANSIBLE_CONFIG="$ANSIBLE_CONFIG_FILE"
+
     ansible-playbook -i "$TMP_INVENTORY" \
       --private-key "$SSH_KEY" \
       "$ANSIBLE_PLAYBOOK"
@@ -286,6 +296,8 @@ configure)
   log "Запуск Ansible (Основной плейбук) для '$COMPONENT' с лимитом '$LIMIT_TARGET'..."
   local TMP_INVENTORY
   TMP_INVENTORY=$(get_inventory_from_tf_state "$ENV" "$COMPONENT")
+
+  export ANSIBLE_CONFIG="$ANSIBLE_CONFIG_FILE"
 
   ansible-playbook -i "$TMP_INVENTORY" \
     --private-key "$SSH_KEY" \
@@ -317,6 +329,8 @@ run-playbook)
   local TMP_INVENTORY
   TMP_INVENTORY=$(get_inventory_from_tf_state "$ENV" "$COMPONENT")
 
+  export ANSIBLE_CONFIG="$ANSIBLE_CONFIG_FILE"
+
   ansible-playbook -i "$TMP_INVENTORY" \
     --private-key "$SSH_KEY" \
     --limit "$LIMIT_TARGET" \
@@ -345,6 +359,9 @@ run-static)
   fi
 
   log "Запуск Ansible (Static) '$PLAYBOOK_NAME' с лимитом '$LIMIT_TARGET'..."
+
+  export ANSIBLE_CONFIG="$ANSIBLE_CONFIG_FILE"
+
   ansible-playbook -i "$STATIC_INVENTORY" \
     --private-key "$SSH_KEY" \
     --limit "$LIMIT_TARGET" \
@@ -375,6 +392,55 @@ plan | destroy)
   else
     terraform destroy -auto-approve
   fi
+  ;;
+
+start)
+  if [ "$#" -ne 2 ]; then
+    log "Ошибка: 'start' требует <env> <component>"
+    print_usage
+    exit 1
+  fi
+  ENV="$1"
+  COMPONENT="$2"
+
+  check_deps
+  load_provider_secrets
+
+  TERRAFORM_DIR="${REPO_ROOT}/infra/${ENV}/${COMPONENT}"
+  TF_STATE_KEY="${ENV}/${COMPONENT}/terraform.tfstate"
+
+  log "Запуск Terraform Apply (var.vm_started=true) для '$COMPONENT'..."
+  cd "$TERRAFORM_DIR"
+  terraform init -backend-config="bucket=${TF_STATE_BUCKET}" -backend-config="key=${TF_STATE_KEY}"
+
+  # Применяем состояние "запущено"
+  terraform apply -var="vm_started=true" -auto-approve
+  ;;
+
+#
+# --- НОВЫЙ БЛОК 'stop' ---
+#
+stop)
+  if [ "$#" -ne 2 ]; then
+    log "Ошибка: 'stop' требует <env> <component>"
+    print_usage
+    exit 1
+  fi
+  ENV="$1"
+  COMPONENT="$2"
+
+  check_deps
+  load_provider_secrets
+
+  TERRAFORM_DIR="${REPO_ROOT}/infra/${ENV}/${COMPONENT}"
+  TF_STATE_KEY="${ENV}/${COMPONENT}/terraform.tfstate"
+
+  log "Запуск Terraform Apply (var.vm_started=false) для '$COMPONENT'..."
+  cd "$TERRAFORM_DIR"
+  terraform init -backend-config="bucket=${TF_STATE_BUCKET}" -backend-config="key=${TF_STATE_KEY}"
+
+  # Применяем состояние "остановлено"
+  terraform apply -var="vm_started=false" -auto-approve
   ;;
 
 get-inventory)

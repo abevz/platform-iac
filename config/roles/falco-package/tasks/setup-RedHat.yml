@@ -1,0 +1,20 @@
+---
+- name: Add Falco GPG key (Debian) (curl | gpg --dearmor)
+  ansible.builtin.shell: >
+    curl -fsSL https://falco.org/repo/falcosecurity-packages.asc |
+    gpg --dearmor -o /usr/share/keyrings/falco-archive-keyring.gpg
+  args:
+    creates: /usr/share/keyrings/falco-archive-keyring.gpg
+
+- name: Add Falco apt repository (Debian)
+  ansible.builtin.apt_repository:
+    repo: "deb [signed-by=/usr/share/keyrings/falco-archive-keyring.gpg] https://download.falco.org/packages/deb stable main"
+    state: present
+    filename: falcosecurity
+  notify: Restart falco
+
+- name: Install Falco package (Debian)
+  ansible.builtin.apt:
+    name: "{{ 'falco=' ~ falco_package_version if falco_package_version else 'falco' }}"
+    state: present
+    update_cache: true
