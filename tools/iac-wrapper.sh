@@ -22,7 +22,7 @@ readonly INVENTORY_SCRIPT="${REPO_ROOT}/tools/tofu_inventory.py"
 # ---------------------------------------------------
 
 export TF_PLUGIN_CACHE_DIR="$HOME/.cpc/plugin-cache"
-# export TF_LOG=TRACE
+#export TF_LOG=TRACE
 
 # Пути к 3-м файлам SOPS
 readonly PROXMOX_SECRETS_FILE="${REPO_ROOT}/config/secrets/proxmox/provider.sops.yml"
@@ -191,13 +191,11 @@ apply)
   if [ ! -f "$ANSIBLE_PLAYBOOK" ]; then
     log "Предупреждение: Основной плейбук не найден: ${ANSIBLE_PLAYBOOK}. Пропускаем конфигурацию."
   else
-    # --- Проверка доступности SSH (используем новый инвентарь) ---
+    # --- Проверка доступности SSH ---
     log "Установка прав на скрипт инвентаря..."
     chmod +x "${INVENTORY_SCRIPT}"
 
     log "Получение первого IP из динамического инвентаря..."
-    # ИСПРАВЛЕНО: Надежное извлечение первого IP из JSON, который выводит tofu_inventory.py.
-    # Используем to_entries[0].value для получения первой пары хост:данные.
     INVENTORY_JSON=$("${INVENTORY_SCRIPT}" --list)
 
     FIRST_IP=$(echo "$INVENTORY_JSON" | jq -r '
@@ -214,26 +212,30 @@ apply)
       log "Ожидание 5 секунд ($FIRST_IP:22)..."
       sleep 5
     done
-
-    if [ -z "$FIRST_IP" ]; then
-      log "Ошибка: Не удалось получить IP первого хоста через динамический инвентарь. Не могу проверить SSH."
-      exit 1
-    fi
-
-    log "Ожидание доступности SSH (${FIRST_IP}:22)..."
-    while ! nc -z -w5 "$FIRST_IP" 22; do
-      log "Ожидание 5 секунд ($FIRST_IP:22)..."
-      sleep 5
-    done
     # -------------------------------------------------------------
 
     export ANSIBLE_CONFIG="$ANSIBLE_CONFIG_FILE"
     load_ansible_secrets_to_temp_file
 
-    ansible-playbook -i "$INVENTORY_SCRIPT" \
-      --private-key "$SSH_KEY" \
-      "$ANSIBLE_PLAYBOOK" \
-      "$ANSIBLE_VARS_ARG"
+    # ОКОНЧАТЕЛЬНОЕ ИСПРАВЛЕНИЕ: Использование eval для безопасной передачи опциональных флагов.
+    # Это обходит все проблемы с порядком и экранированием.
+
+    # Собираем все аргументы в одну строку
+    ANSIBLE_CMD="ansible-playbook -i $INVENTORY_SCRIPT --private-key $SSH_KEY"
+
+    # Добавляем переменные, только если они существуют
+    if [ -n "$ANSIBLE_VARS_ARG" ]; then
+      ANSIBLE_CMD+=" $ANSIBLE_VARS_ARG"
+    fi
+
+    # Добавляем плейбук в конце (также можно в начале, но в Bash безопаснее в конце)
+    ANSIBLE_CMD+=" $ANSIBLE_PLAYBOOK"
+
+    log "Выполнение команды: $ANSIBLE_CMD"
+
+    # Исполняем команду
+    eval $ANSIBLE_CMD
+
   fi
   ;;
 

@@ -1,0 +1,344 @@
+---
+- name: Encode data for Harbor authorization
+  ansible.builtin.set_fact:
+    harbor_auth: "{{ [harbor_robot_username,harbor_robot_token] | join(':') | b64encode }}"
+  tags: [always] # Этот тег гарантирует, что переменная будет доступна всегда
+
+- name: Update package cache (Debian/Ubuntu)
+  ansible.builtin.apt:
+    update_cache: yes
+    cache_valid_time: 3600
+  when: ansible_os_family == "Debian"
+  changed_when: false
+  tags: [bootstrap_prereqs]
+
+- name: Ensure EPEL repo is enabled (Rocky Linux)
+  ansible.builtin.dnf:
+    name: epel-release
+    state: present
+  when: ansible_os_family == "RedHat"
+  register: epel_install
+  failed_when: "epel_install.rc != 0 and 'Nothing to do' not in epel_install.stdout and 'already installed' not in epel_install.msg"
+  tags: [bootstrap_prereqs]
+
+- name: Disable swap
+  ansible.builtin.command: swapoff -a
+  when: ansible_swaptotal_mb > 0
+  changed_when: false
+  tags: [bootstrap_prereqs]
+
+- name: Remove swap from fstab
+  ansible.builtin.replace:
+    path: /etc/fstab
+    regexp: '^([^#].*?\sswap\s+sw\s+.*)$'
+    replace: '# \1'
+  when: ansible_swaptotal_mb > 0
+  tags: [bootstrap_prereqs]
+
+- name: Load kernel modules for container runtime and networking
+  ansible.builtin.modprobe:
+    name: "{{ item }}"
+    state: present
+  loop:
+    - overlay
+    - br_netfilter
+  tags: [bootstrap_prereqs, containerd]
+
+- name: Persist kernel modules
+  ansible.builtin.copy:
+    dest: "/etc/modules-load.d/k8s.conf"
+    content: |
+      overlay
+      br_netfilter
+    mode: '0644'
+  tags: [bootstrap_prereqs, containerd]
+
+- name: Configure sysctl for Kubernetes networking
+  ansible.posix.sysctl:
+    name: "{{ item.key }}"
+    value: "{{ item.value }}"
+    sysctl_file: /etc/sysctl.d/99-kubernetes-cri.conf
+    state: present
+    reload: yes
+  loop:
+    - { key: 'net.bridge.bridge-nf-call-iptables', value: '1' }
+    - { key: 'net.ipv4.ip_forward', value: '1' }
+    - { key: 'net.bridge.bridge-nf-call-ip6tables', value: '1' }
+  tags: [bootstrap_prereqs, containerd]
+
+- name: Install Containerd prerequisites (common)
+  ansible.builtin.package:
+    name:
+      - ca-certificates
+      - curl
+      - gnupg
+    state: present
+  tags: [containerd]
+
+- name: Add Docker GPG key (Debian/Ubuntu)
+  ansible.builtin.get_url:
+    url: https://download.docker.com/linux/{{ ansible_distribution | lower }}/gpg
+    dest: /etc/apt/keyrings/docker.asc
+    mode: '0644'
+    force: true
+  when: ansible_os_family == "Debian"
+  tags: [containerd]
+
+- name: Add Docker repository (Debian/Ubuntu)
+  ansible.builtin.apt_repository:
+    repo: "deb [arch={{ ansible_architecture if ansible_architecture == 'aarch64' else 'amd64' }} signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/{{ ansible_distribution | lower }} {{ ansible_distribution_release }} stable"
+    state: present
+    filename: docker
+  when: ansible_os_family == "Debian"
+  notify: Update apt cache
+  tags: [containerd]
+
+- name: Add Docker CE repository (Rocky Linux)
+  ansible.builtin.get_url:
+    url: https://download.docker.com/linux/centos/docker-ce.repo
+    dest: /etc/yum.repos.d/docker-ce.repo
+  when: ansible_os_family == "RedHat"
+  tags: [containerd]
+
+- name: Install containerd.io (Debian/Ubuntu)
+  ansible.builtin.apt:
+    name: containerd.io
+    state: present
+    update_cache: yes
+  when: ansible_os_family == "Debian"
+  tags: [containerd]
+
+- name: Install containerd.io (Rocky Linux)
+  ansible.builtin.dnf:
+    name: containerd.io
+    state: present
+  when: ansible_os_family == "RedHat"
+  tags: [containerd]
+
+- name: Create containerd config directory
+  ansible.builtin.file:
+    path: /etc/containerd
+    state: directory
+    mode: '0755'
+  tags: [containerd]
+
+- name: Create containerd configuration from template
+  ansible.builtin.template:
+    src: containerd-config.toml.j2
+    dest: /etc/containerd/config.toml
+    owner: root
+    group: root
+    mode: '0644'
+  notify: Restart containerd
+  tags: [containerd]
+
+- name: Enable and start containerd service
+  ansible.builtin.systemd:
+    name: containerd
+    state: started
+    enabled: yes
+  tags: [containerd]
+
+- name: Ensure containerd certs directory exists
+  ansible.builtin.file:
+    path: "/etc/containerd/certs.d/{{ item }}"
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+  loop:
+    - "docker.io"
+    - "quay.io"
+    - "gcr.io"
+    - "registry.k8s.io"
+    - "k8s.gcr.io"
+    - "{{ harbor_hostname }}"
+  tags: [harbor_proxy]
+
+- name: Configure Harbor proxy for docker.io
+  ansible.builtin.template:
+    src: hosts.toml.j2
+    dest: /etc/containerd/certs.d/docker.io/hosts.toml
+    owner: root
+    group: root
+    mode: '0600'
+  vars:
+    upstream_server: "https://docker.io"
+    proxy_project: "dockerhub-proxy"
+  notify: Restart containerd
+  tags: [harbor_proxy]
+
+- name: Configure Harbor proxy for quay.io
+  ansible.builtin.template:
+    src: hosts.toml.j2
+    dest: /etc/containerd/certs.d/quay.io/hosts.toml
+    owner: root
+    group: root
+    mode: '0600'
+  vars:
+    upstream_server: "https://quay.io"
+    proxy_project: "quay-proxy"
+  notify: Restart containerd
+  tags: [harbor_proxy]
+
+- name: Configure Harbor proxy for gcr.io
+  ansible.builtin.template:
+    src: hosts.toml.j2
+    dest: /etc/containerd/certs.d/gcr.io/hosts.toml
+    owner: root
+    group: root
+    mode: '0600'
+  vars:
+    upstream_server: "https://gcr.io"
+    proxy_project: "gcr-proxy"
+  notify: Restart containerd
+  tags: [harbor_proxy]
+
+- name: Configure Harbor proxy for registry.k8s.io
+  ansible.builtin.template:
+    src: hosts.toml.j2
+    dest: /etc/containerd/certs.d/registry.k8s.io/hosts.toml
+    owner: root
+    group: root
+    mode: '0600'
+  vars:
+    upstream_server: "https://registry.k8s.io"
+    proxy_project: "k8s-proxy"
+  notify: Restart containerd
+  tags: [harbor_proxy]
+
+- name: Configure Harbor proxy for k8s.gcr.io
+  ansible.builtin.template:
+    src: hosts.toml.j2
+    dest: /etc/containerd/certs.d/k8s.gcr.io/hosts.toml
+    owner: root
+    group: root
+    mode: '0600'
+  vars:
+    upstream_server: "https://k8s.gcr.io"
+    proxy_project: "k8s-proxy"
+  notify: Restart containerd
+  tags: [harbor_proxy]
+
+- name: Configure Harbor proxy for Harbor
+  ansible.builtin.template:
+    src: hosts_harbor.toml.j2
+    dest: /etc/containerd/certs.d/{{ harbor_hostname }}/hosts.toml
+    owner: root
+    group: root
+    mode: '0600'
+  vars:
+    upstream_server: "https://{{ harbor_hostname }}"
+    proxy_project: "k8s-proxy"
+  notify: Restart containerd
+  tags: [harbor_proxy]
+
+- name: Add Kubernetes GPG key (Debian/Ubuntu)
+  ansible.builtin.get_url:
+    url: "https://pkgs.k8s.io/core:/stable:/v{{ k8s_short_version }}/deb/Release.key"
+    dest: "/etc/apt/keyrings/kubernetes-apt-keyring.asc"
+    mode: '0644'
+  when: ansible_os_family == "Debian"
+  tags: [k8s_packages]
+
+- name: Add Kubernetes apt repository (Debian/Ubuntu)
+  ansible.builtin.apt_repository:
+    repo: "deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.asc] https://pkgs.k8s.io/core:/stable:/v{{ k8s_short_version }}/deb/ /"
+    state: present
+    filename: kubernetes
+  when: ansible_os_family == "Debian"
+  notify: Update apt cache
+  tags: [k8s_packages]
+
+- name: Add Kubernetes yum repository (Rocky Linux)
+  ansible.builtin.yum_repository:
+    name: kubernetes
+    description: Kubernetes
+    baseurl: "https://pkgs.k8s.io/core:/stable:/v{{ k8s_short_version }}/rpm/"
+    gpgkey:
+      - "https://pkgs.k8s.io/core:/stable:/v{{ k8s_short_version }}/rpm/repodata/repomd.xml.key"
+    gpgcheck: yes
+    repo_gpgcheck: yes
+    enabled: yes
+  when: ansible_os_family == "RedHat"
+  tags: [k8s_packages]
+
+- name: Install kubelet, kubeadm, kubectl (Debian/Ubuntu)
+  ansible.builtin.apt:
+    name:
+      - "kubelet={{ k8s_long_version_debian }}"
+      - "kubeadm={{ k8s_long_version_debian }}"
+      - "kubectl={{ k8s_long_version_debian }}"
+    state: present
+    update_cache: yes
+  when: ansible_os_family == "Debian"
+  notify: Hold Kubernetes packages Debian
+  tags: [k8s_packages]
+
+- name: Install kubelet, kubeadm, kubectl (Rocky Linux)
+  ansible.builtin.dnf:
+    name:
+      - "kubelet-{{ k8s_long_version_redhat }}"
+      - "kubeadm-{{ k8s_long_version_redhat }}"
+      - "kubectl-{{ k8s_long_version_redhat }}"
+    state: present
+    disable_excludes: kubernetes
+  when: ansible_os_family == "RedHat"
+  notify: Hold Kubernetes packages RedHat
+  tags: [k8s_packages]
+
+- name: Install Python Kubernetes client library
+  ansible.builtin.package:
+    name: python3-kubernetes
+    state: present
+  tags: [k8s_packages, harbor_secret] # Необходимо для модуля k8s
+
+- name: Install jmespath for json_query filter
+  ansible.builtin.package:
+    name: python3-jmespath
+    state: present
+  tags: [k8s_packages]
+
+- name: Set SELinux to permissive (Rocky Linux)
+  ansible.builtin.selinux:
+    policy: targeted
+    state: permissive
+  when: ansible_os_family == "RedHat" and ansible_selinux.status == "enabled"
+  tags: [bootstrap_prereqs]
+
+- name: Enable and start kubelet service
+  ansible.builtin.systemd:
+    name: kubelet
+    state: started
+    enabled: yes
+  tags: [k8s_packages]
+
+# ... (внутри k8s_bootstrap_node/tasks/main.yml)
+
+- name: Ensure AppArmor utilities are installed
+  ansible.builtin.package:
+    name: apparmor-utils
+    state: present
+  tags: [cks, apparmor]
+
+- name: Load AppArmor profiles
+  ansible.builtin.command: apparmor_parser -r /path/to/your/custom-apparmor-profile
+  # (Вам нужно будет скопировать Ваш профиль на ноду)
+  notify: Restart containerd
+  tags: [cks, apparmor]
+
+- name: Create Kubelet Seccomp profile directory
+  ansible.builtin.file:
+    path: /var/lib/kubelet/seccomp/profiles
+    state: directory
+    recurse: yes
+    mode: '0755'
+  tags: [cks, seccomp]
+
+- name: Copy CKS Seccomp profile
+  ansible.builtin.copy:
+    src: your-cks-seccomp-profile.json # Этот файл должен лежать в roles/k8s_bootstrap_node/files/
+    dest: /var/lib/kubelet/seccomp/profiles/audit.json
+    mode: '0644'
+  tags: [cks, seccomp]  
+  

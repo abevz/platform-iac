@@ -1,0 +1,5 @@
+---
+# Версии для установки пакетов
+k8s_short_version: "1.33"
+k8s_long_version_debian: "1.33.0-1.1"
+k8s_long_version_redhat: "1.33.0"
