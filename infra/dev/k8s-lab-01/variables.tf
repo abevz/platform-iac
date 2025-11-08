@@ -3,14 +3,18 @@ variable "proxmox_api_url" {
   type      = string
   sensitive = true
 }
-variable "proxmox_api_token_id" {
+
+# --- ИСПРАВЛЕНИЕ ЗДЕСЬ ---
+variable "proxmox_api_username" { # (Был proxmox_api_token_id)
   type      = string
   sensitive = true
 }
-variable "proxmox_api_token_secret" {
+variable "proxmox_api_password" { # (Был proxmox_api_token_secret)
   type      = string
   sensitive = true
 }
+# -------------------------
+
 variable "proxmox_ssh_user" {
   type      = string
   sensitive = true
@@ -23,7 +27,14 @@ variable "proxmox_ssh_private_key" {
 variable "proxmox_node_name" {
   description = "Нода Proxmox, на которой будут созданы VM"
   type        = string
-  default     = "pve" # Укажите Вашу целевую ноду
+  default     = "homelab" # Укажите Вашу целевую ноду
+}
+
+variable "proxmox_ssh_address" {
+  description = "FQDN или IP для SSH-подключения к ноде Proxmox"
+  type        = string
+  # Ваш nginx-proxy
+  default     = "homelab.bevz.net" 
 }
 
 variable "vm_template_id" {
@@ -95,4 +106,36 @@ variable "worker_memory" {
 variable "worker_disk_size" {
   type    = number
   default = 50 
+}
+
+variable "control_plane_ips" {
+  description = "Список статических IP для control plane нод"
+  type        = list(string)
+  # Укажите IP, который Вы хотите для CP
+  default     = ["10.10.10.200"] 
+}
+
+variable "worker_ips" {
+  description = "Список статических IP для worker нод"
+  type        = list(string)
+  # Укажите IP, которые Вы хотите для WN
+  default     = ["10.10.10.201", "10.10.10.202"]
+}
+
+variable "gateway" {
+  description = "Сетевой шлюз"
+  type        = string
+  default     = "10.10.10.1" # Укажите Ваш шлюз
+}
+
+variable "ip_prefix_length" {
+  description = "CIDR префикс (напр., 24 для /24)"
+  type        = number
+  default     = 24
+}
+
+variable "vm_started" {
+  description = "Controls if the VMs should be running (true) or stopped (false)."
+  type        = bool
+  default     = true # По умолчанию, VM всегда должны быть запущены
 }
