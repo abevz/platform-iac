@@ -232,8 +232,8 @@ apply)
 
     ansible-playbook -i "$INVENTORY_SCRIPT" \
       --private-key "$SSH_KEY" \
-      "$ANSIBLE_VARS_ARG" \
-      "$ANSIBLE_PLAYBOOK"
+      "$ANSIBLE_PLAYBOOK" \
+      "$ANSIBLE_VARS_ARG"
   fi
   ;;
 
@@ -276,8 +276,8 @@ configure)
   ansible-playbook -i "$INVENTORY_SCRIPT" \
     --private-key "$SSH_KEY" \
     --limit "$LIMIT_TARGET" \
-    "$ANSIBLE_VARS_ARG" \
-    "$ANSIBLE_PLAYBOOK"
+    "$ANSIBLE_PLAYBOOK" \
+    "$ANSIBLE_VARS_ARG"
   ;;
 
 run-playbook)
@@ -320,8 +320,8 @@ run-playbook)
   ansible-playbook -i "$INVENTORY_SCRIPT" \
     --private-key "$SSH_KEY" \
     --limit "$LIMIT_TARGET" \
-    "$ANSIBLE_VARS_ARG" \
-    "$ANSIBLE_PLAYBOOK"
+    "$ANSIBLE_PLAYBOOK" \
+    "$ANSIBLE_VARS_ARG"
   ;;
 
 run-static)
