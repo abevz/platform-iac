@@ -1,0 +1,26 @@
+---
+# Требует:
+# 1. ansible-galaxy collection install kubernetes.core
+# 2. pip install kubernetes (на машине, где запускается Ansible)
+
+- name: Убедиться, что неймспейс {{ falco_namespace }} существует
+  kubernetes.core.k8s:
+    api_version: v1
+    kind: Namespace
+    name: "{{ falco_namespace }}"
+    state: present
+
+- name: Добавить репозиторий Falco Helm
+  kubernetes.core.helm_repository:
+    name: falcosecurity
+    repo_url: "{{ falco_helm_repo_url }}"
+    state: present
+
+- name: Развернуть Falco из Helm-чарта
+  kubernetes.core.helm:
+    name: "{{ falco_helm_release_name }}"
+    chart_ref: "falcosecurity/{{ falco_helm_chart_name }}"
+    release_namespace: "{{ falco_namespace }}"
+    create_namespace: true
+    state: present
+    values: "{{ lookup('template', 'values.yaml.j2') | from_yaml }}"

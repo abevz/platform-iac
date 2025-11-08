@@ -1,0 +1,31 @@
+---
+# --- Установка Kernel Headers ---
+# Falco требует их для компиляции драйвера eBPF
+- name: Установить Kernel Headers (Debian/Ubuntu)
+  ansible.builtin.apt:
+    name: "linux-headers-{{ ansible_kernel }}"
+    state: present
+    update_cache: true
+  when: ansible_os_family == "Debian"
+
+- name: Установить Kernel Headers (RedHat/Rocky)
+  ansible.builtin.package:
+    name: "kernel-devel-{{ ansible_kernel }}"
+    state: present
+  when: ansible_os_family == "RedHat"
+
+# --- Установка Falco ---
+- name: Включить задачи установки для Debian
+  ansible.builtin.include_tasks: setup-Debian.yml
+  when: ansible_os_family == "Debian"
+
+- name: Включить задачи установки для RedHat
+  ansible.builtin.include_tasks: setup-RedHat.yml
+  when: ansible_os_family == "RedHat"
+
+# --- Конфигурация и запуск ---
+- name: Убедиться, что сервис Falco запущен и включен
+  ansible.builtin.service:
+    name: falco
+    state: started
+    enabled: true

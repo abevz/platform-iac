@@ -1,0 +1,5 @@
+---
+falco_helm_release_name: falco
+falco_namespace: falco
+falco_helm_repo_url: https://falcosecurity.github.io/charts
+falco_helm_chart_name: falco
