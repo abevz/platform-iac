@@ -35,3 +35,4 @@ config/secrets/certbot/dns-multi.ini
 
 # Временный каталог
 tmp/
+.cache

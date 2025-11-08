@@ -1,16 +1,55 @@
 ---
-- name: (Debug) Verify Ansible Connection to k8s-lab-01
-  hosts: k8s_cluster # (Группа из Вашего Tofu outputs.tf)
-  become: true
-  
-  tasks:
-    - name: Ping all hosts
-      ansible.builtin.ping:
+# ==============================================================================
+# ФАЗА 1: BOOTSTRAP (Все ноды)
+# Подготовка ОС, Containerd, Kubelet, AppArmor, Seccomp
+# ==============================================================================
+- name: 1. Bootstrap All Nodes
+  hosts: k8s_master:k8s_worker
+  become: yes
+  roles:
+    # Включает sysctl, swap, containerd, harbor proxy, kubelet,
+    # apparmor, seccomp
+    - role: k8s_bootstrap_node
+  tags: [bootstrap]
 
-    - name: Verify 'abevz' user and sudo (whoami)
-      ansible.builtin.command: whoami
-      register: whoami_output
+# ==============================================================================
+# ФАЗА 2: УПРАВЛЕНИЕ КЛАСТЕРОМ (Init, Join)
+# ==============================================================================
+- name: 2. Manage K8s Cluster State
+  hosts: k8s_master:k8s_worker
+  become: yes
+  roles:
+    # Эта роль ТЕПЕРЬ НЕ СОДЕРЖИТ CNI.
+    # Она выполняет: kubeadm init, kubeadm join, CSR approve, harbor secret
+    - role: k8s_cluster_manager
+  tags: [cluster_manage]
 
-    - name: Print whoami output
-      ansible.builtin.debug:
-        msg: "I am running as '{{ whoami_output.stdout }}' (via become:true)"
+# ==============================================================================
+# ФАЗА 3: УСТАНОВКА CNI (Cilium)
+# ==============================================================================
+- name: 3. Deploy CNI Plugin (Cilium)
+  hosts: k8s_master # CNI обычно ставится с мастера
+  become: yes
+  roles:
+    # Ваша новая, отдельная роль
+    - role: cilium_install
+  tags: [cni]
+
+# ==============================================================================
+# ФАЗА 4: УСТАНОВКА ИНСТРУМЕНТОВ БЕЗОПАСНОСТИ
+# ==============================================================================
+- name: 4. Deploy CKS Security Tooling (Falco)
+  hosts: k8s_master 
+  become: yes
+  roles:
+    # Отдельная роль (Helm)
+    - role: falco_deploy
+  tags: [falco]
+
+- name: 5. Deploy CKS Security Tooling (Trivy Operator)
+  hosts: k8s_master
+  become: yes
+  roles:
+    # Отдельная роль (Helm)
+    - role: trivy_deploy
+  tags: [trivy]
