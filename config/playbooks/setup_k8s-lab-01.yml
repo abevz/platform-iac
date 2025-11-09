@@ -1,43 +1,5 @@
 ---
 # ==============================================================================
-# ФАЗА 0: DNS SETUP (Pi-hole)
-# ==============================================================================
-- name: 0. Add K8s Nodes to Pi-hole Local DNS
-  hosts: localhost # Выполняется на Ansible-контроллере
-  connection: local
-  become: no
-  tags: [dns_setup]
-  
-  vars:
-    pihole_url: "http://10.10.10.100" # IP Вашего Pi-hole
-    # ИСПОЛЬЗУЕМ ТОЧЕЧНУЮ НОТАЦИЮ (pihole.web_password) 
-    # в соответствии со структурой extra_vars.sops.yml
-    pihole_web_password: "{{ pihole.web_password }}" 
-  
-  tasks:
-    - name: Get list of all K8s hosts and their IPs from dynamic inventory
-      ansible.builtin.set_fact:
-        k8s_dns_records: |
-          {% set records = [] %}
-          {% for host in groups['k8s_master'] + groups['k8s_worker'] %}
-          {% set records = records + [{'name': hostvars[host].vm_name, 'ip': hostvars[host].ansible_host}] %}
-          {% endfor %}
-          {{ records }}
-
-    - name: Ensure Pi-hole API Key is set
-      ansible.builtin.fail:
-        msg: "Не определена переменная 'pihole.web_password' в secrets/ansible/extra_vars.sops.yml"
-      when: pihole_web_password is not defined or pihole_web_password | length == 0
-
-    - name: Create / Update A-Records in Pi-hole
-      sbarbett.pihole.local_a_record:
-        url: "{{ pihole_url }}"
-        password: "{{ pihole_web_password }}"
-        name: "{{ item.name }}"
-        ip: "{{ item.ip }}"
-        state: present
-      loop: "{{ k8s_dns_records }}"     
-# ==============================================================================
 # ФАЗА 1: BOOTSTRAP (ВСЕ НОДЫ)
 # (k8s_bootstrap_node включает: sysctl, swap, containerd, Kubelet/Kubeadm, 
 # Harbor Proxy, AppArmor/Seccomp setup)

@@ -13,12 +13,19 @@ def get_inventory():
     """
     Читает кэшированный JSON OpenTofu, извлекает инвентарь и выводит его в stdout.
     """
-    if '--list' not in sys.argv and '--host' not in sys.argv:
-        # Абсолютный Режим: ожидаем аргументы Ansible для вывода инвентаря.
-        # Если аргументов нет, ничего не делаем или выводим пустой объект (для совместимости).
-        # В данном случае, просто прекращаем работу.
-        print(json.dumps({}))
-        sys.exit(0)
+    
+    # --- НАЧАЛО ИСПРАВЛЕНИЯ ---
+    # По умолчанию считаем, что нужен --list, если не указан --host
+    # Это для совместимости с ansible-playbook, который может вызывать скрипт без аргументов
+    # для проверки.
+    
+    is_host_request = '--host' in sys.argv
+    is_list_request = '--list' in sys.argv
+    
+    # Если не --host, считаем, что --list
+    if not is_host_request:
+        is_list_request = True
+    # --- КОНЕЦ ИСПРАВЛЕНИЯ ---
 
     try:
         # 1. Загрузка всего вывода OpenTofu
@@ -26,21 +33,19 @@ def get_inventory():
             raw_outputs = json.load(f)
 
         # 2. Получение значения ключа "ansible_inventory_data"
-        # OpenTofu/Terraform оборачивает значение в объект {'value': ...}
         if OUTPUT_KEY not in raw_outputs:
-            print(f"Ошибка: Ключ '{OUTPUT_KEY}' не найден в файле {CACHE_PATH}")
+            print(f"Ошибка: Ключ '{OUTPUT_KEY}' не найден в файле {CACHE_PATH}", file=sys.stderr)
             sys.exit(1)
 
         inventory_string = raw_outputs[OUTPUT_KEY]['value']
 
         # 3. Десериализация вложенной JSON-строки
-        # Это ключевой шаг, решающий проблему, которую вызывал jq без fromjson.
         final_inventory = json.loads(inventory_string)
 
         # 4. Вывод финального инвентаря
-        if '--list' in sys.argv:
+        if is_list_request: # <--- ИСПРАВЛЕНО
             json.dump(final_inventory, sys.stdout, indent=2)
-        elif '--host' in sys.argv:
+        elif is_host_request: # <--- ИСПРАВЛЕНО
             # Ответ на запрос '--host <hostname>'
             hostname = sys.argv[sys.argv.index('--host') + 1]
             hostvars = final_inventory.get('_meta', {}).get('hostvars', {})

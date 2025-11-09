@@ -185,6 +185,25 @@ apply)
   fi
   # ------------------------------------
 
+  # --- НАЧАЛО НОВОГО БЛОКА: РЕГИСТРАЦИЯ DNS ---
+  log "Запуск регистрации DNS в Pi-hole..."
+  # Предполагаем, что add_pihole_dns.py находится в $REPO_ROOT/tools/
+  PYTHON_DNS_SCRIPT="${REPO_ROOT}/tools/add_pihole_dns.py"
+
+  if [ ! -f "$PYTHON_DNS_SCRIPT" ]; then
+    log "🚨 Ошибка: Скрипт add_pihole_dns.py не найден в $PYTHON_DNS_SCRIPT"
+    exit 1
+  fi
+
+  # Вызываем Python-скрипт, передавая ему путь к Tofu и файлу секретов Ansible
+  # (поскольку он содержит pihole.web_password)
+  if ! python3 "$PYTHON_DNS_SCRIPT" --action "add" --tf-dir "$TERRAFORM_DIR" --secrets-file "$ANSIBLE_SECRETS_FILE"; then
+    log "🚨 Ошибка: Не удалось зарегистрировать DNS-записи в Pi-hole."
+    exit 1
+  fi
+  log "✅ DNS-записи успешно зарегистрированы в Pi-hole."
+  # --- КОНЕЦ НОВОГО БЛОКА ---
+
   cd "$REPO_ROOT"
 
   log "Запуск Ansible (Основной плейбук) для '$COMPONENT'..."
@@ -222,7 +241,7 @@ apply)
     # Это обходит все проблемы с порядком и экранированием.
 
     # Собираем все аргументы в одну строку
-    ANSIBLE_CMD="ansible-playbook -i $INVENTORY_SCRIPT --private-key $SSH_KEY"
+    ANSIBLE_CMD="ansible-playbook -i $INVENTORY_SCRIPT,$STATIC_INVENTORY --private-key $SSH_KEY"
 
     # Добавляем переменные, только если они существуют
     if [ -n "$ANSIBLE_VARS_ARG" ]; then
@@ -277,7 +296,7 @@ configure)
   load_ansible_secrets_to_temp_file
 
   # ОКОНЧАТЕЛЬНОЕ ИСПРАВЛЕНИЕ: Использование eval для безопасной передачи опциональных флагов.
-  ANSIBLE_CMD="ansible-playbook -i $INVENTORY_SCRIPT --private-key $SSH_KEY --limit $LIMIT_TARGET $ANSIBLE_PLAYBOOK"
+  ANSIBLE_CMD="ansible-playbook -i $INVENTORY_SCRIPT,$STATIC_INVENTORY --private-key $SSH_KEY --limit $LIMIT_TARGET $ANSIBLE_PLAYBOOK"
 
   if [ -n "$ANSIBLE_VARS_ARG" ]; then
     ANSIBLE_CMD+=" $ANSIBLE_VARS_ARG"
@@ -401,6 +420,32 @@ plan | destroy)
   if [ "$ACTION" == "plan" ]; then
     tofu plan "$TOFU_VARS_ARG"
   else
+    # --- DESTROY ---
+
+    # 1. СНАЧАЛА УДАЛЯЕМ DNS, ПОКА STATE ЕЩЕ СУЩЕСТВУЕТ
+    log "Запуск удаления DNS-записей из Pi-hole (перед destroy)..."
+    PYTHON_DNS_SCRIPT="${REPO_ROOT}/tools/add_pihole_dns.py"
+
+    if [ ! -f "$PYTHON_DNS_SCRIPT" ]; then
+      log "🚨 Ошибка: Скрипт add_pihole_dns.py не найден в $PYTHON_DNS_SCRIPT"
+      exit 1
+    fi
+    if [ ! -f "$ANSIBLE_SECRETS_FILE" ]; then
+      log "🚨 Ошибка: Файл секретов Ansible ($ANSIBLE_SECRETS_FILE) не найден. Не могу получить пароль Pi-hole."
+      exit 1
+    fi
+
+    # Вызываем Python-скрипт с действием 'unregister-dns'
+    # Он прочитает Tofu state (через tofu output), чтобы найти хосты для удаления
+    if ! python3 "$PYTHON_DNS_SCRIPT" --action "unregister-dns" --tf-dir "$TERRAFORM_DIR" --secrets-file "$ANSIBLE_SECRETS_FILE"; then
+      log "⚠️  Предупреждение: Не удалось удалить DNS-записи из Pi-hole. (Продолжаем destroy...)"
+      # Мы НЕ выходим (exit 1), чтобы destroy все равно выполнился
+    else
+      log "✅ DNS-записи успешно удалены из Pi-hole."
+    fi
+
+    # 2. ТЕПЕРЬ УНИЧТОЖАЕМ VM
+    log "Уничтожение инфраструктуры (tofu destroy)..."
     tofu destroy -auto-approve "$TOFU_VARS_ARG"
   fi
   ;;
