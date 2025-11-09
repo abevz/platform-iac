@@ -13,9 +13,9 @@
   vars:
     # Переменные для Harbor. Приходят из SOPS (--extra-vars).
     # Используются ролями k8s_bootstrap_node и k8s_cluster_manager.
-    harbor_hostname: "{{ HARBOR_HOSTNAME | default('harbor.bevz.net') }}" 
-    harbor_robot_username: "{{ HARBOR_ROBOT_USER | default('k8s-puller') }}"
-    harbor_robot_token: "{{ HARBOR_ROBOT_TOKEN | default('') }}"
+    harbor_hostname: "{{ harbor.hostname | default('harbor.bevz.net') }}" 
+    harbor_robot_username: "{{ harbor.robot_username | default('k8s-puller') }}"
+    harbor_robot_token: "{{ harbor.robot_token | default('') }}"
     k8s_short_version: "1.33" 
     k8s_long_version_debian: "1.33.0-1.1"
 
@@ -35,8 +35,8 @@
   
   vars:
     # Повторяем, чтобы быть уверенным в наличии (хотя должны быть из Фазы 1)
-    harbor_hostname: "{{ HARBOR_HOSTNAME | default('harbor.bevz.net') }}" 
-    harbor_robot_token: "{{ HARBOR_ROBOT_TOKEN | default('') }}" 
+    harbor_hostname: "{{ harbor.hostname | default('harbor.bevz.net') }}" 
+    harbor_robot_token: "{{ harbor.robot_token | default('') }}" 
     k8s_short_version: "1.33" 
     k8s_long_version_debian: "1.33.0-1.1"
     
