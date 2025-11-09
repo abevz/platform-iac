@@ -1,4 +1,17 @@
 ---
+- name: Wait for apt locks to be released
+  ansible.builtin.shell:
+    cmd: "while fuser /var/lib/dpkg/lock-frontend >/dev/null 2>&1; do echo 'Waiting for dpkg lock...' && sleep 10; done; while fuser /var/lib/apt/lists/lock >/dev/null 2>&1; do echo 'Waiting for apt lists lock...' && sleep 10; done;"
+  args:
+    executable: /bin/bash
+  when: ansible_os_family == "Debian"
+  changed_when: false
+  register: wait_for_lock
+  until: wait_for_lock.rc == 0
+  retries: 18 # Ждать максимум 3 минуты (18 * 10 секунд)
+  delay: 10
+  tags: [always]
+
 - name: Encode data for Harbor authorization
   ansible.builtin.set_fact:
     harbor_auth: "{{ [harbor_robot_username,harbor_robot_token] | join(':') | b64encode }}"
