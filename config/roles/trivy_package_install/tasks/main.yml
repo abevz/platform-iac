@@ -3,24 +3,44 @@
   tags: [trivy_pkg, debian]
   when: ansible_os_family == "Debian"
   block:
+    # --- НАЧАЛО ИСПРАВЛЕНИЯ (по Вашей ручной проверке) ---
+    - name: Ensure prerequisites for Trivy are installed (wget, gnupg)
+      ansible.builtin.apt:
+        name:
+          - wget
+          - gnupg
+        state: present
+        update_cache: yes
+
     - name: Add Trivy GPG key (Debian)
-      ansible.builtin.get_url:
-        url: https://aquasecurity.github.io/trivy-repo/deb/public.key
-        dest: /usr/share/keyrings/trivy.gpg
-        mode: '0644'
-        force: true
+      ansible.builtin.shell:
+        # 1. Точная команда, которую Вы использовали (wget | gpg --dearmor)
+        cmd: wget -qO - https://aquasecurity.github.io/trivy-repo/deb/public.key | gpg --dearmor -o /usr/share/keyrings/trivy.gpg
+        creates: /usr/share/keyrings/trivy.gpg
+      changed_when: false
 
     - name: Add Trivy apt repository (Debian)
-      ansible.builtin.apt_repository:
-        repo: "deb [signed-by=/usr/share/keyrings/trivy.gpg] https://aquasecurity.github.io/trivy-repo/deb {{ ansible_distribution_release }} main"
-        state: present
-        filename: trivy
+      ansible.builtin.lineinfile:
+        path: /etc/apt/sources.list.d/trivy.list
+        # 2. Точная строка репозитория, которую Вы использовали (с 'generic')
+        line: "deb [signed-by=/usr/share/keyrings/trivy.gpg] https://aquasecurity.github.io/trivy-repo/deb generic main"
+        create: yes
+        mode: '0644'
+      register: trivy_repo_file
+    # --- КОНЕЦ ИСПРАВЛЕНИЯ ---
+
+    - name: Update apt cache after adding Trivy repo
+      # 3. 'apt-get update' (запускается только если repo изменился)
+      ansible.builtin.apt:
+        update_cache: yes
+      when: trivy_repo_file.changed
 
     - name: Install Trivy package (Debian)
       ansible.builtin.apt:
+        # 4. 'apt-get install trivy'
         name: "trivy={{ trivy_pkg_version_debian }}"
         state: present
-        update_cache: true
+        update_cache: false # 'update_cache' уже был выполнен выше
 
 - name: Install Trivy (Rocky/RedHat)
   tags: [trivy_pkg, redhat]
