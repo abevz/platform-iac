@@ -313,8 +313,6 @@
     enabled: yes
   tags: [k8s_packages]
 
-# ... (внутри k8s_bootstrap_node/tasks/main.yml)
-
 - name: Ensure AppArmor utilities are installed
   ansible.builtin.package:
     name: apparmor-utils
@@ -322,10 +320,20 @@
   tags: [cks, apparmor]
 
 - name: Load AppArmor profiles
-  ansible.builtin.command: apparmor_parser -r /path/to/your/custom-apparmor-profile
-  # (Вам нужно будет скопировать Ваш профиль на ноду)
-  notify: Restart containerd
   tags: [cks, apparmor]
+  block:
+    - name: Copy AppArmor profile to /etc/apparmor.d/
+      ansible.builtin.copy:
+        src: k8s-nginx-default # Имя файла из roles/files/
+        dest: /etc/apparmor.d/k8s-nginx-default
+        owner: root
+        group: root
+        mode: '0644'
+
+    - name: Load AppArmor profile into kernel
+      ansible.builtin.command: apparmor_parser -r /etc/apparmor.d/k8s-nginx-default
+      changed_when: true
+
 
 - name: Create Kubelet Seccomp profile directory
   ansible.builtin.file:
@@ -337,7 +345,7 @@
 
 - name: Copy CKS Seccomp profile
   ansible.builtin.copy:
-    src: your-cks-seccomp-profile.json # Этот файл должен лежать в roles/k8s_bootstrap_node/files/
+    src: cks-seccomp-profile.json # Этот файл должен лежать в roles/k8s_bootstrap_node/files/
     dest: /var/lib/kubelet/seccomp/profiles/audit.json
     mode: '0644'
   tags: [cks, seccomp]  

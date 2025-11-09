@@ -1,0 +1,3 @@
+---
+trivy_pkg_version_debian: "0.67.2" # (Пример)
+trivy_pkg_version_redhat: "0.67.2" # (Пример)

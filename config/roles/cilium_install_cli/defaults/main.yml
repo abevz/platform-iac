@@ -1,0 +1,3 @@
+---
+cilium_cli_version: "latest" # (Или укажите конкретную, например: v0.15.20)
+cilium_cli_bin_path: /usr/local/bin

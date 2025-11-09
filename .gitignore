@@ -1,4 +1,6 @@
-# --- Terraform ---
+# platform-iac .gitignore (Финальный)
+
+# --- OpenTofu / Terraform ---
 # Игнорируем локальные файлы состояния
 *.tfstate
 *.tfstate.backup
@@ -7,8 +9,12 @@
 .terraform/
 .terraform.lock.hcl
 
+# --- КЭШ И АРТЕФАКТЫ ВЫПОЛНЕНИЯ (НОВОЕ) ---
+# Каталог кэша, используемый iac-wrapper.sh
+.cache/ 
+
 # --- Ansible ---
-# Игнорием виртуальное окружение Python
+# Игнорируем виртуальное окружение Python
 .venv/
 
 # Игнорируем файлы повторов Ansible
@@ -16,9 +22,19 @@
 
 # Игнорируем кэш инвентаря Ansible
 .ansible_inventory_cache.json
+# Временный JSON-инвентарь, если он не был очищен
+iac_inventory_*.json 
 
-# Игнорируем временные инвентари от iac-wrapper.sh
-iac_inventory_*.ini
+# Игнорируем временные инвентари от iac-wrapper.sh (устаревшее .ini)
+iac_inventory_*.ini 
+
+# Игнорируем временные файлы SOPS, созданные оберткой (КРИТИЧНО!)
+/tmp/iac_vars_*.json
+/tmp/iac_tfvars_*.json
+
+# --- Kubernetes / Kubeadm ---
+# Кэшированный файл команды kubeadm join (fetch)
+/tmp/kubeadm_join_command.sh
 
 # --- SOPS (Расшифрованные файлы) ---
 # ВАЖНО: Git должен хранить *только* зашифрованные файлы (*.sops.yml)
@@ -35,4 +51,3 @@ config/secrets/certbot/dns-multi.ini
 
 # Временный каталог
 tmp/
-.cache

@@ -1,0 +1,4 @@
+---
+calico_helm_repo_url: https://docs.tigera.io/calico/charts
+calico_chart_version: "v3.31.0"
+calico_namespace: tigera-operator

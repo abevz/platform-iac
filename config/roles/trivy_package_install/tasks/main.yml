@@ -1,0 +1,37 @@
+---
+- name: Install Trivy (Debian/Ubuntu)
+  tags: [trivy_pkg, debian]
+  when: ansible_os_family == "Debian"
+  block:
+    - name: Add Trivy GPG key (Debian)
+      ansible.builtin.get_url:
+        url: https://aquasecurity.github.io/trivy-repo/deb/public.key
+        dest: /usr/share/keyrings/trivy.gpg
+        mode: '0644'
+        force: true
+
+    - name: Add Trivy apt repository (Debian)
+      ansible.builtin.apt_repository:
+        repo: "deb [signed-by=/usr/share/keyrings/trivy.gpg] https://aquasecurity.github.io/trivy-repo/deb {{ ansible_distribution_release }} main"
+        state: present
+        filename: trivy
+
+    - name: Install Trivy package (Debian)
+      ansible.builtin.apt:
+        name: "trivy={{ trivy_pkg_version_debian }}"
+        state: present
+        update_cache: true
+
+- name: Install Trivy (Rocky/RedHat)
+  tags: [trivy_pkg, redhat]
+  when: ansible_os_family == "RedHat"
+  block:
+    - name: Add Trivy yum repository (RedHat)
+      ansible.builtin.get_url:
+        url: https://aquasecurity.github.io/trivy-repo/rpm/trivy.repo
+        dest: /etc/yum.repos.d/trivy.repo
+
+    - name: Install Trivy package (RedHat)
+      ansible.builtin.dnf:
+        name: "trivy-{{ trivy_pkg_version_redhat }}"
+        state: present
