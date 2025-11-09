@@ -1,0 +1,16 @@
+# config/group_vars/control_plane.yml
+---
+# Переменные, специфичные для K8s кластера, определяются здесь
+pod_cidr: "192.168.0.0/16"
+
+# Здесь мы используем полную версию, чтобы избежать проблем с kubeadm
+kubernetes_version: "1.33.0" 
+
+# Переменные, связанные с приватным реестром
+harbor_hostname: "harbor.bevz.net"
+harbor_robot_username: "k8s-puller"
+# harbor_robot_token передается через sops/extra-vars, это правильно
+
+target_namespaces:
+  - default
+  - kube-system

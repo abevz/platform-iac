@@ -1,9 +1,13 @@
+# config/roles/k8s_cluster_manager/defaults/main.yml
 ---
-pod_cidr: "192.168.0.0/16"
-kubernetes_version: "{{ k8s_short_version | default('1.33') }}"
-harbor_hostname: "harbor.bevz.net" # Установите Ваш Harbor FQDN
-harbor_robot_username: "k8s-puller"
-harbor_robot_token: "" # Обязательно передать через --extra-vars
-target_namespaces:
-  - default
-  - kube-system
+# Удалить, если планируете переопределять в group_vars. 
+# Если оставляете, то только как fallback.
+pod_cidr: "192.168.0.0/16" 
+
+# Оставить, если k8s_short_version передается извне
+kubernetes_version: "{{ k8s_short_version | default('1.33.0') }}" 
+# Примечание: Установите дефолт в полный формат vX.Y.Z, чтобы избежать ошибки.
+
+# Остальные переменные, которые могут быть специфичны для окружения, также должны быть перенесены.
+# Например, harbor_hostname, harbor_robot_username
+# harbor_hostname: "harbor.bevz.net"

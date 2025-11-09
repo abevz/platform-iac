@@ -98,7 +98,8 @@ load_tofu_secrets_to_temp_file() {
     exit 1
   fi
 
-  local TEMP_TFVARS_FILE=$(mktemp /tmp/iac_tfvars_XXXXXX.json)
+  #local
+  TEMP_TFVARS_FILE=$(mktemp /tmp/iac_tfvars_XXXXXX.json)
   echo "$PROXMOX_JSON" >"$TEMP_TFVARS_FILE"
 
   TOFU_VARS_ARG="-var-file=${TEMP_TFVARS_FILE}"
@@ -135,7 +136,7 @@ tofu_cache_outputs() {
 
 print_usage() {
   echo "Использование: $0 <action> [options]"
-  echo "Действия: apply, configure, run-playbook, run-static, plan, destroy, start, stop, get-inventory"
+  echo "Действия: apply, configure, run-playbook, run-static, plan, destroy, start, stop, get-inventory, print-envs"
 }
 
 # ---
@@ -460,6 +461,38 @@ get-inventory)
   # Вывод JSON инвентаря на stdout
   "${INVENTORY_SCRIPT}" --list
   # --------------------------------------------------------
+  ;;
+
+print-envs)
+  if [ "$#" -ne 2 ]; then
+    log "Ошибка: 'print-envs' требует <env> <component>"
+    print_usage
+    exit 1
+  fi
+  ENV="$1"
+  COMPONENT="$2"
+
+  TERRAFORM_DIR="${REPO_ROOT}/infra/${ENV}/${COMPONENT}"
+  TF_STATE_KEY="infra/${ENV}/${COMPONENT}.tfstate"
+
+  # Загрузка всех секретов и аргументов
+  load_tofu_secrets_to_temp_file
+  load_ansible_secrets_to_temp_file
+
+  log "--- Tofu Arguments and Environment ---"
+  echo "PROXMOX_VE_INSECURE_SKIP_TLS_VERIFY=true"
+  echo "AWS_ACCESS_KEY_ID=..."
+  echo "AWS_SECRET_ACCESS_KEY=..."
+  echo "TF_VAR_FILE=${TEMP_TFVARS_FILE}"
+  echo "TOFU_VARS_ARG=\"$TOFU_VARS_ARG\""
+
+  log "--- Ansible Arguments ---"
+  echo "INVENTORY_SCRIPT=$INVENTORY_SCRIPT"
+  echo "ANSIBLE_VARS_ARG=\"$ANSIBLE_VARS_ARG\""
+  echo "SSH_KEY=$SSH_KEY"
+
+  # Запуск кэширования для гарантии, что инвентарь свежий
+  tofu_cache_outputs "$TERRAFORM_DIR"
   ;;
 
 *)
