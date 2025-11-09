@@ -26,6 +26,19 @@ write_files:
     content: |
       ${vm_user} ALL=(ALL) NOPASSWD:ALL
 
+# <<< НАЧАЛО: ДОБАВЛЕН БЛОК ДЛЯ DNS RESOLVER >>>
+# Создаем drop-in файл для systemd-resolved.
+# Этот файл устанавливает DNS, отключает DNSSEC (для SERVFAIL) 
+# и включает разрешение однокомпонентных имен (для 'k8s-lab-01-wn-1').
+  - path: /etc/systemd/resolved.conf.d/99-lab-dns.conf
+    permissions: '0644'
+    content: |
+      [Resolve]
+      DNS=${vm_dns}
+      DNSSEC=no
+      ResolveUnicastSingleLabel=yes
+# <<< КОНЕЦ: ДОБАВЛЕН БЛОК ДЛЯ DNS RESOLVER >>>
+
 users:
   - name: ${vm_user}
     groups: [sudo]

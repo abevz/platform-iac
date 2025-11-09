@@ -145,3 +145,9 @@ variable "vm_started" {
   type        = bool
   default     = true # По умолчанию, VM всегда должны быть запущены
 }
+
+variable "vm_dns_server" {
+  description = "IP-адрес DNS-сервера, который будет использоваться VM (напр., Pi-hole)"
+  type        = string
+  default     = "10.10.10.100" # Ваш Pi-hole
+}
