@@ -1,0 +1,5 @@
+---
+# roles/set_timezone/defaults/main.yml
+
+system_timezone: "Europe/Warsaw"
+ntp_service_name: "chronyd"

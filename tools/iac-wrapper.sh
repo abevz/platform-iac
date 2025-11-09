@@ -353,26 +353,19 @@ run-playbook)
   PLAYBOOK_NAME="$3"
   LIMIT_TARGET="$4"
 
-  # Сдвигаем позиционные аргументы, чтобы захватить все остальные флаги
   shift 4
   EXTRA_ANSIBLE_ARGS="$@"
-  if [ -n "$EXTRA_ANSIBLE_ARGS" ]; then
-    ANSIBLE_VARS_ARG="$EXTRA_ANSIBLE_ARGS"
-  else
-    ANSIBLE_VARS_ARG=""
-  fi
+  ANSIBLE_VARS_ARG=""
 
   load_tofu_secrets_to_temp_file
 
   TERRAFORM_DIR="${REPO_ROOT}/infra/${ENV}/${COMPONENT}"
   TF_STATE_KEY="infra/${ENV}/${COMPONENT}.tfstate"
 
-  # --- НОВОЕ: Создание кэша перед запуском Ansible ---
   if ! tofu_cache_outputs "$TERRAFORM_DIR"; then
     log "🚨 Невозможно продолжить: Не удалось создать кэш инвентаря."
     exit 1
   fi
-  # --------------------------------------------------
 
   ANSIBLE_PLAYBOOK="${REPO_ROOT}/config/playbooks/${PLAYBOOK_NAME}"
   if [ ! -f "$ANSIBLE_PLAYBOOK" ]; then
@@ -386,19 +379,27 @@ run-playbook)
   chmod +x "${INVENTORY_SCRIPT}"
 
   export ANSIBLE_CONFIG="$ANSIBLE_CONFIG_FILE"
-  load_ansible_secrets_to_temp_file
+  load_ansible_secrets_to_temp_file # Это устанавливает $ANSIBLE_VARS_ARG
 
-  # ДОБАВЛЕНО: $EXTRA_ANSIBLE_ARGS в конце
-  #ANSIBLE_CMD="ansible-playbook -i $INVENTORY_SCRIPT --private-key $SSH_KEY --limit $LIMIT_TARGET $ANSIBLE_PLAYBOOK $ANSIBLE_VARS_ARG $EXTRA_ANSIBLE_ARGS"
-  ANSIBLE_CMD="ansible-playbook -i $INVENTORY_SCRIPT,$STATIC_INVENTORY --private-key $SSH_KEY --limit $LIMIT_TARGET $ANSIBLE_PLAYBOOK $ANSIBLE_VARS_ARG $EXTRA_ANSIBLE_ARGS"
+  # --- НАЧАЛО ИСПРАВЛЕНИЯ (Двойное экранирование для 'eval') ---
+
+  # Мы должны экранировать кавычки (\\"), чтобы 'eval' получил
+  # строку "ansible-playbook -i \"/path1,/path2\" ...",
+  # а не "ansible-playbook -i /path1,/path2 ..."
+
+  ANSIBLE_CMD="ansible-playbook -i $INVENTORY_SCRIPT -i $STATIC_INVENTORY --private-key $SSH_KEY --limit $LIMIT_TARGET $ANSIBLE_PLAYBOOK"
+
+  if [ -n "$ANSIBLE_VARS_ARG" ]; then
+    ANSIBLE_CMD+=" $ANSIBLE_VARS_ARG"
+  fi
+
+  if [ -n "$EXTRA_ANSIBLE_ARGS" ]; then
+    ANSIBLE_CMD+=" $EXTRA_ANSIBLE_ARGS"
+  fi
+  # --- КОНЕЦ ИСПРАВЛЕНИЯ ---
 
   log "Выполнение команды: $ANSIBLE_CMD"
   eval $ANSIBLE_CMD
-  #ansible-playbook -i "$INVENTORY_SCRIPT" \
-  #  --private-key "$SSH_KEY" \
-  #  --limit "$LIMIT_TARGET" \
-  #  "$ANSIBLE_PLAYBOOK" \
-  # "$ANSIBLE_VARS_ARG"
   ;;
 
 run-static)
