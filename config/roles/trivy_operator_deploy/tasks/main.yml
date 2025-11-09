@@ -1,0 +1,29 @@
+---
+- name: Add Trivy (Aqua Security) Helm repository
+  kubernetes.core.helm_repository:
+    name: aqua
+    repo_url: "{{ trivy_op_helm_repo_url }}"
+    state: present
+
+- name: Create Trivy Operator namespace
+  kubernetes.core.k8s:
+    api_version: v1
+    kind: Namespace
+    name: "{{ trivy_op_namespace }}"
+    state: present
+
+- name: Install Trivy Operator via Helm
+  kubernetes.core.helm:
+    name: trivy-operator
+    chart_ref: aqua/trivy-operator
+    chart_version: "{{ trivy_op_chart_version }}"
+    release_namespace: "{{ trivy_op_namespace }}"
+    state: present
+    wait: true
+    values:
+      # Включаем сканирование конфигураций (важно для CKS)
+      trivy:
+        ignoreUnfixed: true
+      operator:
+        scanJobsInSameNamespace: true
+        vulnerabilityScannerScanOnlyCurrentRevisions: true

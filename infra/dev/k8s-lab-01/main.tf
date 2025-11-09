@@ -60,7 +60,7 @@ resource "proxmox_virtual_environment_vm" "control_plane" {
   tags      = ["k8s-lab-01", "control-plane", "terraform"]
 
   clone { vm_id = var.vm_template_id }
-  agent { enabled = true }
+  #agent { enabled = true }
   cpu { cores = var.cp_cores }
   memory { dedicated = var.cp_memory }
   disk {
@@ -68,6 +68,15 @@ resource "proxmox_virtual_environment_vm" "control_plane" {
     interface    = "scsi0"
     size         = var.cp_disk_size
   }
+
+  # Этот provisioner запускается при создании ресурса
+  provisioner "local-exec" {
+    # Даем VM 60 секунд на первую загрузку и запуск QEMU Agent
+    # перед тем, как Terraform попытается выполнить 'reboot' через агент.
+    when    = create
+    command = "echo 'VM ${self.name} создана, ожидание 60 секунд для запуска QEMU Agent...' && sleep 60"
+  }  
+
   network_device {
     bridge = var.vm_bridge
     model  = "virtio"
@@ -77,14 +86,20 @@ resource "proxmox_virtual_environment_vm" "control_plane" {
   initialization {
     ip_config {
       ipv4 {
-        address = "dhcp"
-        #address = "${var.control_plane_ips[count.index]}/${var.ip_prefix_length}"
-        #gateway = var.gateway
+        #address = "dhcp"
+        address = "${var.control_plane_ips[count.index]}/${var.ip_prefix_length}"
+        gateway = var.gateway
       }
     }
     user_data_file_id = proxmox_virtual_environment_file.cp_user_data[count.index].id
   }
   # --------------------------------
+
+  lifecycle {
+    ignore_changes = [
+      initialization
+    ]
+  }
 
   started = var.vm_started
 }
@@ -103,7 +118,7 @@ resource "proxmox_virtual_environment_vm" "workers" {
   tags      = ["k8s-lab-01", "worker", "terraform"]
 
   clone { vm_id = var.vm_template_id }
-  agent { enabled = true }
+  #agent { enabled = true }
   cpu { cores = var.worker_cores }
   memory { dedicated = var.worker_memory }
   disk {
@@ -111,6 +126,13 @@ resource "proxmox_virtual_environment_vm" "workers" {
     interface    = "scsi0"
     size         = var.worker_disk_size
   }
+
+# --- ИСПРАВЛЕНИЕ: Добавляем принудительную задержку ---
+  provisioner "local-exec" {
+    when    = create
+    command = "echo 'VM ${self.name} создана, ожидание 60 секунд для запуска QEMU Agent...' && sleep 60"
+  }
+
   network_device {
     bridge = var.vm_bridge
     model  = "virtio"
@@ -120,14 +142,19 @@ resource "proxmox_virtual_environment_vm" "workers" {
   initialization {
     ip_config {
       ipv4 {
-        address = "dhcp"
-        #address = "${var.worker_ips[count.index]}/${var.ip_prefix_length}"
-        #gateway = var.gateway
+        #address = "dhcp"
+        address = "${var.worker_ips[count.index]}/${var.ip_prefix_length}"
+        gateway = var.gateway
       }
     }
     user_data_file_id = proxmox_virtual_environment_file.wn_user_data[count.index].id
   }
   # --------------------------------
+  lifecycle {
+    ignore_changes = [
+      initialization
+    ]
+  }
   
   started = var.vm_started
 }

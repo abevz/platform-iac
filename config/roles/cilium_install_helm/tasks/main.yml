@@ -1,0 +1,26 @@
+---
+- name: Add Cilium Helm repository
+  kubernetes.core.helm_repository:
+    name: cilium
+    repo_url: "{{ cilium_helm_repo_url }}"
+    state: present
+
+- name: Install Cilium CNI via Helm
+  kubernetes.core.helm:
+    name: cilium
+    chart_ref: cilium/cilium
+    chart_version: "{{ cilium_chart_version }}"
+    release_namespace: "{{ cilium_namespace }}"
+    create_namespace: false # kube-system уже должен существовать
+    state: present
+    wait: yes
+    timeout: 10m
+    values:
+      # Значения, необходимые для CKS
+      kubeProxyReplacement: "true"
+      k8sServiceHost: "{{ ansible_fqdn }}" # (Или IP мастера)
+      k8sServicePort: 6443
+      bpf:
+        masquerade: true
+      securityContext:
+        privileged: true

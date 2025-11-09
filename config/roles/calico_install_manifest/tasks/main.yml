@@ -1,0 +1,30 @@
+---
+- name: Install Calico Operator (via Manifest)
+  # Используем k8s модуль вместо 'shell: kubectl create' для идемпотентности
+  kubernetes.core.k8s:
+    state: present
+    src: "{{ calico_operator_manifest_url }}"
+    wait: yes
+    timeout: 5m
+  register: calico_operator_install
+
+- name: Install Calico Custom Resources (via Manifest)
+  kubernetes.core.k8s:
+    state: present
+    src: "{{ calico_cr_manifest_url }}"
+    wait: yes
+    timeout: 5m
+  register: calico_cr_install
+
+# --- Задачи ожидания из Вашего примера ---
+# (Они все еще нужны, так как 'k8s' модуль ждет только *применения* # манифеста, а не *готовности* оператора)
+
+- name: Wait for Calico Deployments to be available
+  ansible.builtin.command: "kubectl wait --for=condition=Available deployment --all -n calico-system --timeout=300s"
+  changed_when: true
+  when: calico_operator_install.changed or calico_cr_install.changed
+
+- name: Wait for Calico DaemonSet to be ready
+  ansible.builtin.command: "kubectl rollout status daemonset/calico-node -n calico-system --timeout=300s"
+  changed_when: true
+  when: calico_operator_install.changed or calico_cr_install.changed

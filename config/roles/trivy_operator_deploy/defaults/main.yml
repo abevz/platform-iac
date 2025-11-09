@@ -1,0 +1,4 @@
+---
+trivy_op_helm_repo_url: https://aquasecurity.github.io/helm-charts/
+trivy_op_chart_version: "0.20.0" # (Пример)
+trivy_op_namespace: trivy-system

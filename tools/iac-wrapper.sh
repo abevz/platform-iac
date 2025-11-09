@@ -275,11 +275,16 @@ configure)
   export ANSIBLE_CONFIG="$ANSIBLE_CONFIG_FILE"
   load_ansible_secrets_to_temp_file
 
-  ansible-playbook -i "$INVENTORY_SCRIPT" \
-    --private-key "$SSH_KEY" \
-    --limit "$LIMIT_TARGET" \
-    "$ANSIBLE_PLAYBOOK" \
-    "$ANSIBLE_VARS_ARG"
+  # ОКОНЧАТЕЛЬНОЕ ИСПРАВЛЕНИЕ: Использование eval для безопасной передачи опциональных флагов.
+  ANSIBLE_CMD="ansible-playbook -i $INVENTORY_SCRIPT --private-key $SSH_KEY --limit $LIMIT_TARGET $ANSIBLE_PLAYBOOK"
+
+  if [ -n "$ANSIBLE_VARS_ARG" ]; then
+    ANSIBLE_CMD+=" $ANSIBLE_VARS_ARG"
+  fi
+
+  log "Выполнение команды: $ANSIBLE_CMD"
+  eval $ANSIBLE_CMD
+
   ;;
 
 run-playbook)
