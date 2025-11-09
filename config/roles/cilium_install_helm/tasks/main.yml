@@ -8,18 +8,18 @@
     state: present
     update_cache: yes
 
-- name: Add Helm GPG key
+- name: Add Helm GPG key (Buildkite method)
   ansible.builtin.shell:
-    cmd: curl https://baltocdn.com/helm/signing.asc | gpg --dearmor -o /usr/share/keyrings/helm.gpg
-    args:
-      creates: /usr/share/keyrings/helm.gpg
+    cmd: curl -fsSL https://packages.buildkite.com/helm-linux/helm-debian/gpgkey | gpg --dearmor -o /usr/share/keyrings/helm-buildkite.gpg
+    creates: /usr/share/keyrings/helm-buildkite.gpg
   changed_when: false
 
-- name: Add Helm APT repository
+- name: Add Helm APT repository (Buildkite method)
   ansible.builtin.apt_repository:
-    repo: "deb [arch=amd64 signed-by=/usr/share/keyrings/helm.gpg] https://baltocdn.com/helm/stable/debian/ all main"
+    repo: "deb [signed-by=/usr/share/keyrings/helm-buildkite.gpg] https://packages.buildkite.com/helm-linux/helm-debian/any/ any main"
     state: present
     filename: helm-stable-debian
+
 
 - name: Install Helm binary
   ansible.builtin.apt:

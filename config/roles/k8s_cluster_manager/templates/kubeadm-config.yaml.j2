@@ -10,7 +10,7 @@ nodeRegistration:
 ---
 apiVersion: kubeadm.k8s.io/v1beta3 # Возвращаемся к рабочему API
 kind: ClusterConfiguration
-# ИСПРАВЛЕНИЕ: Принудительное форматирование версии. 
+# ИСПРАВЛЕНИЕ: Принудительное форматирование версии.
 # "1.33" -> "v1.33.0". "1.29.0" -> "v1.29.0".
 kubernetesVersion: "v{{ kubernetes_version | replace('v', '') }}{{ '.0' if kubernetes_version | split('.') | length < 3 else '' }}"
 controlPlaneEndpoint: "{{ ansible_fqdn }}:6443"
@@ -29,3 +29,8 @@ networking:
   dnsDomain: cluster.local
   podSubnet: {{ pod_cidr }}
   serviceSubnet: 10.96.0.0/12
+---
+# Этот блок включает ServerTLSBootstrap для ВСЕХ kubelet'ов (включая workers)
+apiVersion: kubelet.config.k8s.io/v1beta1
+kind: KubeletConfiguration
+serverTLSBootstrap: true
