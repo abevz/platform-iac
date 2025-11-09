@@ -136,7 +136,7 @@ tofu_cache_outputs() {
 
 print_usage() {
   echo "Использование: $0 <action> [options]"
-  echo "Действия: apply, configure, run-playbook, run-static, plan, destroy, start, stop, get-inventory, print-envs"
+  echo "Действия: deploy, apply, configure, run-playbook, run-static, plan, destroy, start, stop, get-inventory, print-envs"
 }
 
 # ---
@@ -154,6 +154,41 @@ shift
 check_deps
 
 case "$ACTION" in
+deploy)
+  if [ "$#" -ne 2 ]; then
+    log "Ошибка: 'deploy' требует <env> <component>"
+    print_usage
+    exit 1
+  fi
+  ENV="$1"
+  COMPONENT="$2"
+
+  load_tofu_secrets_to_temp_file
+
+  TERRAFORM_DIR="${REPO_ROOT}/infra/${ENV}/${COMPONENT}"
+  TF_STATE_KEY="infra/${ENV}/${COMPONENT}.tfstate"
+
+  log "Запуск Tofu Deploy (Только Инфраструктура) для '$COMPONENT'..."
+  cd "$TERRAFORM_DIR"
+  tofu init -reconfigure -backend-config="bucket=${TF_STATE_BUCKET}" -backend-config="key=${TF_STATE_KEY}"
+
+  tofu apply -auto-approve "$TOFU_VARS_ARG"
+
+  # --- ИНТЕГРАЦИЯ: Обновление и Кэширование ---
+  log "Выполнение 'tofu refresh' для обновления IP-адресов (DHCP)..."
+  tofu refresh "$TOFU_VARS_ARG"
+
+  if ! tofu_cache_outputs "$TERRAFORM_DIR"; then
+    log "🚨 Невозможно продолжить: Не удалось создать кэш инвентаря."
+    exit 1
+  fi
+  # ------------------------------------
+
+  # Блоки DNS и Ansible УДАЛЕНЫ для этой команды
+
+  log "✅ Инфраструктура (deploy) успешно создана. DNS и Ansible НЕ запускались."
+  ;;
+
 apply)
   if [ "$#" -ne 2 ]; then
     log "Ошибка: 'apply' требует <env> <component>"
@@ -241,7 +276,7 @@ apply)
     # Это обходит все проблемы с порядком и экранированием.
 
     # Собираем все аргументы в одну строку
-    ANSIBLE_CMD="ansible-playbook -i $INVENTORY_SCRIPT,$STATIC_INVENTORY --private-key $SSH_KEY"
+    ANSIBLE_CMD="ansible-playbook -i $INVENTORY_SCRIPT --private-key $SSH_KEY"
 
     # Добавляем переменные, только если они существуют
     if [ -n "$ANSIBLE_VARS_ARG" ]; then
@@ -296,7 +331,7 @@ configure)
   load_ansible_secrets_to_temp_file
 
   # ОКОНЧАТЕЛЬНОЕ ИСПРАВЛЕНИЕ: Использование eval для безопасной передачи опциональных флагов.
-  ANSIBLE_CMD="ansible-playbook -i $INVENTORY_SCRIPT,$STATIC_INVENTORY --private-key $SSH_KEY --limit $LIMIT_TARGET $ANSIBLE_PLAYBOOK"
+  ANSIBLE_CMD="ansible-playbook -i $INVENTORY_SCRIPT --private-key $SSH_KEY --limit $LIMIT_TARGET $ANSIBLE_PLAYBOOK"
 
   if [ -n "$ANSIBLE_VARS_ARG" ]; then
     ANSIBLE_CMD+=" $ANSIBLE_VARS_ARG"

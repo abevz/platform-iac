@@ -62,6 +62,47 @@
     #- role: calico_install_manifest
 
 # ==============================================================================
+# ФАЗА 3.5: ВЕРИФИКАЦИЯ НОД И CSR (ПОСЛЕ CNI)
+# ==============================================================================
+- name: 3.5. Verify Node Readiness and Approve CSRs (Post-CNI)
+  hosts: k8s_master
+  become: yes
+  gather_facts: no
+  tags: [cluster_verify] # Можно добавить новый тег
+
+  tasks:
+    - name: Wait for all nodes to report Ready status (post-CNI)
+      ansible.builtin.command: "kubectl wait --for=condition=Ready nodes --all --timeout=300s"
+      changed_when: false # Ожидание не является изменением
+
+    - name: Wait until all worker CSRs are created
+      ansible.builtin.command: >
+        kubectl get csr -o jsonpath='{.items[?(@.spec.signerName=="kubernetes.io/kubelet-serving")].metadata.name}'
+      register: pending_csr_names
+      # 'until' должен использовать 'groups', а не 'hostvars'
+      until: "pending_csr_names.stdout.split(' ') | length >= (groups['k8s_worker'] | length)"
+      retries: 30
+      delay: 10
+      changed_when: false
+
+    - name: Approve all found kubelet serving CSRs
+      ansible.builtin.command: "kubectl certificate approve {{ item }}"
+      loop: "{{ pending_csr_names.stdout.split(' ') }}"
+      when: "pending_csr_names.stdout | length > 0"
+      changed_when: true
+
+    - name: Final cluster status verification
+      ansible.builtin.shell: kubectl get nodes -o wide
+      register: final_cluster_status
+      changed_when: false
+
+    - name: Display final cluster status
+      ansible.builtin.debug:
+        msg: |
+          Final Cluster Status:
+          {{ final_cluster_status.stdout }}
+      
+# ==============================================================================
 # ФАЗА 4: УСТАНОВКА ИНСТРУМЕНТОВ БЕЗОПАСНОСТИ
 # ==============================================================================
 - name: 4. Deploy CKS Security Tooling (Falco and Trivy)

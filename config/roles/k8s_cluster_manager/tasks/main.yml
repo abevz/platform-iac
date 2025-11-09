@@ -112,38 +112,38 @@
 # =================================================================
 # ТАСК 4: ВЕРИФИКАЦИЯ КЛАСТЕРА И CSR
 # =================================================================
-- name: 4. Verify Cluster Status and Approve CSRs (Control Plane)
-  tags: [verify, kubeadm_init, kubeadm_join] # Запускается после init или join
-  when: inventory_hostname in groups['k8s_master']
-  block:
-    - name: Wait for all nodes to report Ready status
-      ansible.builtin.command: "kubectl wait --for=condition=Ready nodes --all --timeout=300s"
-
-    - name: Wait until all worker CSRs are created
-      ansible.builtin.command: >
-        kubectl get csr -o jsonpath='{.items[?(@.spec.signerName=="kubernetes.io/kubelet-serving")].metadata.name}'
-      register: pending_csr_names
-      until: "pending_csr_names.stdout.split(' ') | length >= (groups['k8s_worker'] | length)"
-      retries: 30
-      delay: 10
-      changed_when: false
-
-    - name: Approve all found kubelet serving CSRs
-      ansible.builtin.command: "kubectl certificate approve {{ item }}"
-      loop: "{{ pending_csr_names.stdout.split(' ') }}"
-      when: pending_csr_names.stdout | length > 0
-      changed_when: true
-
-    - name: Final cluster status verification
-      ansible.builtin.shell: kubectl get nodes -o wide
-      register: final_cluster_status
-      changed_when: false
-
-    - name: Display final cluster status
-      ansible.builtin.debug:
-        msg: |
-          Final Cluster Status:
-          {{ final_cluster_status.stdout }}
+#- name: 4. Verify Cluster Status and Approve CSRs (Control Plane)
+#  tags: [verify, kubeadm_init, kubeadm_join] # Запускается после init или join
+#  when: inventory_hostname in groups['k8s_master']
+#  block:
+#    - name: Wait for all nodes to report Ready status
+#      ansible.builtin.command: "kubectl wait --for=condition=Ready nodes --all --timeout=300s"
+#
+#    - name: Wait until all worker CSRs are created
+#      ansible.builtin.command: >
+#        kubectl get csr -o jsonpath='{.items[?(@.spec.signerName=="kubernetes.io/kubelet-serving")].metadata.name}'
+#      register: pending_csr_names
+#      until: "pending_csr_names.stdout.split(' ') | length >= (groups['k8s_worker'] | length)"
+#      retries: 30
+#      delay: 10
+#      changed_when: false
+#
+#    - name: Approve all found kubelet serving CSRs
+#      ansible.builtin.command: "kubectl certificate approve {{ item }}"
+#      loop: "{{ pending_csr_names.stdout.split(' ') }}"
+#      when: pending_csr_names.stdout | length > 0
+#      changed_when: true
+#
+#    - name: Final cluster status verification
+#      ansible.builtin.shell: kubectl get nodes -o wide
+#      register: final_cluster_status
+#      changed_when: false
+#
+#    - name: Display final cluster status
+#      ansible.builtin.debug:
+#        msg: |
+#          Final Cluster Status:
+#          {{ final_cluster_status.stdout }}
 
 # =================================================================
 # ТАСК 5: СЕКРЕТЫ HARBOR

@@ -15,6 +15,7 @@ resource "proxmox_virtual_environment_file" "cp_user_data" {
       hostname       = "k8s-lab-01-cp-${count.index + 1}"
       vm_user        = var.vm_user
       ssh_public_key = var.ssh_public_key
+      vm_dns         = var.vm_dns_server
     })
     file_name = "k8s-lab-01-cp-${count.index + 1}-userdata.yaml"
   }
@@ -38,6 +39,7 @@ resource "proxmox_virtual_environment_file" "wn_user_data" {
       hostname       = "k8s-lab-01-wn-${count.index + 1}"
       vm_user        = var.vm_user
       ssh_public_key = var.ssh_public_key
+      vm_dns         = var.vm_dns_server
     })
     file_name = "k8s-lab-01-wn-${count.index + 1}-userdata.yaml"
   }
