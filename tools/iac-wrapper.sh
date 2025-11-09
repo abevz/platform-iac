@@ -289,7 +289,7 @@ configure)
   ;;
 
 run-playbook)
-  if [ "$#" -ne 4 ]; then
+  if [ "$#" -lt 4 ]; then
     log "Ошибка: 'run-playbook' требует <env> <component> <playbook.yml> <limit_target>"
     print_usage
     exit 1
@@ -298,6 +298,15 @@ run-playbook)
   COMPONENT="$2"
   PLAYBOOK_NAME="$3"
   LIMIT_TARGET="$4"
+
+  # Сдвигаем позиционные аргументы, чтобы захватить все остальные флаги
+  shift 4
+  EXTRA_ANSIBLE_ARGS="$@"
+  if [ -n "$EXTRA_ANSIBLE_ARGS" ]; then
+    ANSIBLE_VARS_ARG="$EXTRA_ANSIBLE_ARGS"
+  else
+    ANSIBLE_VARS_ARG=""
+  fi
 
   load_tofu_secrets_to_temp_file
 
@@ -325,11 +334,17 @@ run-playbook)
   export ANSIBLE_CONFIG="$ANSIBLE_CONFIG_FILE"
   load_ansible_secrets_to_temp_file
 
-  ansible-playbook -i "$INVENTORY_SCRIPT" \
-    --private-key "$SSH_KEY" \
-    --limit "$LIMIT_TARGET" \
-    "$ANSIBLE_PLAYBOOK" \
-    "$ANSIBLE_VARS_ARG"
+  # ДОБАВЛЕНО: $EXTRA_ANSIBLE_ARGS в конце
+  #ANSIBLE_CMD="ansible-playbook -i $INVENTORY_SCRIPT --private-key $SSH_KEY --limit $LIMIT_TARGET $ANSIBLE_PLAYBOOK $ANSIBLE_VARS_ARG $EXTRA_ANSIBLE_ARGS"
+  ANSIBLE_CMD="ansible-playbook -i $INVENTORY_SCRIPT,$STATIC_INVENTORY --private-key $SSH_KEY --limit $LIMIT_TARGET $ANSIBLE_PLAYBOOK $ANSIBLE_VARS_ARG $EXTRA_ANSIBLE_ARGS"
+
+  log "Выполнение команды: $ANSIBLE_CMD"
+  eval $ANSIBLE_CMD
+  #ansible-playbook -i "$INVENTORY_SCRIPT" \
+  #  --private-key "$SSH_KEY" \
+  #  --limit "$LIMIT_TARGET" \
+  #  "$ANSIBLE_PLAYBOOK" \
+  # "$ANSIBLE_VARS_ARG"
   ;;
 
 run-static)
