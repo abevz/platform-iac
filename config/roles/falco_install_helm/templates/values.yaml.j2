@@ -1,31 +1,32 @@
+# /config/roles/falco_install_helm/templates/values.yaml.j2
 ---
-# Используем современный eBPF-драйвер вместо kernel-module
-# Это избавляет от необходимости компилировать модули ядра на каждой ноде
 driver:
-  kind: ebpf
+  kind: modern-ebpf
 
 collectors:
-  # Включаем сборщик для Kubernetes (для обогащения событий)
-  kubernetes:
-    enabled: true
-  # Включаем сборщик для Containerd (Ваш основной runtime)
+  enabled: true
+  docker:
+    enabled: false
   containerd:
     enabled: true
     socket: /run/containerd/containerd.sock
 
-# Включаем Falcosidekick - это ОБЯЗАТЕЛЬНО.
-# Sam Falco только пишет в логи, Falcosidekick отправляет алерты
-# (например, в Slack, Loki, Elasticsearch и т.д.)
-falcosidekick:
-  enabled: true
-  # Включаем WebUI для Falcosidekick (очень полезно)
-  webui:
+falco:
+  grpc:
     enabled: true
-    # Вы можете настроить Ingress для доступа к WebUI здесь
-    # ingress:
-    #   enabled: true
-    #   hosts:
-    #     - host: falco.bevz.net
-    #       paths:
-    #         - path: /
-    #           pathType: ImplementationSpecific
+  grpcOutput:
+    enabled: true
+  httpOutput:
+    enabled: true
+  jsonOutput: true
+  jsonIncludeOutputProperty: true
+  logLevel: info
+  syscallEventDrops:
+    actions:
+      - log
+    rate: 0.03333
+    maxBurst: 1000
+  rulesFile:
+    - /etc/falco/falco_rules.yaml
+    - /etc/falco/falco_rules.local.yaml
+    - /etc/falco/k8s_audit_rules.yaml

@@ -1,0 +1,16 @@
+# config/playbooks/install_cert_manager.yml
+# /config/playbooks/install_cert_manager.yml
+---
+- name: Install or Uninstall cert-manager
+  hosts: all
+  become: yes
+  
+  vars:
+    addon_state: "present"
+    requested_version: ""
+    # ПРИМЕЧАНИЕ: Эти vars автоматически загрузятся из sops
+    # cloudflare_api_token: "{{ cloudflare.api_token | default('') }}"
+    # cloudflare_email: "{{ cloudflare.email | default('') }}"
+
+  roles:
+    - role: cert_manager_install

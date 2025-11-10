@@ -1,26 +1,65 @@
+# /config/roles/falco_install_helm/tasks/main.yml
 ---
-# Требует:
-# 1. ansible-galaxy collection install kubernetes.core
-# 2. pip install kubernetes (на машине, где запускается Ansible)
-
-- name: Убедиться, что неймспейс {{ falco_namespace }} существует
-  kubernetes.core.k8s:
-    api_version: v1
-    kind: Namespace
-    name: "{{ falco_namespace }}"
-    state: present
-
 - name: Добавить репозиторий Falco Helm
   kubernetes.core.helm_repository:
     name: falcosecurity
     repo_url: "{{ falco_helm_repo_url }}"
     state: present
 
-- name: Развернуть Falco из Helm-чарта
+- name: Установить/Удалить Falco (Helm)
   kubernetes.core.helm:
     name: "{{ falco_helm_release_name }}"
     chart_ref: "falcosecurity/{{ falco_helm_chart_name }}"
     release_namespace: "{{ falco_namespace }}"
-    create_namespace: true
-    state: present
+    create_namespace: "{{ addon_state == 'present' }}"
+    state: "{{ addon_state }}"
     values: "{{ lookup('template', 'values.yaml.j2') | from_yaml }}"
+    wait: yes
+    timeout: 5m
+
+- name: Установить/Удалить кастомные правила Falco
+  kubernetes.core.k8s:
+    state: "{{ addon_state }}"
+    definition: |
+      apiVersion: v1
+      kind: ConfigMap
+      metadata:
+        name: falco-custom-rules
+        namespace: "{{ falco_namespace }}"
+      data:
+        custom_rules.yaml: |
+          - rule: Kubernetes Secret Access
+            desc: Detect access to Kubernetes secrets
+            condition: >
+              ka and
+              ka.verb in (get, list) and
+              ka.objectResource.resource=secrets
+            output: >
+              Kubernetes secret accessed (user=%ka.user.name verb=%ka.verb 
+              resource=%ka.target.resource object=%ka.target.name namespace=%ka.target.namespace)
+            priority: WARNING
+            
+          - rule: Container Privilege Escalation
+            desc: Detect containers running with privilege escalation
+            condition: >
+              spawned_process and
+              proc.name in (sudo, su, doas) and
+              container
+            output: >
+              Privilege escalation in container (user=%user.name command=%proc.cmdline 
+              container=%container.name image=%container.image.repository)
+            priority: HIGH
+            
+          - rule: Sensitive File Access
+            desc: Detect access to sensitive files
+            condition: >
+              open_read and
+              fd.name in (/etc/passwd, /etc/shadow, /etc/sudoers, /root/.ssh/authorized_keys)
+            output: >
+              Sensitive file accessed (user=%user.name command=%proc.cmdline file=%fd.name 
+              container=%container.name)
+            priority: WARNING
+
+- name: Показать результат
+  ansible.builtin.debug:
+    msg: "Falco ({{ addon_state }}) complete."

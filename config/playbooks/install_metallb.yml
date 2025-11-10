@@ -1,0 +1,15 @@
+# config/playbooks/install_metallb.yml
+# /config/playbooks/install_metallb.yml
+---
+- name: Install or Uninstall MetalLB
+  hosts: all
+  become: yes
+  
+  vars:
+    addon_state: "present"
+    requested_version: ""
+    # (Вы можете переопределить IP-пул здесь или в group_vars)
+    # metallb_ip_range: "10.10.10.200-10.10.10.220"
+
+  roles:
+    - role: metallb_install

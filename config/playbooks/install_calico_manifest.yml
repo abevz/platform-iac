@@ -1,0 +1,12 @@
+# config/playbooks/install_calico_manifest.yml
+# /config/playbooks/install_calico_manifest.yml
+---
+- name: Install or Uninstall Calico (via Manifest)
+  hosts: all
+  become: yes
+  
+  vars:
+    addon_state: "present"
+
+  roles:
+    - role: calico_install_manifest

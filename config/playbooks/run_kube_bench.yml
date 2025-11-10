@@ -1,0 +1,14 @@
+# config/playbooks/run_kube_bench.yml
+# /config/playbooks/run_kube_bench.yml
+---
+- name: Run Kube-bench CIS Scanner
+  hosts: all
+  become: yes
+  
+  vars:
+    # (Job'ы обычно имеют 'present', удаление - это 'kubectl delete job...')
+    addon_state: "present"
+    requested_version: ""
+
+  roles:
+    - role: kube_bench_run
