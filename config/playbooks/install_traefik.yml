@@ -1,0 +1,14 @@
+# /config/playbooks/install_traefik.yml
+---
+- name: Install or Uninstall Traefik Gateway
+  hosts: all
+  become: yes
+  
+  vars:
+    requested_version: ""
+    requested_version_gateway_api: "" 
+    # ПЕРЕМЕННАЯ СОСТОЯНИЯ
+    addon_state: "present" # (Переопределить через -e "addon_state=absent")
+
+  roles:
+    - role: traefik_install

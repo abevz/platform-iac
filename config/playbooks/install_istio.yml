@@ -1,0 +1,14 @@
+# /config/playbooks/install_istio.yml
+---
+- name: Install or Uninstall Istio Service Mesh
+  hosts: all 
+  become: yes
+  
+  vars:
+    # Переменная для переопределения версии
+    requested_version: ""
+    # ПЕРЕМЕННАЯ СОСТОЯНИЯ
+    addon_state: "present" # (Переопределить через -e "addon_state=absent")
+
+  roles:
+    - role: istio_install

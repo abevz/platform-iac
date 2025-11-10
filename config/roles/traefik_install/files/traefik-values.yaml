@@ -1,0 +1,39 @@
+# config/roles/traefik_install/files/traefik-values.yaml
+# (Содержимое Вашего traefik-values.yaml)
+
+providers:
+  kubernetesGateway:
+    enabled: true
+  kubernetesCRD:
+    enabled: true
+  kubernetesIngress:
+    enabled: true
+
+log:
+  level: INFO
+
+dashboard:
+  enabled: true
+
+experimental:
+  kubernetesGateway:
+    enabled: true
+    gateway:
+      service:
+        type: LoadBalancer # Примечание: В Вашем lab-кластере это может создать 'pending' LoadBalancer
+
+entryPoints:
+  websecure:
+    address: ":8443/tcp"
+    proxyProtocol:
+      insecure: true
+
+service:
+  ports:
+    websecure:
+      port: 443
+      targetPort: 8443
+
+additionalArguments:
+  - "--entryPoints.web.proxyProtocol.insecure=true"
+  - "--entryPoints.websecure.proxyProtocol.insecure=true"

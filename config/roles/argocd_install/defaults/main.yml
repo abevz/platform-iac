@@ -1,0 +1,10 @@
+# config/roles/argocd_install/defaults/main.yml
+---
+# Версия из argocd.yml
+argocd_version: "v2.13.2"
+
+# Неймспейс для установки
+argocd_namespace: "argocd"
+
+# URL манифеста (из argocd.yml)
+argocd_install_url: "https://raw.githubusercontent.com/argoproj/argo-cd/dc43124058130db9a747d141d86d7c2f4aac7bf9/manifests/install.yaml"

@@ -1,0 +1,33 @@
+# /config/roles/ingress_nginx_install/tasks/main.yml
+---
+# ... (задачи 'set_fact' и 'check current version' остаются только для 'present') ...
+- name: Установить целевую версию ingress-nginx
+  ansible.builtin.set_fact:
+    ingress_nginx_target_version: >-
+      {{ requested_version | default(ingress_nginx_version) }}
+  when: addon_state == "present"
+
+- name: Проверить текущую версию ingress-nginx (если установлена)
+  ansible.builtin.shell:
+    cmd: "kubectl get pods -n ingress-nginx -o jsonpath='{.items[0].spec.containers[0].image}' | cut -d':' -f2"
+  register: current_ingress_nginx_version
+  ignore_errors: true
+  changed_when: false
+  when: addon_state == "present"
+
+- name: Применить/Удалить манифест ingress-nginx (baremetal)
+  kubernetes.core.k8s:
+    state: "{{ addon_state }}" # <-- ИСПОЛЬЗУЕМ ПЕРЕМЕННУЮ
+    src: "{{ ingress_nginx_deploy_url }}"
+  register: ingress_nginx_apply_result
+
+- name: Ожидать готовности подов ingress-nginx
+  ansible.builtin.shell: >
+    kubectl wait --for=condition=ready pod
+    -l app.kubernetes.io/name=ingress-nginx -n ingress-nginx --timeout=300s
+  changed_when: false
+  when: ingress_nginx_apply_result.changed and addon_state == "present"
+
+- name: Показать результат
+  ansible.builtin.debug:
+    msg: "ingress-nginx ({{ addon_state }}) complete."

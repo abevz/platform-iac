@@ -1,0 +1,19 @@
+# config/playbooks/install_argocd.yml
+---
+- name: Install or Uninstall ArgoCD
+  hosts: all # iac-wrapper будет ограничивать это до k8s_master
+  become: yes
+  
+  vars:
+    # --- НАЧАЛО ИСПРАВЛЕНИЯ ---
+    # По умолчанию, мы устанавливаем.
+    # Это можно переопределить в командной строке:
+    # -e "addon_state=absent"
+    addon_state: "present"
+    # --- КОНЕЦ ИСПРАВЛЕНИЯ ---
+
+    # Переменная для переопределения версии
+    requested_version: ""
+
+  roles:
+    - role: argocd_install
