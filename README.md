@@ -1,8 +1,10 @@
 # platform-iac
 
+> **Platform Infrastructure as Code** - Universal IaC solution for managing all virtual machines on Proxmox VE with automated provisioning, configuration management, and security hardening.
+
 ## Overview
 
-`platform-iac` is a comprehensive **Infrastructure as Code (IaC)** and **Configuration Management (CM)** solution for deploying a hardened, CKS-ready (Certified Kubernetes Security Specialist) Kubernetes lab on **Proxmox VE**.
+`platform-iac` is a comprehensive **Infrastructure as Code (IaC)** and **Configuration Management (CM)** solution for managing **all virtual infrastructure** on **Proxmox VE**. This includes Kubernetes clusters, database servers (Percona XtraDB, PostgreSQL), GitLab instances, application servers, and any other VM-based workloads.
 
 This project uses a hybrid approach:
 
@@ -11,21 +13,49 @@ This project uses a hybrid approach:
 
 The entire process is orchestrated by a master wrapper script (`tools/iac-wrapper.sh`) for seamless, one-command deployment.
 
+## 📚 Documentation
+
+> **4,297 lines** of comprehensive documentation covering all aspects of the platform
+
+### 🎯 Quick Access
+- **[📖 Complete Documentation](docs/README.md)** - Full platform guide with workflows
+- **[⚡ Quick Reference](docs/CHEATSHEET.md)** - Command cheat sheet for daily use
+- **[🏗️ Architecture](docs/ARCHITECTURE.md)** - Visual diagrams and system design
+- **[📑 Documentation Index](docs/INDEX.md)** - Complete documentation catalog
+
+### 🎭 Role Documentation
+- **[All Roles Overview](config/roles/README.md)** - Complete role catalog
+- **[Quick Reference](config/roles/QUICK_REFERENCE.md)** - Fast role lookup
+- **[k8s_bootstrap_node](config/roles/k8s_bootstrap_node/README.md)** - Node bootstrap (500+ lines)
+- **[argocd_install](config/roles/argocd_install/README.md)** - GitOps deployment (550+ lines)
+- **[falco_install_helm](config/roles/falco_install_helm/README.md)** - Runtime security (600+ lines)
+- **[kube_bench_run](config/roles/kube_bench_run/README.md)** - CIS compliance (650+ lines)
+
 ## Features
 
-  * **Infrastructure as Code:** Fully automated VM provisioning on Proxmox VE using Tofu.
-  * **Dynamic Inventory:** Tofu automatically generates an Ansible inventory, which is read by a Python script, eliminating manual inventory management.
-  * **Secure Secret Management:** All secrets (API keys, tokens, passwords) are encrypted using **`sops`**.
-  * **Automated DNS:** The `iac-wrapper.sh` script automatically registers the new VMs with a Pi-hole DNS server via its API.
-  * **Harbor Proxy Cache:** All nodes are configured to use a central Harbor registry as a pull-through cache for `docker.io`, `quay.io`, `registry.k8s.io`, etc., saving bandwidth and improving reliability.
-  * **CKS Hardening:**
-      * **CNI:** Deploys **Cilium** via Helm.
-      * **Security Tooling:** Installs **Falco** (package) and **Trivy** (package + operator).
-      * **Kubelet Security:** Automatically enables `serverTLSBootstrap: true` in `kubeadm` for secure API server-to-kubelet communication and auto-approves the resulting CSRs.
-      * **Kernel Security:** Deploys custom **AppArmor** and **Seccomp** profiles to nodes.
-  * **Robust Provisioning:**
-      * `cloud-init` handles initial node setup, including correct `systemd-resolved` configuration to fix common DNS `SERVFAIL` errors.
-      * Ansible playbook gracefully waits for `unattended-upgrades` (apt locks) to finish before proceeding, preventing race conditions.
+### Universal Infrastructure Management
+  * **Multi-Environment Support:** Separate environments (dev, staging, production, interview-prep)
+  * **Flexible VM Types:** Support for any workload - Kubernetes clusters, databases, CI/CD, applications
+  * **Infrastructure as Code:** Fully automated VM provisioning on Proxmox VE using OpenTofu/Terraform
+  * **Dynamic Inventory:** Tofu automatically generates Ansible inventory, eliminating manual management
+  * **Modular Design:** Reusable Terraform modules and Ansible roles for different infrastructure types
+
+### Security & Compliance
+  * **Secure Secret Management:** All secrets (API keys, tokens, passwords) encrypted with **SOPS**
+  * **CKS-Ready Kubernetes:** Full security hardening for Certified Kubernetes Security Specialist exam
+      * **CNI:** Calico/Cilium with network policies
+      * **Security Tooling:** Falco runtime security, Trivy vulnerability scanning, kube-bench CIS audits
+      * **Kernel Security:** AppArmor and Seccomp profiles
+  * **Database Security:** Encryption at rest, secure backups, replication configurations
+
+### Automation & Integration
+  * **Automated DNS:** Pi-hole integration for automatic DNS record management
+  * **Harbor Registry:** Private container registry with proxy cache for Docker Hub, Quay.io, etc.
+  * **CI/CD Ready:** GitLab integration, interview preparation environments
+  * **Robust Provisioning:** 
+      * Cloud-init for initial setup
+      * Handles APT locks and unattended-upgrades gracefully
+      * Idempotent Ansible playbooks for reliable re-runs
 
 -----
 
@@ -61,20 +91,32 @@ The `iac-wrapper.sh` script requires these tools on your local machine:
 platform-iac/
 ├── config/
 │   ├── ansible.cfg            # Ansible configuration
-│   ├── group_vars/            # Group variables (e.g., k8s_master.yml)
-│   ├── inventory/             # Static inventory (for localhost tasks)
-│   ├── playbooks/             # Main playbooks (e.g., setup_k8s-lab-01.yml)
-│   ├── roles/                 # All Ansible logic (k8s_bootstrap_node, cilium_install_helm, etc.)
-│   └── secrets/               # SOPS-encrypted secret files
-├── infra/
-│   └── dev/
-│       └── k8s-lab-01/        # Tofu project for the k8s-lab-01 environment
-├── kubernetes/
-│   └── cks-prep/              # Manifests for CKS security examples
+│   ├── group_vars/            # Group variables for different VM types
+│   ├── inventory/             # Static inventory definitions
+│   ├── playbooks/             # Playbooks for all infrastructure types
+│   ├── roles/                 # Reusable Ansible roles (K8s, databases, apps, etc.)
+│   └── secrets/               # SOPS-encrypted secrets (Proxmox, MinIO, Harbor, etc.)
+├── infra/                     # Terraform/OpenTofu projects
+│   ├── dev/                   # Development environment
+│   │   └── k8s-lab-01/       # Kubernetes cluster infrastructure
+│   └── interview-prep/        # Interview preparation environments
+│       ├── brainrocket-pxc/  # Percona XtraDB Cluster
+│       └── softswiss-gitlab/ # GitLab instance
+├── kubernetes/                # Kubernetes-specific manifests
+│   ├── apps/                 # Application deployments
+│   ├── cks-prep/             # CKS exam preparation examples
+│   ├── exam-prep/            # General K8s exam resources
+│   └── policies/             # Network policies, PSS, RBAC
+├── modules/                   # Reusable Terraform modules
+│   └── terraform/
+│       └── proxmox-vm-cloudinit/  # Generic VM provisioning module
+├── scripts/                   # Helper scripts
+│   └── vm_template/          # VM template creation scripts
+│       └── debian/           # Debian-based templates
 └── tools/
-    ├── iac-wrapper.sh         # Master orchestration script
-    ├── tofu_inventory.py      # Tofu dynamic inventory script
-    └── add_pihole_dns.py      # Pi-hole integration script
+    ├── iac-wrapper.sh        # Universal deployment orchestrator
+    ├── tofu_inventory.py     # Dynamic inventory generator
+    └── add_pihole_dns.py     # DNS automation for all VMs
 ```
 
 -----
