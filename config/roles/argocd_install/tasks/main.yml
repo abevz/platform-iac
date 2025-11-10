@@ -1,0 +1,54 @@
+# /config/roles/argocd_install/tasks/main.yml
+---
+- name: Установить целевую версию ArgoCD
+  ansible.builtin.set_fact:
+    argocd_target_version: >-
+      {{ requested_version | default(argocd_version) }}
+
+- name: Создать или Удалить неймспейс ArgoCD
+  kubernetes.core.k8s:
+    name: "{{ argocd_namespace }}"
+    api_version: v1
+    kind: Namespace
+    state: "{{ addon_state }}" # <-- ИСПОЛЬЗУЕМ ПЕРЕМЕННУЮ
+
+- name: Применить или Удалить манифест ArgoCD
+  kubernetes.core.k8s:
+    state: "{{ addon_state }}" # <-- ИСПОЛЬЗУЕМ ПЕРЕМЕННУЮ
+    src: "{{ argocd_install_url }}"
+    namespace: "{{ argocd_namespace }}"
+  register: argocd_apply_result
+
+# (Остальные задачи, такие как 'wait' и 'get password', 
+# должны запускаться только при установке)
+
+- name: Ожидать готовности ArgoCD Server
+  ansible.builtin.shell: >
+    kubectl wait --for=condition=ready pod
+    -l app.kubernetes.io/name=argocd-server -n {{ argocd_namespace }} --timeout=600s
+  changed_when: false
+  when: addon_state == "present" # <-- ЗАПУСКАТЬ ТОЛЬКО ПРИ УСТАНОВКЕ
+
+- name: Получить первоначальный пароль администратора ArgoCD
+  ansible.builtin.shell:
+    cmd: "kubectl -n {{ argocd_namespace }} get secret argocd-initial-admin-secret -o jsonpath='{.data.password}' | base64 -d"
+  register: argocd_admin_password
+  changed_when: false
+  ignore_errors: true
+  when: addon_state == "present" # <-- ЗАПУСКАТЬ ТОЛЬКО ПРИ УСТАНОВКЕ
+
+- name: Проверить запущенные поды в {{ argocd_namespace }}
+  ansible.builtin.shell: "kubectl get pods -n {{ argocd_namespace }} --no-headers | grep -c 'Running'"
+  register: argocd_final_check
+  changed_when: false
+  when: addon_state == "present" # <-- ЗАПУСКАТЬ ТОЛЬКО ПРИ УСТАНОВКЕ
+
+- name: Показать результат
+  ansible.builtin.debug:
+    msg:
+      - "ArgoCD GitOps {{ addon_state }} completed"
+      - "Version: {{ argocd_target_version }}"
+      - "Running pods: {{ argocd_final_check.stdout | default('N/A (removed)') }}"
+      - "Username: admin"
+      - "Password: {{ argocd_admin_password.stdout | default('N/A (removed)') }}"
+  when: addon_state == "present"

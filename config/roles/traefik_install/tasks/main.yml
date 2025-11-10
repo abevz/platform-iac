@@ -1,0 +1,41 @@
+# /config/roles/traefik_install/tasks/main.yml
+---
+# ... (все задачи установки Helm остаются без изменений) ...
+
+- name: Добавить репозиторий Traefik Helm
+  kubernetes.core.helm_repository:
+    name: traefik
+    repo_url: https://helm.traefik.io/traefik
+    state: present # Репозиторий всегда должен быть
+
+- name: Установить/Удалить Gateway API CRDs
+  kubernetes.core.k8s:
+    state: "{{ addon_state }}" # <-- ИСПОЛЬЗУЕМ ПЕРЕМЕННУЮ
+    src: "{{ item }}"
+  loop: "{{ gateway_api_crd_urls }}"
+  register: gateway_api_result
+
+- name: Скопировать values-файл (только при установке)
+  ansible.builtin.copy:
+    src: traefik-values.yaml
+    dest: /tmp/traefik-values.yaml
+    mode: '0644'
+  when: addon_state == "present"
+
+- name: Установить/Удалить Traefik (Helm)
+  kubernetes.core.helm:
+    name: traefik
+    chart_ref: traefik/traefik
+    release_namespace: traefik
+    create_namespace: "{{ addon_state == 'present' }}" # Создаем, только если ставим
+    state: "{{ addon_state }}" # <-- ИСПОЛЬЗУЕМ ПЕРЕМЕННУЮ
+    version: "{{ traefik_gateway_target_version }}"
+    values_files:
+      - /tmp/traefik-values.yaml
+    wait: yes
+    timeout: 5m
+  register: helm_install_result
+
+- name: Показать результат
+  ansible.builtin.debug:
+    msg: "Traefik Gateway ({{ addon_state }}) complete."

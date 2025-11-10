@@ -1,0 +1,13 @@
+# /config/playbooks/install_ingress_nginx.yml
+---
+- name: Install or Uninstall NGINX Ingress Controller
+  hosts: all
+  become: yes
+  
+  vars:
+    requested_version: ""
+    # ПЕРЕМЕННАЯ СОСТОЯНИЯ
+    addon_state: "present" # (Переопределить через -e "addon_state=absent")
+
+  roles:
+    - role: ingress_nginx_install

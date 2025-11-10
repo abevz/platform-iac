@@ -1,0 +1,68 @@
+# /config/roles/istio_install/tasks/main.yml
+---
+- name: Установить целевую версию Istio
+  ansible.builtin.set_fact:
+    istio_target_version: >-
+      {{ requested_version | default(istio_version) }}
+  when: addon_state == "present"
+
+- name: Загрузить Istio CLI (если отсутствует)
+  ansible.builtin.shell: |
+    if [ ! -d "/opt/istio-{{ istio_target_version }}" ]; then
+      cd /opt
+      curl -L https://istio.io/downloadIstio | ISTIO_VERSION={{ istio_target_version }} sh -
+      ln -sfn istio-{{ istio_target_version }} istio
+    fi
+  register: istio_download_result
+  changed_when: "'istio-{{ istio_target_version }}' not in istio_download_result.stdout"
+  when: addon_state == "present"
+
+- name: Добавить Istio в PATH для будущих сессий
+  ansible.builtin.lineinfile:
+    path: /etc/environment
+    regexp: '^PATH="/opt/istio/bin:.*'
+    line: 'PATH="/opt/istio/bin:$PATH"'
+    create: yes
+    backup: yes
+    state: "{{ 'present' if addon_state == 'present' else 'absent' }}" # Управляем строкой
+
+- name: Установить Istio (профиль default)
+  ansible.builtin.shell: |
+    export PATH="/opt/istio/bin:$PATH"
+    istioctl install --set values.defaultRevision=default -y
+  register: istio_install_result
+  changed_when: "'unchanged' not in istio_install_result.stdout"
+  when: addon_state == "present"
+
+- name: Включить Istio injection для namespace 'default'
+  ansible.builtin.shell: kubectl label namespace default istio-injection=enabled --overwrite
+  register: istio_label_result
+  changed_when: "'labeled' in istio_label_result.stdout"
+  when: addon_state == "present"
+
+- name: Установить/Удалить Istio addons
+  kubernetes.core.k8s:
+    state: "{{ addon_state }}" # <-- ИСПОЛЬЗУЕМ ПЕРЕМЕННУЮ
+    src: "{{ istio_addons_url_base }}/{{ item }}.yaml"
+  loop: "{{ istio_addons_list }}"
+  register: istio_addons_result
+
+# --- БЛОК УДАЛЕНИЯ ---
+- name: Удалить Istio
+  ansible.builtin.shell: |
+    export PATH="/opt/istio/bin:$PATH"
+    istioctl uninstall -y --purge
+  register: istio_uninstall_result
+  changed_when: istio_uninstall_result.rc == 0
+  when: addon_state == "absent"
+
+- name: Отключить Istio injection для namespace 'default'
+  ansible.builtin.shell: kubectl label namespace default istio-injection-
+  register: istio_label_remove_result
+  changed_when: "'unlabeled' in istio_label_remove_result.stdout"
+  when: addon_state == "absent"
+  ignore_errors: yes # (Может быть уже удален)
+
+- name: Показать результат
+  ansible.builtin.debug:
+    msg: "Istio ({{ addon_state }}) complete."
