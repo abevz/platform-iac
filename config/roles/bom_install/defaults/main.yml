@@ -1,0 +1,8 @@
+# config/roles/bom_install/defaults/main.yml
+# /config/roles/bom_install/defaults/main.yml
+---
+# Версия из bom.yml
+bom_version: "0.6.0"
+
+# Неймспейс для установки
+bom_namespace: "bom-system"

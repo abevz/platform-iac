@@ -1,0 +1,8 @@
+# config/roles/apparmor_configure/handlers/main.yml
+# /config/roles/apparmor_configure/handlers/main.yml
+---
+- name: reload_apparmor_profiles
+  ansible.builtin.systemd:
+    name: apparmor
+    state: reloaded
+  when: apparmor_check.stat.exists
