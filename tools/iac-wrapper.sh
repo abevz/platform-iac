@@ -78,29 +78,47 @@ load_tofu_secrets_to_temp_file() {
 
   local COMPONENT="$1"
 
-  log "Расшифровка секретов Tofu (для -var-file)..."
+  # --- НАЧАЛО: ИСПРАВЛЕНИЕ "КУРИЦЫ И ЯЙЦА" (API, SSH Addr, SSH Port) ---
+  local PROXMOX_DIRECT_IP="10.10.10.101"
+  local PROXMOX_DIRECT_API_URL="https://10.10.10.101:8006" # <-- ИСПРАВЛЕНИЕ ЗДЕСЬ
+  local PROXMOX_DIRECT_SSH_PORT=22
 
-  # --- НАЧАЛО: ИСПРАВЛЕНИЕ "КУРИЦЫ И ЯЙЦА" (Proxmox URL) ---
-  local PROXMOX_ENDPOINT
-  PROXMOX_ENDPOINT=$(sops -d "$PROXMOX_SECRETS_FILE" | yq -r '.PROXMOX_VE_ENDPOINT')
+  local PROXMOX_PROXY_API_URL
+  PROXMOX_PROXY_API_URL=$(sops -d "$PROXMOX_SECRETS_FILE" | yq -r '.PROXMOX_VE_ENDPOINT')
+  local PROXMOX_PROXY_SSH_ADDR="homelab.bevz.net"
+  local PROXMOX_PROXY_SSH_PORT=22006
+
+  local proxmox_api_url
+  local proxmox_ssh_address
+  local proxmox_ssh_port
 
   if [ "$COMPONENT" == "nginx-proxy" ] || [ "$COMPONENT" == "minio" ]; then
-    log "ВНИМАНИЕ: Bootstrap-компонент. Переопределяем proxmox_api_url на прямой IP (10.10.10.101)."
-    # (IP взят из Вашего конфига nginx для homelab.bevz.net)
-    PROXMOX_ENDPOINT="https://10.10.10.101"
+    log "ВНИМАНИЕ: Bootstrap-компонент. Используем ПРЯМОЙ IP ($PROXMOX_DIRECT_IP) и ПРЯМОЙ порт ($PROXMOX_DIRECT_SSH_PORT)."
+    proxmox_api_url="$PROXMOX_DIRECT_API_URL"
+    proxmox_ssh_address="$PROXMOX_DIRECT_IP"
+    proxmox_ssh_port=$PROXMOX_DIRECT_SSH_PORT
   else
-    log "INFO: Service-компонент. Используем proxmox_api_url из Sops (${PROXMOX_ENDPOINT})."
+    log "INFO: Service-компонент. Используем ПРОКСИ FQDN ($PROXMOX_PROXY_SSH_ADDR) и ПРОКСИ порт ($PROXMOX_PROXY_SSH_PORT)."
+    proxmox_api_url="$PROXMOX_PROXY_API_URL"
+    proxmox_ssh_address="$PROXMOX_PROXY_SSH_ADDR"
+    proxmox_ssh_port=$PROXMOX_PROXY_SSH_PORT
   fi
-  # --- КОНЕЦ: ИСПРАВЛЕНИЕ "КУРИЦЫ И ЯЙЦА" ---
+  # --- КОНЕЦ: ИСПРАВЛЕНИЯ "КУРИЦЫ И ЯЙЦА" ---
 
   local PROXMOX_JSON
-  PROXMOX_JSON=$(sops -d "$PROXMOX_SECRETS_FILE" | yq -o json | jq -r '
+  # 3. Передаем ВСЕ 7 переменных в jq
+  PROXMOX_JSON=$(sops -d "$PROXMOX_SECRETS_FILE" | yq -o json | jq -r \
+    --arg api_url "$proxmox_api_url" \
+    --arg ssh_addr "$proxmox_ssh_address" \
+    --arg ssh_port "$proxmox_ssh_port" '
       {
-        "proxmox_api_url": .PROXMOX_VE_ENDPOINT,
+        "proxmox_api_url": $api_url, 
         "proxmox_api_username": .PROXMOX_VE_API_TOKEN_ID,
         "proxmox_api_password": .PROXMOX_VE_API_TOKEN_SECRET,
         "proxmox_ssh_user": .PROXMOX_VE_SSH_USERNAME,
-        "proxmox_ssh_private_key": .PROXMOX_VE_SSH_PRIVATE_KEY
+        "proxmox_ssh_private_key": .PROXMOX_VE_SSH_PRIVATE_KEY,
+        "proxmox_ssh_address": $ssh_addr,
+        "proxmox_ssh_port": ($ssh_port | tonumber) # (Преобразуем порт в число)
       }
     ')
 

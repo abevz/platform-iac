@@ -20,6 +20,7 @@
       - certbot
       - certbot-dns-multi
     virtualenv: "{{ certbot_venv_path }}"
+    virtualenv_command: "python3 -m venv"
     state: "{{ addon_state }}"
   become: yes
 
@@ -42,13 +43,20 @@
     msg: "Переменная 'cloudflare.api_token' не найдена в Sops (extra_vars.sops.yml)"
   when: (cloudflare.api_token is not defined or cloudflare.api_token | length == 0) and addon_state == "present"
 
-- name: Создать/Удалить файл учетных данных dns-multi.ini
+- name: Создать файл учетных данных dns-multi.ini
   ansible.builtin.template:
-    src: dns-multi.ini.j2 # Этот шаблон должен содержать "CLOUDFLARE_DNS_API_TOKEN = {{ cloudflare.api_token }}"
+    src: dns-multi.ini.j2
     dest: "{{ certbot_credentials_path }}"
     mode: "0600"
-    state: "{{ 'file' if addon_state == 'present' else 'absent' }}"
   become: yes
+  when: addon_state == "present" # <-- Условие на создание
+
+- name: Удалить файл учетных данных dns-multi.ini
+  ansible.builtin.file:
+    path: "{{ certbot_credentials_path }}"
+    state: absent
+  become: yes
+  when: addon_state == "absent" # <-- Условие на удаление
 
 - name: Запросить сертификаты Let's Encrypt (idempotent)
   ansible.builtin.command:

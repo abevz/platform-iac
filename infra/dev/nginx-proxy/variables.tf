@@ -102,3 +102,7 @@ variable "vm_dns_server" {
   type        = string
   default     = "10.10.10.100"
 }
+variable "proxmox_ssh_port" {
+  description = "Порт SSH для подключения Tofu к ноде Proxmox (передается iac-wrapper)"
+  type        = number
+}

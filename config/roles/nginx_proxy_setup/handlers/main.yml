@@ -1,9 +1,6 @@
-# config/roles/nginx_proxy_setup/handlers/main.yml
-# /config/roles/nginx_proxy_setup/handlers/main.yml
----
+# СТАЛО
 - name: Restart nginx-proxy
-  ansible.builtin.docker_compose:
+  community.docker.docker_compose_v2: # 1. Используем v2
     project_src: "{{ nginx_proxy_root_dir }}"
-    state: present
-    restarted: yes
+    state: restarted # 2. 'state: restarted' заменяет 'restarted: yes'
   become: yes

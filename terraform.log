@@ -1,0 +1,300 @@
+
+[0m[1mInitializing the backend...[0m
+
+[0m[1mInitializing provider plugins...[0m
+- Finding bpg/proxmox versions matching "0.86.0"...
+- Installing bpg/proxmox v0.86.0 to the shared cache directory...
+- Installed bpg/proxmox v0.86.0 (signed, key ID [0m[1mF0582AD6AE97C188[0m[0m)
+- Using bpg/proxmox v0.86.0 from the shared cache directory
+
+Providers are signed by their developers.
+If you'd like to know more about provider signing, you can read about it here:
+https://opentofu.org/docs/cli/plugins/signing/
+
+OpenTofu has created a lock file [1m.terraform.lock.hcl[0m to record the provider
+selections it made above. Include this file in your version control repository
+so that OpenTofu can guarantee to make the same selections by default when
+you run "tofu init" in the future.[0m
+
+[0m[1m[32mOpenTofu has been successfully initialized![0m[32m[0m
+[0m[32m
+You may now begin working with OpenTofu. Try running "tofu plan" to see
+any changes that are required for your infrastructure. All OpenTofu commands
+should now work.
+
+If you ever set or change modules or backend configuration for OpenTofu,
+rerun this command to reinitialize your working directory. If you forget, other
+commands will detect it and remind you to do so if necessary.[0m
+
+OpenTofu used the selected providers to generate the following execution
+plan. Resource actions are indicated with the following symbols:
+  [32m+[0m create[0m
+
+OpenTofu will perform the following actions:
+
+[1m  # proxmox_virtual_environment_file.proxy_user_data[0m will be created
+[0m  [32m+[0m[0m resource "proxmox_virtual_environment_file" "proxy_user_data" {
+      [32m+[0m[0m content_type           = "snippets"
+      [32m+[0m[0m datastore_id           = "local"
+      [32m+[0m[0m file_modification_date = (known after apply)
+      [32m+[0m[0m file_name              = (known after apply)
+      [32m+[0m[0m file_size              = (known after apply)
+      [32m+[0m[0m file_tag               = (known after apply)
+      [32m+[0m[0m id                     = (known after apply)
+      [32m+[0m[0m node_name              = "homelab"
+      [32m+[0m[0m overwrite              = true
+      [32m+[0m[0m timeout_upload         = 1800
+
+      [32m+[0m[0m source_raw {
+          [32m+[0m[0m data      = <<-EOT
+                #cloud-config
+                # Set the hostname
+                hostname: nginx-proxy
+                fqdn: nginx-proxy
+                preserve_hostname: false
+                manage_etc_hosts: true
+                
+                # Add hostname to /etc/hosts
+                write_files:
+                  - path: /etc/hosts
+                    content: |
+                      127.0.0.1 localhost
+                      127.0.1.1 nginx-proxy
+                
+                      # The following lines are desirable for IPv6 capable hosts
+                      ::1     ip6-localhost ip6-loopback
+                      fe00::0 ip6-localnet
+                      ff00::0 ip6-mcastprefix
+                      ff02::1 ip6-allnodes
+                      ff02::2 ip6-allrouters
+                    append: false
+                  
+                  # Добавляем sudoers и пользователя abevz
+                  - path: /etc/sudoers.d/90-cloud-init-users
+                    permissions: '0440'
+                    content: |
+                      abevz ALL=(ALL) NOPASSWD:ALL
+                
+                # <<< НАЧАЛО: ДОБАВЛЕН БЛОК ДЛЯ DNS RESOLVER >>>
+                # Создаем drop-in файл для systemd-resolved.
+                # Этот файл устанавливает DNS, отключает DNSSEC (для SERVFAIL) 
+                # и включает разрешение однокомпонентных имен (для 'k8s-lab-01-wn-1').
+                  - path: /etc/systemd/resolved.conf.d/99-lab-dns.conf
+                    permissions: '0644'
+                    content: |
+                      [Resolve]
+                      DNS=10.10.10.100
+                      DNSSEC=no
+                      ResolveUnicastSingleLabel=yes
+                # <<< КОНЕЦ: ДОБАВЛЕН БЛОК ДЛЯ DNS RESOLVER >>>
+                
+                users:
+                  - name: abevz
+                    groups: [sudo]
+                    shell: /bin/bash
+                    ssh_authorized_keys:
+                      - ssh-rsa AAAA...
+                
+                runcmd:
+                  # Generate unique machine-id first
+                  - |
+                    echo "Generating unique machine-id for nginx-proxy..." > /var/log/machine-id-setup.log
+                    SHELL_HOSTNAME=$(hostname)
+                    MAC_ADDRESS=$(cat /sys/class/net/$(ip route show default | awk "/default/ {print \\$5}")/address 2>/dev/null || echo "unknown")
+                    RANDOM_DATA=$(dd if=/dev/urandom bs=512 count=1 2>/dev/null | md5sum)
+                    TIMESTAMP=$(date +%s%N)
+                    UNIQUE_ID="nginx-proxy-$SHELL_HOSTNAME-$MAC_ADDRESS-$RANDOM_DATA-$TIMESTAMP-$(uuidgen)"
+                    MACHINE_ID=$(echo $UNIQUE_ID | md5sum | cut -c1-32)
+                    
+                    if [ -f /etc/machine-id ]; then
+                      echo "Previous machine-id: $(cat /etc/machine-id)" >> /var/log/machine-id-setup.log
+                      rm -f /etc/machine-id
+                    fi
+                    if [ -f /var/lib/dbus/machine-id ]; then
+                      rm -f /var/lib/dbus/machine-id
+                    fi
+                    
+                    echo $MACHINE_ID > /etc/machine-id
+                    chmod 444 /etc/machine-id
+                    mkdir -p /var/lib/dbus
+                    cp /etc/machine-id /var/lib/dbus/machine-id
+                    chmod 444 /var/lib/dbus/machine-id
+                    
+                    echo "New machine-id: $MACHINE_ID" >> /var/log/machine-id-setup.log
+                  
+                  # Apply hostname changes
+                  - hostnamectl set-hostname nginx-proxy
+                  - echo "nginx-proxy" > /etc/hostname
+                  - hostname nginx-proxy
+                  
+                  # For Ubuntu specifically
+                  - 'echo "network:" > /etc/cloud/cloud.cfg.d/99-disable-network-config.cfg'
+                  - 'echo "  config: disabled" >> /etc/cloud/cloud.cfg.d/99-disable-network-config.cfg'
+                  
+                  # Ensure cloud-init doesn't change hostname on next boot
+                  - 'echo "preserve_hostname: true" > /etc/cloud/cloud.cfg.d/99-preserve-hostname.cfg'
+                  
+                  # Restart network services
+                  - |
+                    echo "Restarting network services..." >> /var/log/machine-id-setup.log
+                    systemctl restart systemd-networkd || true
+                    systemctl restart systemd-resolved || true
+                    if systemctl is-active NetworkManager >/dev/null 2>&1; then
+                      systemctl restart NetworkManager || true
+                    fi
+                    if command -v netplan >/dev/null 2>&1; then
+                      netplan apply || true
+                    fi
+                    echo "Machine-ID setup completed at $(date)" >> /var/log/machine-id-setup.log
+                  
+                  # Установка QEMU Agent и Python
+                  - apt-get update
+                  - apt-get install -y qemu-guest-agent python3
+                  - systemctl enable --now qemu-guest-agent.service
+            EOT
+          [32m+[0m[0m file_name = "nginx-proxy-userdata.yaml"
+          [32m+[0m[0m resize    = 0
+        }
+    }
+
+[1m  # proxmox_virtual_environment_vm.proxy_vm[0m will be created
+[0m  [32m+[0m[0m resource "proxmox_virtual_environment_vm" "proxy_vm" {
+      [32m+[0m[0m acpi                    = true
+      [32m+[0m[0m bios                    = "seabios"
+      [32m+[0m[0m id                      = (known after apply)
+      [32m+[0m[0m ipv4_addresses          = (known after apply)
+      [32m+[0m[0m ipv6_addresses          = (known after apply)
+      [32m+[0m[0m keyboard_layout         = "en-us"
+      [32m+[0m[0m mac_addresses           = (known after apply)
+      [32m+[0m[0m migrate                 = false
+      [32m+[0m[0m name                    = "nginx-proxy"
+      [32m+[0m[0m network_interface_names = (known after apply)
+      [32m+[0m[0m node_name               = "homelab"
+      [32m+[0m[0m on_boot                 = true
+      [32m+[0m[0m protection              = false
+      [32m+[0m[0m reboot                  = false
+      [32m+[0m[0m reboot_after_update     = true
+      [32m+[0m[0m scsi_hardware           = "virtio-scsi-pci"
+      [32m+[0m[0m started                 = true
+      [32m+[0m[0m stop_on_destroy         = false
+      [32m+[0m[0m tablet_device           = true
+      [32m+[0m[0m tags                    = [
+          [32m+[0m[0m "nginx-proxy",
+          [32m+[0m[0m "terraform",
+          [32m+[0m[0m "10.10.10.105",
+        ]
+      [32m+[0m[0m template                = false
+      [32m+[0m[0m timeout_clone           = 1800
+      [32m+[0m[0m timeout_create          = 1800
+      [32m+[0m[0m timeout_migrate         = 1800
+      [32m+[0m[0m timeout_move_disk       = 1800
+      [32m+[0m[0m timeout_reboot          = 1800
+      [32m+[0m[0m timeout_shutdown_vm     = 1800
+      [32m+[0m[0m timeout_start_vm        = 1800
+      [32m+[0m[0m timeout_stop_vm         = 300
+      [32m+[0m[0m vm_id                   = 105
+
+      [32m+[0m[0m clone {
+          [32m+[0m[0m full    = true
+          [32m+[0m[0m retries = 1
+          [32m+[0m[0m vm_id   = 9420
+        }
+
+      [32m+[0m[0m cpu {
+          [32m+[0m[0m cores      = 2
+          [32m+[0m[0m hotplugged = 0
+          [32m+[0m[0m limit      = 0
+          [32m+[0m[0m numa       = false
+          [32m+[0m[0m sockets    = 1
+          [32m+[0m[0m type       = "qemu64"
+          [32m+[0m[0m units      = 100
+        }
+
+      [32m+[0m[0m disk {
+          [32m+[0m[0m aio               = "io_uring"
+          [32m+[0m[0m backup            = true
+          [32m+[0m[0m cache             = "none"
+          [32m+[0m[0m datastore_id      = "local-lvm"
+          [32m+[0m[0m discard           = "ignore"
+          [32m+[0m[0m file_format       = (known after apply)
+          [32m+[0m[0m interface         = "scsi0"
+          [32m+[0m[0m iothread          = false
+          [32m+[0m[0m path_in_datastore = (known after apply)
+          [32m+[0m[0m replicate         = true
+          [32m+[0m[0m size              = 32
+          [32m+[0m[0m ssd               = false
+        }
+
+      [32m+[0m[0m initialization {
+          [32m+[0m[0m datastore_id         = "local-lvm"
+          [32m+[0m[0m meta_data_file_id    = (known after apply)
+          [32m+[0m[0m network_data_file_id = (known after apply)
+          [32m+[0m[0m type                 = (known after apply)
+          [32m+[0m[0m user_data_file_id    = (known after apply)
+          [32m+[0m[0m vendor_data_file_id  = (known after apply)
+
+          [32m+[0m[0m ip_config {
+              [32m+[0m[0m ipv4 {
+                  [32m+[0m[0m address = "10.10.10.105/24"
+                  [32m+[0m[0m gateway = "10.10.10.1"
+                }
+            }
+        }
+
+      [32m+[0m[0m memory {
+          [32m+[0m[0m dedicated      = 4096
+          [32m+[0m[0m floating       = 0
+          [32m+[0m[0m keep_hugepages = false
+          [32m+[0m[0m shared         = 0
+        }
+
+      [32m+[0m[0m network_device {
+          [32m+[0m[0m bridge      = "vmbr0"
+          [32m+[0m[0m enabled     = true
+          [32m+[0m[0m firewall    = false
+          [32m+[0m[0m mac_address = (known after apply)
+          [32m+[0m[0m model       = "virtio"
+          [32m+[0m[0m mtu         = 0
+          [32m+[0m[0m queues      = 0
+          [32m+[0m[0m rate_limit  = 0
+          [32m+[0m[0m vlan_id     = 0
+        }
+
+      [32m+[0m[0m vga (known after apply)
+    }
+
+[1mPlan:[0m 2 to add, 0 to change, 0 to destroy.
+[0m
+Changes to Outputs:
+  [32m+[0m[0m ansible_inventory_data = (known after apply)
+[0m[1mproxmox_virtual_environment_file.proxy_user_data: Creating...[0m[0m
+[0m[1mproxmox_virtual_environment_file.proxy_user_data: Creation complete after 1s [id=local:snippets/nginx-proxy-userdata.yaml][0m
+[0m[1mproxmox_virtual_environment_vm.proxy_vm: Creating...[0m[0m
+[0m[1mproxmox_virtual_environment_vm.proxy_vm: Still creating... [10s elapsed][0m[0m
+[0m[1mproxmox_virtual_environment_vm.proxy_vm: Still creating... [20s elapsed][0m[0m
+[0m[1mproxmox_virtual_environment_vm.proxy_vm: Still creating... [30s elapsed][0m[0m
+[0m[1mproxmox_virtual_environment_vm.proxy_vm: Creation complete after 31s [id=105][0m
+[0m[1m[32m
+Apply complete! Resources: 2 added, 0 changed, 0 destroyed.
+[0m[0m[1m[32m
+Outputs:
+
+[0mansible_inventory_data = "{\"_meta\":{\"hostvars\":{\"nginx-proxy\":{\"ansible_host\":\"10.10.10.105\",\"ansible_port\":22,\"ansible_user\":\"abevz\",\"node_role\":\"proxy\",\"private_ip\":\"10.10.10.105\",\"vm_id\":\"105\",\"vm_name\":\"nginx-proxy\"}}},\"all\":{\"children\":[\"nginx_proxies\"]},\"nginx_proxies\":{\"hosts\":[\"nginx-proxy\"]},\"proxmox_vms\":{\"hosts\":[\"nginx-proxy\"]}}"
+[0m[1mproxmox_virtual_environment_file.proxy_user_data: Refreshing state... [id=local:snippets/nginx-proxy-userdata.yaml][0m
+[0m[1mproxmox_virtual_environment_vm.proxy_vm: Refreshing state... [id=105][0m
+[0m[1m[32m
+Outputs:
+
+[0mansible_inventory_data = "{\"_meta\":{\"hostvars\":{\"nginx-proxy\":{\"ansible_host\":\"10.10.10.105\",\"ansible_port\":22,\"ansible_user\":\"abevz\",\"node_role\":\"proxy\",\"private_ip\":\"10.10.10.105\",\"vm_id\":\"105\",\"vm_name\":\"nginx-proxy\"}}},\"all\":{\"children\":[\"nginx_proxies\"]},\"nginx_proxies\":{\"hosts\":[\"nginx-proxy\"]},\"proxmox_vms\":{\"hosts\":[\"nginx-proxy\"]}}"
+Attempting to authenticate to Pi-hole at 10.10.10.100 with JSON payload.
+Authentication successful. SID and CSRF token obtained.
+Fetching current DNS records from Pi-hole...
+Successfully retrieved 15 DNS records from Pi-hole using endpoint /api/config/dns/hosts.
+INFO: Found 1 DNS records to process with action 'add'
+Attempting to add DNS record: nginx-proxy -> 10.10.10.105
+Attempting to add/update DNS record: nginx-proxy -> 10.10.10.105
+Pi-hole DNS API raw response: '{
+	"took":	0.022642135620117188
+}' (Return code: 0)
+Successfully added/updated DNS record for nginx-proxy -> 10.10.10.105 (API reported 'took': 0.022642135620117188, interpreted as success)
+INFO: Script finished processing DNS records with action 'add'.
