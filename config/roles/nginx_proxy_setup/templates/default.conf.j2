@@ -135,7 +135,7 @@ server {
     ssl_certificate_key /etc/letsencrypt/live/bevz-net-wildcard/privkey.pem;
     ssl_trusted_certificate /etc/letsencrypt/live/bevz-net-wildcard/chain.pem; 
     include conf.d/ssl-params.conf;
-    limit_req zone=mylimit burst=10 nodelay;
+    #limit_req zone=mylimit burst=10 nodelay;
     
     client_max_body_size 0; 
     
