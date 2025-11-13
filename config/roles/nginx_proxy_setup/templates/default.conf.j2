@@ -1,0 +1,181 @@
+# /config/roles/nginx_proxy_setup/templates/default.conf.j2
+# Файл управляется Ansible. НЕ РЕДАКТИРОВАТЬ ВРУЧНУЮ.
+server {
+    listen 80;
+    listen [::]:80;
+    server_name homelab.bevz.net harbor.bevz.net wiki.bevz.dev gitlab.bevz.net s3.minio.bevz.net minio.bevz.net plantuml.bevz.dev;
+
+    location /.well-known/acme-challenge/ {
+        root /var/www/html;
+        allow all;
+    }
+
+    location / {
+        return 301 https://$host$request_uri;
+    }
+}
+
+server {
+    listen 127.0.0.1:1443 ssl http2 proxy_protocol;
+    server_name wiki.bevz.dev;
+
+    ssl_certificate /etc/letsencrypt/live/bevz-dev-wildcard/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/bevz-dev-wildcard/privkey.pem;
+    ssl_trusted_certificate /etc/letsencrypt/live/bevz-dev-wildcard/chain.pem; 
+    include conf.d/ssl-params.conf;
+    include conf.d/gzip.conf;
+    proxy_intercept_errors on;
+    error_page 400 404 =404 /404.html;
+    location = /404.html { root /var/www/html; }
+    error_page 500 502 503 504 /50x.html;
+    location = /50x.html { root /var/www/html; }
+
+    location / {
+        proxy_pass {{ nginx_proxy_upstreams.wiki_http }}/;
+        include conf.d/proxy-params-websockets.conf;
+    }
+}
+
+server {
+    listen 127.0.0.1:1443 ssl http2 proxy_protocol;
+    server_name gitlab.bevz.net;
+
+    ssl_certificate /etc/letsencrypt/live/bevz-net-wildcard/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/bevz-net-wildcard/privkey.pem;
+    ssl_trusted_certificate /etc/letsencrypt/live/bevz-net-wildcard/chain.pem; 
+
+    limit_req zone=mylimit burst=10 nodelay;
+    
+    location / {
+        proxy_pass http://{{ nginx_proxy_upstreams.gitlab_http }};
+        proxy_set_header Host $http_host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_http_version 1.1;
+    }
+}
+
+server {
+    listen 127.0.0.1:1443 ssl http2 proxy_protocol;
+    server_name s3.minio.bevz.net;
+
+    ssl_certificate /etc/letsencrypt/live/s3-minio-bevz-net/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/s3-minio-bevz-net/privkey.pem;
+    ssl_trusted_certificate /etc/letsencrypt/live/s3-minio-bevz-net/chain.pem; 
+    include conf.d/ssl-params.conf;
+
+    client_max_body_size 0;
+
+    location / {
+        proxy_set_header Host $http_host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_connect_timeout 300;
+        proxy_http_version 1.1;
+        proxy_set_header Connection "";
+        proxy_read_timeout 300;
+        proxy_send_timeout 300;
+        proxy_buffering off;
+        proxy_request_buffering off;
+        proxy_pass {{ nginx_proxy_upstreams.minio_s3_api }};
+    }
+}
+
+server {
+    listen 127.0.0.1:1443 ssl http2 proxy_protocol;
+    server_name plantuml.bevz.dev;
+
+    ssl_certificate /etc/letsencrypt/live/bevz-dev-wildcard/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/bevz-dev-wildcard/privkey.pem;
+    ssl_trusted_certificate /etc/letsencrypt/live/bevz-dev-wildcard/chain.pem; 
+    include conf.d/ssl-params.conf;
+    include conf.d/gzip.conf;
+    proxy_intercept_errors on;
+    error_page 400 404 =404 /404.html;
+    location = /404.html { root /var/www/html; }
+    
+    limit_req zone=mylimit burst=10 nodelay;
+
+    location / {
+        proxy_pass {{ nginx_proxy_upstreams.plantuml_http }}/;
+        include conf.d/proxy-params-websockets.conf;
+    }
+}
+
+server {
+    listen 127.0.0.1:1443 ssl http2 proxy_protocol;
+    server_name minio.bevz.net;
+
+    ssl_certificate /etc/letsencrypt/live/bevz-net-wildcard/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/bevz-net-wildcard/privkey.pem;
+    ssl_trusted_certificate /etc/letsencrypt/live/bevz-net-wildcard/chain.pem; 
+    include conf.d/ssl-params.conf;
+    limit_req zone=mylimit burst=10 nodelay;
+
+    location / {
+        proxy_set_header Host $http_host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_connect_timeout 300;
+        proxy_http_version 1.1;
+        proxy_set_header Connection "";
+        chunked_transfer_encoding off;
+        proxy_pass {{ nginx_proxy_upstreams.minio_console }};
+    }
+}
+
+server {
+    listen 127.0.0.1:1443 ssl http2 proxy_protocol;
+    server_name harbor.bevz.net;
+
+    ssl_certificate /etc/letsencrypt/live/bevz-net-wildcard/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/bevz-net-wildcard/privkey.pem;
+    ssl_trusted_certificate /etc/letsencrypt/live/bevz-net-wildcard/chain.pem; 
+    include conf.d/ssl-params.conf;
+    limit_req zone=mylimit burst=10 nodelay;
+    
+    client_max_body_size 0; 
+    
+    location / {
+        proxy_set_header Host $http_host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_connect_timeout 600;
+        proxy_send_timeout 600;
+        proxy_read_timeout 600; 
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+        
+        proxy_pass http://{{ nginx_proxy_upstreams.gitlab_http }}; 
+    }
+}
+
+server {
+    listen 127.0.0.1:1443 ssl http2 proxy_protocol;
+    server_name homelab.bevz.net;
+
+    ssl_certificate /etc/letsencrypt/live/bevz-net-wildcard/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/bevz-net-wildcard/privkey.pem;
+    ssl_trusted_certificate /etc/letsencrypt/live/bevz-net-wildcard/chain.pem; 
+    include conf.d/ssl-params.conf;
+    
+    location / {
+        proxy_pass {{ nginx_proxy_upstreams.proxmox_https }}; 
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+        
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_buffering off; 
+        
+        proxy_ssl_verify off; 
+    }
+}

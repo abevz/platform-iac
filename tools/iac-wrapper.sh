@@ -76,6 +76,23 @@ load_ansible_secrets_to_temp_file() {
 load_tofu_secrets_to_temp_file() {
   log "Расшифровка секретов Tofu (для -var-file)..."
 
+  local COMPONENT="$1"
+
+  log "Расшифровка секретов Tofu (для -var-file)..."
+
+  # --- НАЧАЛО: ИСПРАВЛЕНИЕ "КУРИЦЫ И ЯЙЦА" (Proxmox URL) ---
+  local PROXMOX_ENDPOINT
+  PROXMOX_ENDPOINT=$(sops -d "$PROXMOX_SECRETS_FILE" | yq -r '.PROXMOX_VE_ENDPOINT')
+
+  if [ "$COMPONENT" == "nginx-proxy" ] || [ "$COMPONENT" == "minio" ]; then
+    log "ВНИМАНИЕ: Bootstrap-компонент. Переопределяем proxmox_api_url на прямой IP (10.10.10.101)."
+    # (IP взят из Вашего конфига nginx для homelab.bevz.net)
+    PROXMOX_ENDPOINT="https://10.10.10.101"
+  else
+    log "INFO: Service-компонент. Используем proxmox_api_url из Sops (${PROXMOX_ENDPOINT})."
+  fi
+  # --- КОНЕЦ: ИСПРАВЛЕНИЕ "КУРИЦЫ И ЯЙЦА" ---
+
   local PROXMOX_JSON
   PROXMOX_JSON=$(sops -d "$PROXMOX_SECRETS_FILE" | yq -o json | jq -r '
       {
@@ -163,7 +180,7 @@ deploy)
   ENV="$1"
   COMPONENT="$2"
 
-  load_tofu_secrets_to_temp_file
+  load_tofu_secrets_to_temp_file "$COMPONENT"
 
   TERRAFORM_DIR="${REPO_ROOT}/infra/${ENV}/${COMPONENT}"
   TF_STATE_KEY="infra/${ENV}/${COMPONENT}.tfstate"
@@ -198,7 +215,7 @@ apply)
   ENV="$1"
   COMPONENT="$2"
 
-  load_tofu_secrets_to_temp_file
+  load_tofu_secrets_to_temp_file "$COMPONENT"
 
   TERRAFORM_DIR="${REPO_ROOT}/infra/${ENV}/${COMPONENT}"
   TF_STATE_KEY="infra/${ENV}/${COMPONENT}.tfstate"
@@ -206,7 +223,18 @@ apply)
 
   log "Запуск Tofu Apply для '$COMPONENT'..."
   cd "$TERRAFORM_DIR"
-  tofu init -reconfigure -backend-config="bucket=${TF_STATE_BUCKET}" -backend-config="key=${TF_STATE_KEY}"
+
+  if [ "$COMPONENT" == "nginx-proxy" ] || [ "$COMPONENT" == "minio" ]; then
+    log "ВНИМАНИЕ: Обнаружен bootstrap-компонент. Принудительная очистка .terraform/ для локального стейта..."
+    rm -rf .terraform/ .terraform.lock.hcl
+    log "ВНИМАНИЕ: Запуск 'tofu init' с ЛОКАЛЬНЫМ стейтом (bootstrap)."
+    tofu init
+  else
+    log "Запуск 'tofu init' с S3-бэкендом..."
+    tofu init -reconfigure -backend-config="bucket=${TF_STATE_BUCKET}" -backend-config="key=${TF_STATE_KEY}"
+  fi
+
+  #tofu init -reconfigure -backend-config="bucket=${TF_STATE_BUCKET}" -backend-config="key=${TF_STATE_KEY}"
 
   tofu apply -auto-approve "$TOFU_VARS_ARG"
 
@@ -304,7 +332,7 @@ configure)
   COMPONENT="$2"
   LIMIT_TARGET="${3:-all}"
 
-  load_tofu_secrets_to_temp_file
+  load_tofu_secrets_to_temp_file "$COMPONENT"
 
   TERRAFORM_DIR="${REPO_ROOT}/infra/${ENV}/${COMPONENT}"
   TF_STATE_KEY="infra/${ENV}/${COMPONENT}.tfstate" # Используется в tofu_cache_outputs
@@ -357,7 +385,7 @@ run-playbook)
   EXTRA_ANSIBLE_ARGS="$@"
   ANSIBLE_VARS_ARG=""
 
-  load_tofu_secrets_to_temp_file
+  load_tofu_secrets_to_temp_file "$COMPONENT"
 
   TERRAFORM_DIR="${REPO_ROOT}/infra/${ENV}/${COMPONENT}"
   TF_STATE_KEY="infra/${ENV}/${COMPONENT}.tfstate"
@@ -444,14 +472,25 @@ plan | destroy)
   ENV="$1"
   COMPONENT="$2"
 
-  load_tofu_secrets_to_temp_file
+  load_tofu_secrets_to_temp_file "$COMPONENT"
 
   TERRAFORM_DIR="${REPO_ROOT}/infra/${ENV}/${COMPONENT}"
   TF_STATE_KEY="infra/${ENV}/${COMPONENT}.tfstate"
 
   log "Запуск Tofu '$ACTION' для '$COMPONENT'..."
   cd "$TERRAFORM_DIR"
-  tofu init -reconfigure -backend-config="bucket=${TF_STATE_BUCKET}" -backend-config="key=${TF_STATE_KEY}"
+
+  if [ "$COMPONENT" == "nginx-proxy" ] || [ "$COMPONENT" == "minio" ]; then
+    log "ВНИМАНИЕ: Обнаружен bootstrap-компонент. Принудительная очистка .terraform/ для локального стейта..."
+    rm -rf .terraform/ .terraform.lock.hcl
+    log "ВНИМАНИЕ: Запуск 'tofu init' с ЛОКАЛЬНЫМ стейтом (bootstrap)."
+    tofu init
+  else
+    log "Запуск 'tofu init' с S3-бэкендом..."
+    tofu init -reconfigure -backend-config="bucket=${TF_STATE_BUCKET}" -backend-config="key=${TF_STATE_KEY}"
+  fi
+
+  #tofu init -reconfigure -backend-config="bucket=${TF_STATE_BUCKET}" -backend-config="key=${TF_STATE_KEY}"
 
   if [ "$ACTION" == "plan" ]; then
     tofu plan "$TOFU_VARS_ARG"
@@ -496,14 +535,25 @@ start)
   ENV="$1"
   COMPONENT="$2"
 
-  load_tofu_secrets_to_temp_file
+  load_tofu_secrets_to_temp_file "$COMPONENT"
 
   TERRAFORM_DIR="${REPO_ROOT}/infra/${ENV}/${COMPONENT}"
   TF_STATE_KEY="infra/${ENV}/${COMPONENT}.tfstate"
 
   log "Запуск Tofu Apply (var.vm_started=true) для '$COMPONENT'..."
   cd "$TERRAFORM_DIR"
-  tofu init -reconfigure -backend-config="bucket=${TF_STATE_BUCKET}" -backend-config="key=${TF_STATE_KEY}"
+
+  if [ "$COMPONENT" == "nginx-proxy" ] || [ "$COMPONENT" == "minio" ]; then
+    log "ВНИМАНИЕ: Обнаружен bootstrap-компонент. Принудительная очистка .terraform/ для локального стейта..."
+    rm -rf .terraform/ .terraform.lock.hcl
+    log "ВНИМАНИЕ: Запуск 'tofu init' с ЛОКАЛЬНЫМ стейтом (bootstrap)."
+    tofu init
+  else
+    log "Запуск 'tofu init' с S3-бэкендом..."
+    tofu init -reconfigure -backend-config="bucket=${TF_STATE_BUCKET}" -backend-config="key=${TF_STATE_KEY}"
+  fi
+
+  #tofu init -reconfigure -backend-config="bucket=${TF_STATE_BUCKET}" -backend-config="key=${TF_STATE_KEY}"
 
   tofu apply -var="vm_started=true" -auto-approve "$TOFU_VARS_ARG"
   ;;
@@ -518,14 +568,25 @@ stop)
   ENV="$1"
   COMPONENT="$2"
 
-  load_tofu_secrets_to_temp_file
+  load_tofu_secrets_to_temp_file "$COMPONENT"
 
   TERRAFORM_DIR="${REPO_ROOT}/infra/${ENV}/${COMPONENT}"
   TF_STATE_KEY="infra/${ENV}/${COMPONENT}.tfstate"
 
   log "Запуск Tofu Apply (var.vm_started=false) для '$COMPONENT'..."
   cd "$TERRAFORM_DIR"
-  tofu init -reconfigure -backend-config="bucket=${TF_STATE_BUCKET}" -backend-config="key=${TF_STATE_KEY}"
+
+  if [ "$COMPONENT" == "nginx-proxy" ] || [ "$COMPONENT" == "minio" ]; then
+    log "ВНИМАНИЕ: Обнаружен bootstrap-компонент. Принудительная очистка .terraform/ для локального стейта..."
+    rm -rf .terraform/ .terraform.lock.hcl
+    log "ВНИМАНИЕ: Запуск 'tofu init' с ЛОКАЛЬНЫМ стейтом (bootstrap)."
+    tofu init
+  else
+    log "Запуск 'tofu init' с S3-бэкендом..."
+    tofu init -reconfigure -backend-config="bucket=${TF_STATE_BUCKET}" -backend-config="key=${TF_STATE_KEY}"
+  fi
+
+  #tofu init -reconfigure -backend-config="bucket=${TF_STATE_BUCKET}" -backend-config="key=${TF_STATE_KEY}"
 
   tofu apply -var="vm_started=false" -auto-approve "$TOFU_VARS_ARG"
   ;;
@@ -539,7 +600,7 @@ get-inventory)
   ENV="$1"
   COMPONENT="$2"
 
-  load_tofu_secrets_to_temp_file
+  load_tofu_secrets_to_temp_file "$COMPONENT"
 
   TERRAFORM_DIR="${REPO_ROOT}/infra/${ENV}/${COMPONENT}"
   TF_STATE_KEY="infra/${ENV}/${COMPONENT}.tfstate"
@@ -572,7 +633,7 @@ print-envs)
   TF_STATE_KEY="infra/${ENV}/${COMPONENT}.tfstate"
 
   # Загрузка всех секретов и аргументов
-  load_tofu_secrets_to_temp_file
+  load_tofu_secrets_to_temp_file "$COMPONENT"
   load_ansible_secrets_to_temp_file
 
   log "--- Tofu Arguments and Environment ---"

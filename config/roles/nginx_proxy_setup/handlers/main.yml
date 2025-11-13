@@ -1,0 +1,9 @@
+# config/roles/nginx_proxy_setup/handlers/main.yml
+# /config/roles/nginx_proxy_setup/handlers/main.yml
+---
+- name: Restart nginx-proxy
+  ansible.builtin.docker_compose:
+    project_src: "{{ nginx_proxy_root_dir }}"
+    state: present
+    restarted: yes
+  become: yes
