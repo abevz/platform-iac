@@ -1,0 +1,67 @@
+# config/roles/certbot_setup/tasks/main.yml
+# /config/roles/certbot_setup/tasks/main.yml
+---
+- name: Установить/Удалить зависимости (python venv)
+  ansible.builtin.apt:
+    name: python3-venv
+    state: "{{ addon_state }}"
+  become: yes
+
+- name: Создать/Удалить Python venv для Certbot
+  ansible.builtin.file:
+    path: "{{ certbot_venv_path }}"
+    state: "{{ 'directory' if addon_state == 'present' else 'absent' }}"
+  become: yes
+
+- name: Установить/Удалить Certbot и плагин dns-multi в venv
+  ansible.builtin.pip:
+    name:
+      - pip
+      - certbot
+      - certbot-dns-multi
+    virtualenv: "{{ certbot_venv_path }}"
+    state: "{{ addon_state }}"
+  become: yes
+
+- name: Создать/Удалить символическую ссылку на certbot
+  ansible.builtin.file:
+    src: "{{ certbot_venv_path }}/bin/certbot"
+    dest: /usr/bin/certbot
+    state: "{{ 'link' if addon_state == 'present' else 'absent' }}"
+  become: yes
+
+- name: Создать/Удалить директорию /etc/letsencrypt
+  ansible.builtin.file:
+    path: /etc/letsencrypt
+    state: "{{ 'directory' if addon_state == 'present' else 'absent' }}"
+    mode: "0700"
+  become: yes
+
+- name: Убедиться, что токен Cloudflare доступен (из Sops)
+  ansible.builtin.fail:
+    msg: "Переменная 'cloudflare.api_token' не найдена в Sops (extra_vars.sops.yml)"
+  when: (cloudflare.api_token is not defined or cloudflare.api_token | length == 0) and addon_state == "present"
+
+- name: Создать/Удалить файл учетных данных dns-multi.ini
+  ansible.builtin.template:
+    src: dns-multi.ini.j2 # Этот шаблон должен содержать "CLOUDFLARE_DNS_API_TOKEN = {{ cloudflare.api_token }}"
+    dest: "{{ certbot_credentials_path }}"
+    mode: "0600"
+    state: "{{ 'file' if addon_state == 'present' else 'absent' }}"
+  become: yes
+
+- name: Запросить сертификаты Let's Encrypt (idempotent)
+  ansible.builtin.command:
+    cmd: >
+      certbot certonly
+      -a dns-multi
+      --dns-multi-credentials={{ certbot_credentials_path }}
+      -d "{{ item.domains | join(',') }}"
+      --agree-tos
+      --email {{ certbot_email }}
+      --non-interactive
+      --cert-name {{ item.name }}
+    creates: "/etc/letsencrypt/live/{{ item.name }}/fullchain.pem"
+  become: yes
+  loop: "{{ certbot_domains_to_create }}"
+  when: addon_state == "present"

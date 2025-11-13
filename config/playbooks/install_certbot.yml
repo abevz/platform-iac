@@ -1,0 +1,13 @@
+# config/playbooks/install_certbot.yml
+# /config/playbooks/install_certbot.yml
+---
+- name: Install or Uninstall Certbot (Host)
+  hosts: all
+  become: yes
+
+  vars:
+    # По умолчанию 'present'. Переопределить через -e "addon_state=absent"
+    addon_state: "present"
+
+  roles:
+    - role: certbot_setup

@@ -1,0 +1,65 @@
+# config/roles/nginx_proxy_setup/tasks/main.yml
+# /config/roles/nginx_proxy_setup/tasks/main.yml
+---
+- name: Убедиться, что Docker и Docker Compose установлены
+  ansible.builtin.apt:
+    name:
+      - docker-ce
+      - docker-compose-plugin # (Современный 'docker compose')
+    state: present
+    update_cache: yes
+  become: yes
+
+- name: Убедиться, что директории для Nginx Proxy существуют
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    mode: "0755"
+  become: yes
+  loop:
+    - "{{ nginx_proxy_root_dir }}"
+    - "{{ nginx_proxy_root_dir }}/logs"
+    - "{{ nginx_proxy_root_dir }}/html"
+    - "{{ nginx_proxy_root_dir }}/nginx-conf"
+
+- name: Скопировать главный nginx.conf
+  ansible.builtin.template:
+    src: nginx.conf.j2
+    dest: "{{ nginx_proxy_root_dir }}/nginx.conf"
+    mode: "0644"
+  become: yes
+  notify: Restart nginx-proxy
+
+- name: Скопировать snippety Nginx (gzip, ssl, websockets)
+  ansible.builtin.copy:
+    src: "{{ item }}"
+    dest: "{{ nginx_proxy_root_dir }}/nginx-conf/{{ item }}"
+    mode: "0644"
+  become: yes
+  loop:
+    - "gzip.conf"
+    - "ssl-params.conf"
+    - "proxy-params-websockets.conf"
+  notify: Restart nginx-proxy
+
+- name: Скопировать конфигурацию vhost (default.conf)
+  ansible.builtin.template:
+    src: default.conf.j2
+    dest: "{{ nginx_proxy_root_dir }}/nginx-conf/default.conf"
+    mode: "0644"
+  become: yes
+  notify: Restart nginx-proxy
+
+- name: Скопировать docker-compose.yml
+  ansible.builtin.template:
+    src: docker-compose.yml.j2
+    dest: "{{ nginx_proxy_root_dir }}/docker-compose.yml"
+    mode: "0644"
+  become: yes
+  notify: Restart nginx-proxy
+
+- name: Убедиться, что Nginx Proxy запущен (Docker Compose)
+  ansible.builtin.docker_compose:
+    project_src: "{{ nginx_proxy_root_dir }}"
+    state: "{{ addon_state | default('present') }}" # 'present' = up, 'absent' = down
+  become: yes

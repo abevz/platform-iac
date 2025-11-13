@@ -1,0 +1,60 @@
+# /config/roles/nginx_proxy_setup/templates/nginx.conf.j2
+# Файл управляется Ansible. НЕ РЕДАКТИРОВАТЬ ВРУЧНУЮ.
+user  nginx;
+worker_processes  auto;
+
+error_log  /var/log/nginx/error.log warn;
+pid        /var/run/nginx.pid;
+
+events {
+    worker_connections  1024;
+}
+
+stream {
+    map $ssl_preread_server_name $backend_stream {
+        ~^(.*)\.k8s\.bevz\.net$  {{ nginx_proxy_upstreams.k8s_ingress }};
+        default                 127.0.0.1:1443;
+    }
+
+    server {
+        listen 443;
+        listen [::]:443;
+
+        proxy_pass $backend_stream;
+        ssl_preread on;
+        proxy_protocol on;
+    }
+
+    server {
+        listen 2222; 
+        proxy_pass {{ nginx_proxy_upstreams.gitlab_ssh }};
+        proxy_timeout 3600s;
+        proxy_connect_timeout 60s;
+    }
+
+    server {
+        listen 22006; 
+        proxy_pass {{ nginx_proxy_upstreams.proxmox_ssh }};
+        proxy_timeout 3600s;
+        proxy_connect_timeout 60s;
+    }
+}
+
+http {
+    include       /etc/nginx/mime.types;
+    default_type  application/octet-stream;
+
+    log_format  main  '$remote_addr - $remote_user [$time_local] "$request" '
+                      '$status $body_bytes_sent "$http_referer" '
+                      '"$http_user_agent" "$http_x_forwarded_for"';
+
+    access_log  /var/log/nginx/access.log  main;
+
+    limit_req_zone $binary_remote_addr zone=mylimit:10m rate=5r/s;
+
+    sendfile        on;
+    tcp_nopush      on;
+    keepalive_timeout  65;
+
+    include /etc/nginx/conf.d/*.conf;
+}
