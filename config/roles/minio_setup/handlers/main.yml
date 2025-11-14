@@ -1,0 +1,8 @@
+# config/roles/minio_setup/handlers/main.yml
+---
+# /config/roles/minio_setup/handlers/main.yml
+- name: Restart minio-server
+  community.docker.docker_compose_v2:
+    project_src: "{{ minio_root_dir }}"
+    state: restarted
+  become: yes

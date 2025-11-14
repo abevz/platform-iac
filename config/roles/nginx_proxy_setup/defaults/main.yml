@@ -13,8 +13,8 @@ nginx_proxy_upstreams:
   # Используются в 'http', префикс нужен в переменной
   wiki_http: "http://10.10.10.5:3000"
   plantuml_http: "http://10.10.10.5:18080"
-  minio_s3_api: "http://minioserver.bevz.net:9000"
-  minio_console: "http://minioserver.bevz.net:9001"
+  minio_s3_api: "http://minio-server:9000"
+  minio_console: "http://minio-server:9001"
   proxmox_https: "https://10.10.10.101:8006"
 
   # Используются в 'http', НО префикс 'http://' уже есть в шаблоне .j2
