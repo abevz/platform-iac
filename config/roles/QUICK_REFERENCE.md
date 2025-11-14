@@ -175,6 +175,30 @@ kubectl port-forward svc/argocd-server -n argocd 8080:443
 **Tags:** `bom`  
 **Use cases:** Supply chain security, SBOM generation
 
+### nginx_proxy_setup
+**Purpose:** Configure Nginx reverse proxy with Docker Compose  
+**Tags:** `nginx_proxy`  
+**Use cases:** Reverse proxy for services, SSL termination
+
+```yaml
+vars:
+  nginx_proxy_vhosts:
+    - domain: "example.com"
+      upstream: "http://backend:8080"
+```
+
+### certbot_setup
+**Purpose:** Setup Certbot for Let's Encrypt SSL certificates  
+**Tags:** `certbot`  
+**Features:** Automatic certificate renewal, DNS-01 challenge support
+
+```yaml
+vars:
+  certbot_domains:
+    - "example.com"
+    - "*.example.com"
+```
+
 ## Role Usage Patterns
 
 ### Install Single Add-on
