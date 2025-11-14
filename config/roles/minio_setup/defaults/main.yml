@@ -1,0 +1,6 @@
+# config/roles/minio_setup/defaults/main.yml
+---
+# /config/roles/minio_setup/defaults/main.yml
+minio_root_dir: "/srv/minio"
+minio_data_dir: "/srv/minio/data"
+minio_config_dir: "/srv/minio/config"
