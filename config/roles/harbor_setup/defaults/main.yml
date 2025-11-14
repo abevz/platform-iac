@@ -1,0 +1,5 @@
+# config/roles/harbor_setup/defaults/main.yml
+---
+# /config/roles/harbor_setup/defaults/main.yml
+harbor_install_dir: "/srv/harbor"
+harbor_version: "v2.14.0" # (Или v2.10.x, если v2.11+ вызывает проблемы)
