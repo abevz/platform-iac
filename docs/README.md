@@ -21,7 +21,8 @@ Complete documentation for the Platform Infrastructure as Code project - a unive
 - [Security Policies](../kubernetes/policies/README.md) - Network policies, PSS, RBAC examples
 
 ### Tools & Utilities
-- [IAC Wrapper](../tools/iac-wrapper.sh) - Unified deployment orchestration
+- **[IAC Wrapper Guide](./IAC_WRAPPER.md)** ⭐ - Complete iac-wrapper.sh reference and command guide
+- [IAC Wrapper Script](../tools/iac-wrapper.sh) - The orchestration script itself
 - [Pi-hole DNS Integration](../tools/add_pihole_dns.py) - Automatic DNS record management
 
 ## 🏗️ Infrastructure Types

@@ -19,6 +19,7 @@ The entire process is orchestrated by a master wrapper script (`tools/iac-wrappe
 
 ### 🎯 Quick Access
 - **[📖 Complete Documentation](docs/README.md)** - Full platform guide with workflows
+- **[🛠️ IAC Wrapper Guide](docs/IAC_WRAPPER.md)** ⭐ - Central orchestration script reference
 - **[⚡ Quick Reference](docs/CHEATSHEET.md)** - Command cheat sheet for daily use
 - **[🏗️ Architecture](docs/ARCHITECTURE.md)** - Visual diagrams and system design
 - **[📑 Documentation Index](docs/INDEX.md)** - Complete documentation catalog

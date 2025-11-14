@@ -9,6 +9,7 @@ Complete documentation index for the Platform Infrastructure as Code project.
 | [Main README](../README.md) | Project overview and setup instructions | Everyone |
 | [Complete Documentation](./README.md) | Full platform documentation with workflows | Operators, Developers |
 | [Architecture Guide](./ARCHITECTURE.md) | Visual architecture and component diagrams | Architects, DevOps |
+| **[IAC Wrapper Guide](./IAC_WRAPPER.md)** ⭐ | Complete iac-wrapper.sh command reference | DevOps, Operators |
 | [Cheat Sheet](./CHEATSHEET.md) | Quick command reference | Daily users |
 
 ## 🎭 Role Documentation
