@@ -27,6 +27,8 @@ Complete documentation index for the Platform Infrastructure as Code project.
 | k8s_bootstrap_node | Bootstrap Kubernetes nodes with containerd | [README](../config/roles/k8s_bootstrap_node/README.md) |
 | k8s_cluster_manager | Initialize control plane and join workers | - |
 | set_timezone | Configure system timezone | - |
+| nginx_proxy_setup | Nginx reverse proxy with Docker Compose | - |
+| certbot_setup | Let's Encrypt SSL certificate automation | - |
 
 ### Networking Roles
 

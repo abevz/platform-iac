@@ -32,6 +32,8 @@ This directory contains Ansible roles for bootstrapping and managing Kubernetes 
 | [apparmor_configure](./apparmor_configure/README.md) | Configure AppArmor security profiles | `apparmor` |
 | [set_timezone](./set_timezone/README.md) | Configure system timezone | `timezone` |
 | [bom_install](./bom_install/README.md) | Install Bill of Materials (BOM) tooling | `bom` |
+| [nginx_proxy_setup](./nginx_proxy_setup/README.md) | Configure Nginx reverse proxy with Docker Compose | `nginx_proxy` |
+| [certbot_setup](./certbot_setup/README.md) | Setup Certbot for Let's Encrypt SSL certificates | `certbot` |
 
 ## Prerequisites
 
@@ -88,6 +90,8 @@ ansible-playbook -i config/inventory/static.ini config/playbooks/setup_k8s-lab-0
 - **k8s_bootstrap_node**: Core Kubernetes node setup
 - **k8s_cluster_manager**: Cluster initialization and management
 - **set_timezone**: System configuration
+- **nginx_proxy_setup**: Nginx reverse proxy with Docker Compose
+- **certbot_setup**: Let's Encrypt SSL certificate automation
 
 ### 🌐 Networking Roles
 - **calico_install_manifest / calico_install_helm**: CNI networking
