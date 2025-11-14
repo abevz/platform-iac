@@ -15,7 +15,8 @@ ansible-playbook playbook.yml --tags k8s_bootstrap
 
 ### k8s_cluster_manager
 **Purpose:** Initialize control plane and join worker nodes  
-**Tags:** `init_cluster`, `join_workers`
+**Tags:** `init_cluster`, `join_workers`  
+**Docs:** [Full Documentation](./k8s_cluster_manager/README.md)
 
 ```bash
 ansible-playbook playbook.yml --tags init_cluster,join_workers
@@ -35,22 +36,26 @@ vars:
 ### calico_install_manifest
 **Purpose:** Install Calico CNI via Kubernetes manifests  
 **Tags:** `calico`  
-**Default CIDR:** `10.244.0.0/16`
+**Default CIDR:** `10.244.0.0/16`  
+**Docs:** [Full Documentation](./calico_install_manifest/README.md)
 
 ### calico_install_helm
 **Purpose:** Install Calico CNI via Helm  
 **Tags:** `calico`  
-**Recommended for:** Production environments
+**Recommended for:** Production environments  
+**Docs:** [Full Documentation](./calico_install_helm/README.md)
 
 ### cilium_install_helm
 **Purpose:** Install Cilium CNI with eBPF-based networking  
 **Tags:** `cilium`  
-**Features:** kube-proxy replacement, Hubble observability
+**Features:** kube-proxy replacement, Hubble observability  
+**Docs:** [Full Documentation](./cilium_install_helm/README.md)
 
 ### metallb_install
 **Purpose:** Provide LoadBalancer type services on bare-metal  
 **Tags:** `metallb`  
-**Requires:** IP address pool configuration
+**Requires:** IP address pool configuration  
+**Docs:** [Full Documentation](./metallb_install/README.md)
 
 ```yaml
 metallb_ip_range: "192.168.1.200-192.168.1.250"
@@ -135,7 +140,8 @@ sudo aa-status
 ### cert_manager_install
 **Purpose:** Automated TLS certificate management  
 **Tags:** `cert_manager`  
-**Supports:** Let's Encrypt, self-signed, Vault
+**Supports:** Let's Encrypt, self-signed, Vault  
+**Docs:** [Full Documentation](./cert_manager_install/README.md)
 
 ```yaml
 apiVersion: cert-manager.io/v1
@@ -178,7 +184,8 @@ kubectl port-forward svc/argocd-server -n argocd 8080:443
 ### nginx_proxy_setup
 **Purpose:** Configure Nginx reverse proxy with Docker Compose  
 **Tags:** `nginx_proxy`  
-**Use cases:** Reverse proxy for services, SSL termination
+**Use cases:** Reverse proxy for services, SSL termination  
+**Docs:** [Full Documentation](./nginx_proxy_setup/README.md)
 
 ```yaml
 vars:
@@ -190,7 +197,8 @@ vars:
 ### certbot_setup
 **Purpose:** Setup Certbot for Let's Encrypt SSL certificates  
 **Tags:** `certbot`  
-**Features:** Automatic certificate renewal, DNS-01 challenge support
+**Features:** Automatic certificate renewal, DNS-01 challenge support  
+**Docs:** [Full Documentation](./certbot_setup/README.md)
 
 ```yaml
 vars:
