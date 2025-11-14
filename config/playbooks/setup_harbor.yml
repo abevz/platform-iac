@@ -1,0 +1,10 @@
+# config/playbooks/setup_harbor.yml
+---
+# /config/playbooks/setup_harbor.yml
+- name: Setup Harbor Server
+  hosts: harbor_servers # (Имя группы из Tofu outputs.tf)
+  become: yes
+
+  roles:
+    - role: set_timezone
+    - role: harbor_setup

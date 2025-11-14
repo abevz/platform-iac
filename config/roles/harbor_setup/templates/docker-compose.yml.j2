@@ -1,0 +1,165 @@
+# /config/roles/harbor_setup/templates/docker-compose.yml.j2
+# Файл управляется Ansible.
+# В ЭТОЙ ВЕРСИИ ДОБАВЛЕНЫ 'healthcheck' И 'depends_on' ДЛЯ ИСПРАВЛЕНИЯ 'connection refused'
+
+services:
+  # Nginx (Встроенный прокси Harbor, не Ваш внешний nginx-proxy)
+  nginx:
+    image: goharbor/nginx-photon:{{ harbor_version }}
+    container_name: nginx
+    restart: unless-stopped
+    ports:
+      - "80:8080" # Мы открываем 8080 как порт 80, как указано в harbor.yml
+    volumes:
+      - ./common/config/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      harbor-core:
+        condition: service_healthy # 👈 Ждать, пока 'core' будет здоров
+      harbor-portal:
+        condition: service_started
+    networks:
+      - harbor
+
+  # Harbor Core (Главный API)
+  harbor-core:
+    image: goharbor/harbor-core:{{ harbor_version }}
+    container_name: harbor-core
+    restart: unless-stopped
+    volumes:
+      - ./common/config/core/app.conf:/etc/core/app.conf:ro
+      - ./common/config/core/private_key.pem:/etc/core/private_key.pem:ro
+      - /data/ca_download/:/data/ca_download/:ro
+      - /data/psc/:/data/psc/:ro
+      - /data/secret:/etc/core/secret
+    networks:
+      - harbor
+    depends_on:
+      harbor-db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    # 👈 *** КЛЮЧЕВОЕ ИСПРАВЛЕНИЕ ***
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8080/api/v2.0/ping || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s # Дать 30с на миграцию БД перед первой проверкой
+
+  # Harbor Jobservice (Который падал)
+  harbor-jobservice:
+    image: goharbor/harbor-jobservice:{{ harbor_version }}
+    container_name: harbor-jobservice
+    restart: unless-stopped
+    volumes:
+      - ./common/config/jobservice/app.conf:/etc/jobservice/app.conf:ro
+      - /data/job_logs:/var/log/jobs:rw
+      - /data/secret:/etc/jobservice/secret
+    networks:
+      - harbor
+    # 👈 *** КЛЮЧЕВОЕ ИСПРАВЛЕНИЕ ***
+    depends_on:
+      harbor-core:
+        condition: service_healthy # 👈 Запускаться ТОЛЬКО ПОСЛЕ 'core'
+      harbor-db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  # База данных
+  harbor-db:
+    image: goharbor/harbor-db:{{ harbor_version }}
+    container_name: harbor-db
+    restart: unless-stopped
+    volumes:
+      - /data/database:/var/lib/postgresql/data
+    networks:
+      - harbor
+    environment:
+      #POSTGRES_HOST_AUTH_METHOD: trust
+      POSTGRES_PASSWORD: "{{ harbor.db_password | default('ChangeThisDBPassword') }}"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Redis
+  redis:
+    image: goharbor/redis-photon:{{ harbor_version }}
+    container_name: redis
+    restart: unless-stopped
+    volumes:
+      - /data/redis:/data
+    networks:
+      - harbor
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli ping | grep PONG"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Остальные компоненты...
+  harbor-portal:
+    image: goharbor/harbor-portal:{{ harbor_version }}
+    container_name: harbor-portal
+    restart: unless-stopped
+    networks:
+      - harbor
+    depends_on:
+      harbor-core:
+        condition: service_healthy
+
+  registry:
+    image: goharbor/registry-photon:{{ harbor_version }}
+    container_name: registry
+    restart: unless-stopped
+    volumes:
+      - /data/registry:/storage
+      - ./common/config/registry/config.yml:/etc/registry/config.yml:ro
+    networks:
+      - harbor
+    depends_on:
+      harbor-db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  registryctl:
+    image: goharbor/registryctl-photon:{{ harbor_version }}
+    container_name: registryctl
+    restart: unless-stopped
+    volumes:
+      - ./common/config/registryctl/config.yml:/etc/registryctl/config.yml:ro
+    networks:
+      - harbor
+    depends_on:
+      registry:
+        condition: service_started
+
+  trivy:
+    image: goharbor/trivy-adapter-photon:{{ harbor_version }}
+    container_name: trivy
+    restart: unless-stopped
+    volumes:
+      - /data/trivy-adapter:/home/scanner
+    networks:
+      - harbor
+    depends_on:
+      harbor-core:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  harbor-log:
+    image: goharbor/harbor-log:{{ harbor_version }}
+    container_name: harbor-log
+    restart: unless-stopped
+    volumes:
+      - /var/log/harbor:/var/log/docker:rw
+    networks:
+      - harbor
+
+networks:
+  harbor:
+    external: false

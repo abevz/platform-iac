@@ -1,7 +1,7 @@
 ---
 # ==============================================================================
 # ФАЗА 1: BOOTSTRAP (ВСЕ НОДЫ)
-# (k8s_bootstrap_node включает: sysctl, swap, containerd, Kubelet/Kubeadm, 
+# (k8s_bootstrap_node включает: sysctl, swap, containerd, Kubelet/Kubeadm,
 # Harbor Proxy, AppArmor/Seccomp setup)
 # ==============================================================================
 - name: 1. Bootstrap All Nodes and Kernel Security (Prereqs, Containerd, Kubelet)
@@ -13,10 +13,10 @@
   vars:
     # Переменные для Harbor. Приходят из SOPS (--extra-vars).
     # Используются ролями k8s_bootstrap_node и k8s_cluster_manager.
-    harbor_hostname: "{{ harbor.hostname | default('harbor.bevz.net') }}" 
+    harbor_hostname: "{{ harbor.hostname | default('harbor.bevz.net') }}"
     harbor_robot_username: "{{ harbor.robot_username | default('k8s-puller') }}"
     harbor_robot_token: "{{ harbor.robot_token | default('') }}"
-    k8s_short_version: "1.33" 
+    k8s_short_version: "1.33"
     k8s_long_version_debian: "1.33.0-1.1"
 
   roles:
@@ -32,24 +32,24 @@
   become: yes
   gather_facts: no
   tags: [cluster_manage]
-  
+
   vars:
     # Повторяем, чтобы быть уверенным в наличии (хотя должны быть из Фазы 1)
-    harbor_hostname: "{{ harbor.hostname | default('harbor.bevz.net') }}" 
+    harbor_hostname: "{{ harbor.hostname | default('harbor.bevz.net') }}"
     harbor_robot_username: "{{ harbor.robot_username | default('k8s-puller') }}"
-    harbor_robot_token: "{{ harbor.robot_token | default('') }}" 
-    k8s_short_version: "1.33" 
+    harbor_robot_token: "{{ harbor.robot_token | default('') }}"
+    k8s_short_version: "1.33"
     k8s_long_version_debian: "1.33.0-1.1"
- # <<< ДОБАВЛЯЕМ ПЕРЕМЕННУЮ ЗДЕСЬ >>>
-    # Определяем 'target_namespaces' прямо в плее, 
+    # <<< ДОБАВЛЯЕМ ПЕРЕМЕННУЮ ЗДЕСЬ >>>
+    # Определяем 'target_namespaces' прямо в плее,
     # чтобы обойти проблему с загрузкой group_vars
     target_namespaces:
       - default
       - kube-system
     # --- КОНЕЦ ИСПРАВЛЕНИЯ ---
-      #
+    #
   roles:
-    # Роль, включающая всю логику initialize_kubernetes_cluster_with_dns.yml, 
+    # Роль, включающая всю логику initialize_kubernetes_cluster_with_dns.yml,
     # но без CNI.
     - role: k8s_cluster_manager
 
@@ -61,10 +61,13 @@
   become: yes
   tags: [cni, cilium]
 
+  vars:
+    addon_state: "present"
+
   roles:
-    # ВНИМАНИЕ: Выберите только ОДНУ роль CNI. 
+    # ВНИМАНИЕ: Выберите только ОДНУ роль CNI.
     # В данном примере используется Cilium Helm.
-    - role: cilium_install_helm 
+    - role: cilium_install_helm
     #- role: cilium_install_cli
     #- role: calico_install_helm
     #- role: calico_install_manifest
@@ -92,6 +95,7 @@
       retries: 30
       delay: 10
       changed_when: false
+      ignore_errors: yes
 
     - name: Approve all found kubelet serving CSRs
       ansible.builtin.command: "kubectl certificate approve {{ item }}"
@@ -109,21 +113,21 @@
         msg: |
           Final Cluster Status:
           {{ final_cluster_status.stdout }}
-      
+
 # ==============================================================================
 # ФАЗА 4: УСТАНОВКА ИНСТРУМЕНТОВ БЕЗОПАСНОСТИ
 # ==============================================================================
 - name: 4. Deploy CKS Security Tooling (Falco and Trivy)
-  hosts: k8s_master 
+  hosts: k8s_master
   become: yes
   tags: [security]
-  
+
   roles:
     # Развертывание Falco (DaemonSet через Helm)
-    - role: falco_install_package 
+    - role: falco_install_package
 
     # Установка Trivy CLI на мастер-ноду (для сканирования)
-    - role: trivy_package_install 
-    
+    - role: trivy_package_install
+
     # Развертывание Trivy Operator (в кластер)
     - role: trivy_operator_deploy

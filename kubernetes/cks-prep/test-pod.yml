@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: harbor-test-pod
+spec:
+  containers:
+  - name: nginx
+    image: docker.io/library/nginx:latest
+    ports:
+    - containerPort: 80
