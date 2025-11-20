@@ -1,0 +1,9 @@
+# config/playbooks/setup_jenkins.yml
+---
+- name: Setup Jenkins Server
+  hosts: jenkins_servers
+  become: yes
+
+  roles:
+    - role: set_timezone
+    - role: jenkins_setup

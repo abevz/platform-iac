@@ -4,7 +4,7 @@
 - name: Установить целевую версию BOM
   ansible.builtin.set_fact:
     bom_target_version: >-
-      {{ requested_version | default(bom_version) }}
+      {{ requested_version | default(bom_version, true) }}
 
 - name: Скачать и установить BOM CLI (если нужен)
   ansible.builtin.shell: |
@@ -14,44 +14,51 @@
       aarch64) ARCH="arm64" ;;
       armv7l) ARCH="arm" ;;
     esac
-    
-    # Download binary and checksum
-    curl -L "https://github.com/kubernetes-sigs/bom/releases/download/v{{ bom_target_version }}/bom-${ARCH}-linux" -o /tmp/bom-${ARCH}-linux
-    curl -L "https://github.com/kubernetes-sigs/bom/releases/download/v{{ bom_target_version }}/bom-${ARCH}-linux.sha256" -o /tmp/bom-${ARCH}-linux.sha256
-    
-    # Verify checksum
-    if ! sha256sum --check /tmp/bom-${ARCH}-linux.sha256; then
-      echo "ERROR: BOM binary checksum verification failed!"
-      rm -f /tmp/bom-${ARCH}-linux /tmp/bom-${ARCH}-linux.sha256
+
+    BINARY_NAME="bom-${ARCH}-linux"
+
+    # 1. Скачиваем бинарник
+    curl -L "https://github.com/kubernetes-sigs/bom/releases/download/v{{ bom_target_version }}/${BINARY_NAME}" -o "/tmp/${BINARY_NAME}"
+
+    # 2. Скачиваем общий файл checksums.txt
+    curl -L "https://github.com/kubernetes-sigs/bom/releases/download/v{{ bom_target_version }}/checksums.txt" -o /tmp/bom_checksums.txt
+
+    # 3. Извлекаем ожидаемый хеш для нашего файла из checksums.txt
+    # Ищем строку, которая содержит имя нашего файла
+    EXPECTED_HASH=$(grep "${BINARY_NAME}$" /tmp/bom_checksums.txt | awk '{print $1}')
+
+    # 4. Вычисляем реальный хеш скачанного файла
+    ACTUAL_HASH=$(sha256sum "/tmp/${BINARY_NAME}" | awk '{print $1}')
+
+    # 5. Сравниваем
+    if [ -z "$EXPECTED_HASH" ]; then
+        echo "ERROR: Could not find hash for ${BINARY_NAME} in checksums.txt"
+        exit 1
+    fi
+
+    if [ "$ACTUAL_HASH" != "$EXPECTED_HASH" ]; then
+      echo "ERROR: Checksum mismatch!"
+      echo "Expected: $EXPECTED_HASH"
+      echo "Actual:   $ACTUAL_HASH"
+      rm -f "/tmp/${BINARY_NAME}" /tmp/bom_checksums.txt
       exit 1
     fi
-    
-    # Move to final location and set permissions
-    mv /tmp/bom-${ARCH}-linux /usr/local/bin/bom
+    echo "Checksum OK: $ACTUAL_HASH"
+
+    # 6. Установка
+    mv "/tmp/${BINARY_NAME}" /usr/local/bin/bom
     chmod +x /usr/local/bin/bom
-    rm -f /tmp/bom-${ARCH}-linux.sha256
+    rm -f /tmp/bom_checksums.txt
   args:
-    creates: /usr/local/bin/bom # Идемпотентность
+    creates: /usr/local/bin/bom
   when: addon_state == "present"
-  changed_when: true # (Сложно отследить, считаем что всегда меняет, если 'creates' не прошел)
+  changed_when: true
 
 - name: Удалить BOM CLI
   ansible.builtin.file:
     path: /usr/local/bin/bom
     state: absent
   when: addon_state == "absent"
-
-- name: Установить/Удалить зависимости (pip)
-  ansible.builtin.package:
-    name: python3-pip
-    state: "{{ addon_state }}" # 'present' или 'absent'
-
-- name: Установить/Удалить Python SPDX tools
-  ansible.builtin.pip:
-    name:
-      - spdx-tools
-      - cyclonedx-bom
-    state: "{{ addon_state }}"
 
 - name: Создать/Удалить неймспейс bom-system
   kubernetes.core.k8s:
@@ -98,77 +105,31 @@
         name: bom-scanner
         namespace: "{{ bom_namespace }}"
 
-- name: Создать/Удалить шаблон Job'а
-  ansible.builtin.copy:
-    content: |
-      apiVersion: batch/v1
-      kind: Job
-      metadata:
-        name: cluster-bom-scan
-        namespace: bom-system
-      spec:
-        template:
-          spec:
-            serviceAccountName: bom-scanner
-            containers:
-            - name: bom-scanner
-              image: alpine:latest
-              command:
-              - /bin/sh
-              - -c
-              - |
-                apk add --no-cache curl
-                curl -L "https://github.com/kubernetes-sigs/bom/releases/download/v{{ bom_target_version }}/bom-amd64-linux" -o /usr/local/bin/bom
-                chmod +x /usr/local/bin/bom
-                
-                echo "Scanning cluster for software components..."
-                kubectl get pods --all-namespaces -o jsonpath='{.items[*].spec.containers[*].image}' | tr ' ' '\n' | sort -u > /tmp/cluster-images.txt
-                
-                echo "Found images:"
-                cat /tmp/cluster-images.txt
-                
-                /usr/local/bin/bom generate -o /tmp/cluster-bom.spdx.json --format json /tmp/cluster-images.txt || true
-                
-                echo "BOM scan completed. Results:"
-                if [ -f /tmp/cluster-bom.spdx.json ]; then
-                  cat /tmp/cluster-bom.spdx.json
-                fi
-                sleep 30
-            restartPolicy: Never
-        backoffLimit: 3
+- name: Создать шаблон Job'а из файла
+  ansible.builtin.template:
+    src: bom-scan-job.yaml.j2
     dest: /tmp/bom-scan-job.yaml
-    mode: '0644'
-    state: "{{ addon_state }}" # (управляем файлом)
+    mode: "0644"
+  when: addon_state == "present"
 
-- name: Создать/Удалить скрипт k8s-bom-scan
-  ansible.builtin.copy:
-    content: |
-      #!/bin/bash
-      # Kubernetes Cluster Bill of Materials Generator
-      NAMESPACE="${1:-default}"
-      OUTPUT_DIR="${2:-/tmp/bom-reports}"
-      mkdir -p "$OUTPUT_DIR"
-      echo "Generating BOM for namespace: $NAMESPACE"
-      kubectl get pods -n "$NAMESPACE" -o jsonpath='{.items[*].spec.containers[*].image}' | \
-        tr ' ' '\n' | sort -u > "$OUTPUT_DIR/images-$NAMESPACE.txt"
-      echo "Found $(wc -l < "$OUTPUT_DIR/images-$NAMESPACE.txt") unique images"
-      if command -v bom >/dev/null 2>&1; then
-        echo "Generating SPDX document..."
-        bom generate -o "$OUTPUT_DIR/bom-$NAMESPACE.spdx.json" \
-          --format json "$OUTPUT_DIR/images-$NAMESPACE.txt" || true
-      fi
-      echo "# Bill of Materials Report for namespace: $NAMESPACE" > "$OUTPUT_DIR/report-$NAMESPACE.md"
-      echo "Generated: $(date)" >> "$OUTPUT_DIR/report-$NAMESPACE.md"
-      echo "" >> "$OUTPUT_DIR/report-$NAMESPACE.md"
-      echo "## Container Images" >> "$OUTPUT_DIR/report-$NAMESPACE.md"
-      while read -r image; do
-        echo "- $image" >> "$OUTPUT_DIR/report-$NAMESPACE.md"
-      done < "$OUTPUT_DIR/images-$NAMESPACE.txt"
-      echo "Reports generated in: $OUTPUT_DIR"
-      ls -la "$OUTPUT_DIR"
+- name: Удалить шаблон Job'а
+  ansible.builtin.file:
+    path: /tmp/bom-scan-job.yaml
+    state: absent
+  when: addon_state == "absent"
+
+- name: Создать скрипт k8s-bom-scan из шаблона
+  ansible.builtin.template:
+    src: k8s-bom-scan.sh.j2
     dest: /usr/local/bin/k8s-bom-scan
-    mode: '0755'
-    state: "{{ addon_state }}" # (управляем файлом)
+    mode: "0755"
+  when: addon_state == "present"
+
+- name: Удалить скрипт k8s-bom-scan
+  ansible.builtin.file:
+    path: /usr/local/bin/k8s-bom-scan
+    state: absent
+  when: addon_state == "absent"
 
 - name: Показать результат (только при установке)
   ansible.builtin.debug:
