@@ -96,3 +96,18 @@
     chdir: "{{ harbor_install_dir }}"
   become: yes
   changed_when: true # 'install' всегда считается изменением
+
+- name: Скопировать systemd unit-файл для Harbor
+  ansible.builtin.template:
+    src: harbor.service.j2
+    dest: /etc/systemd/system/harbor.service
+    mode: "0644"
+  become: yes
+  notify: Reload systemd
+
+- name: Включить сервис Harbor (для автозапуска при загрузке)
+  ansible.builtin.systemd:
+    name: harbor
+    enabled: yes
+    state: started # (Также запускаем его немедленно)
+  become: yes

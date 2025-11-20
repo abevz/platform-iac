@@ -1,0 +1,46 @@
+# deployment.yml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  creationTimestamp: null
+  labels:
+    app: imagepolicywebhook
+  name: imagepolicywebhook
+  namespace: imagepolicywebhook
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: imagepolicywebhook
+  strategy: {}
+  template:
+    metadata:
+      creationTimestamp: null
+      labels:
+        app: imagepolicywebhook
+    spec:
+      volumes:
+        - name: cert
+          secret:
+            secretName: webhook-server
+            items:
+              - key: tls.crt
+                path: webhook-server.crt
+        - name: key
+          secret:
+            secretName: webhook-server
+            items:
+              - key: tls.key
+                path: webhook-server.key
+      containers:
+        - image: harbor.bevz.net/library/imagepolicywebhook:latest
+          name: imagepolicywebhook
+          ports:
+            - containerPort: 443
+          volumeMounts:
+            - name: cert
+              readOnly: true
+              mountPath: /etc/ssl/certs/
+            - name: key
+              readOnly: true
+              mountPath: /etc/ssl/private/

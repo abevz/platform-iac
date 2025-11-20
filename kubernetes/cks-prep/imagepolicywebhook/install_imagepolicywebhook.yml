@@ -1,0 +1,25 @@
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: imagepolicywebhook
+  labels:
+    name: imagepolicywebhook
+---
+apiVersion: v1
+kind: Service
+metadata:
+  creationTimestamp: null
+  labels:
+    app: imagepolicywebhook
+  name: imagepolicywebhook
+  namespace: imagepolicywebhook
+spec:
+  ports:
+    - name: "443"
+      port: 443
+      protocol: TCP
+      targetPort: 443
+  selector:
+    app: imagepolicywebhook
+  type: ClusterIP

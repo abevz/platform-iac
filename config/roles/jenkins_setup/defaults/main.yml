@@ -1,0 +1,4 @@
+# config/roles/jenkins_setup/defaults/main.yml
+---
+jenkins_root_dir: "/srv/jenkins"
+jenkins_home_dir: "/srv/jenkins-home"

@@ -1,0 +1,9 @@
+# config/playbooks/setup_localstack.yml
+---
+- name: Setup LocalStack Server
+  hosts: localstack_servers
+  become: yes
+
+  roles:
+    - role: set_timezone
+    - role: localstack_setup

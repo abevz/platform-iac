@@ -3,7 +3,6 @@ server = "{{ upstream_server }}"
 
 [host."https://{{ harbor_hostname }}"]
   capabilities = ["pull", "resolve"]
-  override_path = true
   
 [host."https://{{ harbor_hostname }}".header]
 Authorization = ["Basic {{ harbor_auth }}"]

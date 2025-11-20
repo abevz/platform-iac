@@ -1,0 +1,64 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: cluster-bom-scan
+  namespace: {{ bom_namespace }}
+spec:
+  template:
+    spec:
+      serviceAccountName: bom-scanner
+      containers:
+      - name: bom-scanner
+        image: alpine:latest
+        command:
+        - /bin/sh
+        - -c
+        - |
+          # 1. Установка зависимостей
+          apk add --no-cache curl bash
+
+          # 2. Установка kubectl (нужен для получения списка подов)
+          curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
+          chmod +x kubectl
+          mv kubectl /usr/local/bin/
+
+          # 3. Установка bom
+          curl -L "https://github.com/kubernetes-sigs/bom/releases/download/v{{ bom_target_version }}/bom-amd64-linux" -o /usr/local/bin/bom
+          chmod +x /usr/local/bin/bom
+          
+          echo "Scanning cluster for software components..."
+          
+          # 4. Получение списка образов
+          kubectl get pods --all-namespaces -o jsonpath='{.items[*].spec.containers[*].image}' | tr ' ' '\n' | sort -u | grep -v "^$" > /tmp/cluster-images.txt
+          
+          IMAGE_COUNT=$(wc -l < /tmp/cluster-images.txt)
+          echo "Found $IMAGE_COUNT unique images"
+          
+          if [ "$IMAGE_COUNT" -eq 0 ]; then
+              echo "No images found."
+              exit 0
+          fi
+
+          # 5. Генерация SBOM (используем bash для массивов)
+          /bin/bash -c '
+            BOM_ARGS=()
+            while read -r img; do
+                if [ -n "$img" ]; then
+                    BOM_ARGS+=("-i" "$img")
+                fi
+            done < /tmp/cluster-images.txt
+            
+            echo "Generating SPDX document..."
+            /usr/local/bin/bom generate -o /tmp/cluster-bom.spdx.json --format json "${BOM_ARGS[@]}" || echo "BOM generation failed"
+          '
+          
+          echo "BOM scan completed."
+          if [ -f /tmp/cluster-bom.spdx.json ]; then
+            echo "Report generated: /tmp/cluster-bom.spdx.json"
+            ls -lh /tmp/cluster-bom.spdx.json
+          fi
+          
+          # Ждем, чтобы можно было посмотреть логи или скопировать файл
+          sleep 60
+      restartPolicy: Never
+  backoffLimit: 3
