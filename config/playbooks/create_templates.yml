@@ -1,0 +1,14 @@
+# config/playbooks/create_templates.yml
+---
+- name: Build Proxmox Cloud-Init Templates
+  hosts: proxmox_nodes
+  become: yes # Нужен root на Proxmox для qm команд
+  gather_facts: no
+
+  roles:
+    - role: proxmox_template_builder
+      vars:
+        # Можно переопределить переменные здесь для разных дистрибутивов
+        template_vmid: 9013
+        template_name: "debian-13-generic-template"
+        force_recreate: false
