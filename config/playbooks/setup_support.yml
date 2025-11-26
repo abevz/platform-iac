@@ -1,0 +1,13 @@
+# config/playbooks/setup_support.yml
+---
+- name: Setup Support Server (RustDesk + Tailscale)
+  hosts: support_servers
+  become: yes
+
+  vars:
+    tailscale_auth_key: "{{ tailscale.auth_key }}"
+
+  roles:
+    - role: set_timezone
+    - role: tailscale_setup
+    - role: rustdesk_setup

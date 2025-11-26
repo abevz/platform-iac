@@ -53,7 +53,7 @@ resource "proxmox_virtual_environment_file" "wn_user_data" {
 resource "proxmox_virtual_environment_vm" "control_plane" {
   count = var.control_plane_count
   name  = "k8s-lab-01-cp-${count.index + 1}"
-  
+
   depends_on = [
     proxmox_virtual_environment_file.cp_user_data
   ]
@@ -63,10 +63,13 @@ resource "proxmox_virtual_environment_vm" "control_plane" {
 
   clone { vm_id = var.vm_template_id }
   #agent { enabled = true }
-  cpu { cores = var.cp_cores }
+  cpu {
+    cores = var.cp_cores
+    type  = "host"
+  }
   memory { dedicated = var.cp_memory }
   disk {
-    datastore_id = "local-lvm" 
+    datastore_id = "local-lvm"
     interface    = "scsi0"
     size         = var.cp_disk_size
   }
@@ -77,7 +80,7 @@ resource "proxmox_virtual_environment_vm" "control_plane" {
     # перед тем, как Terraform попытается выполнить 'reboot' через агент.
     when    = create
     command = "echo 'VM ${self.name} создана, ожидание 60 секунд для запуска QEMU Agent...' && sleep 60"
-  }  
+  }
 
   network_device {
     bridge = var.vm_bridge
@@ -121,15 +124,18 @@ resource "proxmox_virtual_environment_vm" "workers" {
 
   clone { vm_id = var.vm_template_id }
   #agent { enabled = true }
-  cpu { cores = var.worker_cores }
+  cpu {
+    cores = var.worker_cores
+    type  = "host"
+  }
   memory { dedicated = var.worker_memory }
   disk {
-    datastore_id = "local-lvm" 
+    datastore_id = "local-lvm"
     interface    = "scsi0"
     size         = var.worker_disk_size
   }
 
-# --- ИСПРАВЛЕНИЕ: Добавляем принудительную задержку ---
+  # --- ИСПРАВЛЕНИЕ: Добавляем принудительную задержку ---
   provisioner "local-exec" {
     when    = create
     command = "echo 'VM ${self.name} создана, ожидание 60 секунд для запуска QEMU Agent...' && sleep 60"
@@ -157,6 +163,6 @@ resource "proxmox_virtual_environment_vm" "workers" {
       initialization
     ]
   }
-  
+
   started = var.vm_started
 }

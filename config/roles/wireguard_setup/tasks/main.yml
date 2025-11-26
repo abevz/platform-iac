@@ -1,0 +1,65 @@
+# config/roles/wireguard_setup/tasks/main.yml
+---
+- name: Install system utilities (WakeOnLan)
+  ansible.builtin.apt:
+    name: wakeonlan
+    state: present
+    update_cache: yes
+  become: yes
+
+# --- Установка Docker (если нет) ---
+- name: Install Docker dependencies
+  ansible.builtin.apt:
+    name: [ca-certificates, curl, gnupg]
+    state: present
+  become: yes
+
+- name: Add Docker GPG key
+  ansible.builtin.shell:
+    cmd: install -m 0755 -d /etc/apt/keyrings && curl -fsSL https://download.docker.com/linux/debian/gpg -o /etc/apt/keyrings/docker.asc
+    creates: /etc/apt/keyrings/docker.asc
+  become: yes
+
+- name: Add Docker repo
+  ansible.builtin.apt_repository:
+    repo: "deb [arch={{ ansible_architecture | replace('aarch64','arm64') | replace('x86_64','amd64') }} signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/debian {{ ansible_distribution_release }} stable"
+    state: present
+    filename: docker
+  become: yes
+
+- name: Install Docker
+  ansible.builtin.apt:
+    name: [docker-ce, docker-compose-plugin]
+    state: present
+  become: yes
+
+# --- WireGuard Container ---
+- name: Create WireGuard directory
+  ansible.builtin.file:
+    path: /opt/wireguard
+    state: directory
+    mode: "0755"
+  become: yes
+
+- name: Run WireGuard Easy container
+  community.docker.docker_container:
+    name: wg-easy
+    image: ghcr.io/wg-easy/wg-easy
+    state: started
+    restart_policy: unless-stopped
+    capabilities: [NET_ADMIN, SYS_MODULE]
+    sysctls:
+      net.ipv4.ip_forward: "1"
+      net.ipv4.conf.all.src_valid_mark: "1"
+    volumes:
+      - /opt/wireguard:/etc/wireguard
+    ports:
+      - "51820:51820/udp"
+      - "51821:51821/tcp"
+    env:
+      WG_HOST: "{{ wg_public_ip }}"
+      PASSWORD_HASH: "{{ wg_ui_password_hash }}"
+      WG_PORT: "51820"
+      WG_DEFAULT_DNS: "10.10.10.100"
+      WG_ALLOWED_IPS: "10.10.10.0/24, 10.10.100.0/24"
+  become: yes

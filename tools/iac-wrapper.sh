@@ -92,6 +92,38 @@ load_tofu_secrets_to_temp_file() {
   local proxmox_ssh_address
   local proxmox_ssh_port
 
+  local PUBLIC_KEY_CONTENT=""
+
+  # 1. Главный ключ (от Ansible)
+  if [ -f "${SSH_KEY}.pub" ]; then
+    PUBLIC_KEY_CONTENT+=$(cat "${SSH_KEY}.pub")
+    PUBLIC_KEY_CONTENT+=$'\n' # Добавляем перевод строки
+  else
+    log "WARN: Публичный ключ ${SSH_KEY}.pub не найден!"
+  fi
+
+  # 2. Дополнительные ключи (например, ваш личный id_rsa.pub)
+  # Можно указать конкретные файлы:
+  local EXTRA_KEYS=(
+    "$HOME/.ssh/id_rsa.pub"
+    "$HOME/.ssh/another_key.pub"
+  )
+
+  for key_file in "${EXTRA_KEYS[@]}"; do
+    if [ -f "$key_file" ]; then
+      PUBLIC_KEY_CONTENT+=$(cat "$key_file")
+      PUBLIC_KEY_CONTENT+=$'\n'
+    fi
+  done
+
+  # Если ключей нет совсем — ставим заглушку
+  if [ -z "$PUBLIC_KEY_CONTENT" ]; then
+    PUBLIC_KEY_CONTENT="ssh-rsa AAAA-PLACEHOLDER"
+  fi
+
+  # Убираем последний лишний перевод строки (опционально, но аккуратно)
+  PUBLIC_KEY_CONTENT="${PUBLIC_KEY_CONTENT%$'\n'}"
+
   if [ "$COMPONENT" == "nginx-proxy" ] || [ "$COMPONENT" == "minio" ]; then
     log "ВНИМАНИЕ: Bootstrap-компонент. Используем ПРЯМОЙ IP ($PROXMOX_DIRECT_IP) и ПРЯМОЙ порт ($PROXMOX_DIRECT_SSH_PORT)."
     proxmox_api_url="$PROXMOX_DIRECT_API_URL"
@@ -110,7 +142,8 @@ load_tofu_secrets_to_temp_file() {
   PROXMOX_JSON=$(sops -d "$PROXMOX_SECRETS_FILE" | yq -o json | jq -r \
     --arg api_url "$proxmox_api_url" \
     --arg ssh_addr "$proxmox_ssh_address" \
-    --arg ssh_port "$proxmox_ssh_port" '
+    --arg ssh_port "$proxmox_ssh_port" \
+    --arg pub_key "$PUBLIC_KEY_CONTENT" '
       {
         "proxmox_api_url": $api_url, 
         "proxmox_api_username": .PROXMOX_VE_API_TOKEN_ID,
@@ -118,7 +151,8 @@ load_tofu_secrets_to_temp_file() {
         "proxmox_ssh_user": .PROXMOX_VE_SSH_USERNAME,
         "proxmox_ssh_private_key": .PROXMOX_VE_SSH_PRIVATE_KEY,
         "proxmox_ssh_address": $ssh_addr,
-        "proxmox_ssh_port": ($ssh_port | tonumber) # (Преобразуем порт в число)
+        "proxmox_ssh_port": ($ssh_port | tonumber),
+        "ssh_public_key": $pub_key
       }
     ')
 
@@ -473,11 +507,22 @@ run-static)
   export ANSIBLE_CONFIG="$ANSIBLE_CONFIG_FILE"
   load_ansible_secrets_to_temp_file
 
-  ansible-playbook -i "$STATIC_INVENTORY" \
-    --private-key "$SSH_KEY" \
-    --limit "$LIMIT_TARGET" \
-    "$ANSIBLE_VARS_ARG" \
-    "$ANSIBLE_PLAYBOOK"
+  # 1. Собираем базовую команду
+  ANSIBLE_CMD="ansible-playbook -i $STATIC_INVENTORY --private-key $SSH_KEY --limit $LIMIT_TARGET"
+
+  # 2. Добавляем переменные, если они есть (без кавычек, чтобы eval их правильно разобрал)
+  if [ -n "$ANSIBLE_VARS_ARG" ]; then
+    ANSIBLE_CMD+=" $ANSIBLE_VARS_ARG"
+  fi
+
+  # 3. Добавляем плейбук
+  ANSIBLE_CMD+=" $ANSIBLE_PLAYBOOK"
+
+  log "Выполнение команды: $ANSIBLE_CMD"
+
+  # 4. Выполняем через eval
+  eval $ANSIBLE_CMD
+
   ;;
 
 plan | destroy)

@@ -1,0 +1,80 @@
+---
+# 1. Установка зависимостей
+- name: Install Docker dependencies
+  ansible.builtin.apt:
+    name: [ca-certificates, curl, gnupg]
+    state: present
+    update_cache: yes
+  become: yes
+
+# 2. Ключ GPG (делаем URL динамическим)
+- name: Add Docker GPG key
+  ansible.builtin.shell:
+    cmd: "install -m 0755 -d /etc/apt/keyrings && curl -fsSL https://download.docker.com/linux/{{ ansible_distribution | lower }}/gpg -o /etc/apt/keyrings/docker.asc"
+    creates: /etc/apt/keyrings/docker.asc
+  become: yes
+
+# 3. Репозиторий (ИСПРАВЛЕНО: заменено 'debian' на переменную)
+- name: Add Docker repo
+  ansible.builtin.apt_repository:
+    repo: "deb [arch={{ ansible_architecture | replace('aarch64','arm64') | replace('x86_64','amd64') }} signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/{{ ansible_distribution | lower }} {{ ansible_distribution_release }} stable"
+    state: present
+    filename: docker
+  become: yes
+
+# 4. Установка Docker
+- name: Install Docker
+  ansible.builtin.apt:
+    name: [docker-ce, docker-compose-plugin]
+    state: present
+    update_cache: yes
+  become: yes
+
+# ... (Далее идут задачи RustDesk без изменений) ...
+- name: Create RustDesk directories
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    mode: "0755"
+  loop:
+    - /opt/rustdesk
+    - /opt/rustdesk/data
+  become: yes
+
+- name: Run RustDesk ID Server (HBBS)
+  community.docker.docker_container:
+    name: hbbs
+    image: rustdesk/rustdesk-server:latest
+    command: hbbs -r {{ tailscale_ip | default(ansible_host) }}:21117 -k _
+    state: started
+    restart_policy: unless-stopped
+    network_mode: host
+    volumes:
+      - /opt/rustdesk/data:/root
+  become: yes
+
+- name: Run RustDesk Relay Server (HBBR)
+  community.docker.docker_container:
+    name: hbbr
+    image: rustdesk/rustdesk-server:latest
+    command: hbbr -k _
+    state: started
+    restart_policy: unless-stopped
+    network_mode: host
+    volumes:
+      - /opt/rustdesk/data:/root
+  become: yes
+
+- name: Get Public Key
+  ansible.builtin.slurp:
+    src: /opt/rustdesk/data/id_ed25519.pub
+  register: rdesk_key
+  become: yes
+  retries: 10
+  delay: 5
+
+- name: Display Client Config Info
+  ansible.builtin.debug:
+    msg:
+      - "RustDesk Server Ready"
+      - "Key: {{ rdesk_key['content'] | b64decode }}"
