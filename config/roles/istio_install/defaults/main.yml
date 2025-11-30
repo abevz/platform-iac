@@ -2,10 +2,10 @@
 # /config/roles/istio_install/defaults/main.yml
 ---
 # Версия Istio по умолчанию, если 'requested_version' не передана
-istio_version: "1.24.0"
+istio_version: "1.28.0"
 
 # Базовый URL для манифестов аддонов (используется версия из istio.yml)
-istio_addons_url_base: "https://raw.githubusercontent.com/istio/istio/e9ff9d1d64b7d082da545e6ea3956fb1e6364ec7/samples/addons"
+istio_addons_url_base: "https://raw.githubusercontent.com/istio/istio/release-1.28/samples/addons"
 
 # Список аддонов для установки
 istio_addons_list:

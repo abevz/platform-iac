@@ -10,7 +10,7 @@
   until: wait_for_lock.rc == 0
   retries: 18 # Ждать максимум 3 минуты (18 * 10 секунд)
   delay: 10
-  tags: [always]
+  tags: [bootstrap_prereqs]
 
 - name: Encode data for Harbor authorization
   ansible.builtin.set_fact:
@@ -63,7 +63,7 @@
     content: |
       overlay
       br_netfilter
-    mode: '0644'
+    mode: "0644"
   tags: [bootstrap_prereqs, containerd]
 
 - name: Configure sysctl for Kubernetes networking
@@ -74,9 +74,9 @@
     state: present
     reload: yes
   loop:
-    - { key: 'net.bridge.bridge-nf-call-iptables', value: '1' }
-    - { key: 'net.ipv4.ip_forward', value: '1' }
-    - { key: 'net.bridge.bridge-nf-call-ip6tables', value: '1' }
+    - { key: "net.bridge.bridge-nf-call-iptables", value: "1" }
+    - { key: "net.ipv4.ip_forward", value: "1" }
+    - { key: "net.bridge.bridge-nf-call-ip6tables", value: "1" }
   tags: [bootstrap_prereqs, containerd]
 
 - name: Install Containerd prerequisites (common)
@@ -92,7 +92,7 @@
   ansible.builtin.get_url:
     url: https://download.docker.com/linux/{{ ansible_distribution | lower }}/gpg
     dest: /etc/apt/keyrings/docker.asc
-    mode: '0644'
+    mode: "0644"
     force: true
   when: ansible_os_family == "Debian"
   tags: [containerd]
@@ -132,7 +132,7 @@
   ansible.builtin.file:
     path: /etc/containerd
     state: directory
-    mode: '0755'
+    mode: "0755"
   tags: [containerd]
 
 - name: Create containerd configuration from template
@@ -141,7 +141,7 @@
     dest: /etc/containerd/config.toml
     owner: root
     group: root
-    mode: '0644'
+    mode: "0644"
   notify: Restart containerd
   tags: [containerd]
 
@@ -158,7 +158,7 @@
     state: directory
     owner: root
     group: root
-    mode: '0755'
+    mode: "0755"
   loop:
     - "docker.io"
     - "quay.io"
@@ -174,7 +174,7 @@
     dest: /etc/containerd/certs.d/docker.io/hosts.toml
     owner: root
     group: root
-    mode: '0600'
+    mode: "0600"
   vars:
     upstream_server: "https://docker.io"
     proxy_project: "dockerhub-proxy"
@@ -187,7 +187,7 @@
     dest: /etc/containerd/certs.d/quay.io/hosts.toml
     owner: root
     group: root
-    mode: '0600'
+    mode: "0600"
   vars:
     upstream_server: "https://quay.io"
     proxy_project: "quay-proxy"
@@ -200,7 +200,7 @@
     dest: /etc/containerd/certs.d/gcr.io/hosts.toml
     owner: root
     group: root
-    mode: '0600'
+    mode: "0600"
   vars:
     upstream_server: "https://gcr.io"
     proxy_project: "gcr-proxy"
@@ -213,7 +213,7 @@
     dest: /etc/containerd/certs.d/registry.k8s.io/hosts.toml
     owner: root
     group: root
-    mode: '0600'
+    mode: "0600"
   vars:
     upstream_server: "https://registry.k8s.io"
     proxy_project: "k8s-proxy"
@@ -226,7 +226,7 @@
     dest: /etc/containerd/certs.d/k8s.gcr.io/hosts.toml
     owner: root
     group: root
-    mode: '0600'
+    mode: "0600"
   vars:
     upstream_server: "https://k8s.gcr.io"
     proxy_project: "k8s-proxy"
@@ -239,7 +239,7 @@
     dest: /etc/containerd/certs.d/{{ harbor_hostname }}/hosts.toml
     owner: root
     group: root
-    mode: '0600'
+    mode: "0600"
   vars:
     upstream_server: "https://{{ harbor_hostname }}"
     proxy_project: "k8s-proxy"
@@ -250,7 +250,7 @@
   ansible.builtin.get_url:
     url: "https://pkgs.k8s.io/core:/stable:/v{{ k8s_short_version }}/deb/Release.key"
     dest: "/etc/apt/keyrings/kubernetes-apt-keyring.asc"
-    mode: '0644'
+    mode: "0644"
   when: ansible_os_family == "Debian"
   tags: [k8s_packages]
 
@@ -336,7 +336,7 @@
   ansible.builtin.file:
     path: /var/lib/kubelet/seccomp/profiles
     state: directory
-    mode: '0755'
+    mode: "0755"
     recurse: yes
   when: seccomp_check.stdout == "available"
   tags: [cks, seccomp]
@@ -393,7 +393,7 @@
         ]
       }
     dest: /var/lib/kubelet/seccomp/profiles/restricted.json
-    mode: '0644'
+    mode: "0644"
   when: seccomp_check.stdout == "available"
   tags: [cks, seccomp]
 
@@ -407,6 +407,6 @@
         ]
       }
     dest: /var/lib/kubelet/seccomp/profiles/audit.json
-    mode: '0644'
+    mode: "0644"
   when: seccomp_check.stdout == "available"
-  tags: [cks, seccomp]  
+  tags: [cks, seccomp]

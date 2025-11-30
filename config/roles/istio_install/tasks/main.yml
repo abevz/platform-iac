@@ -3,33 +3,42 @@
 - name: Установить целевую версию Istio
   ansible.builtin.set_fact:
     istio_target_version: >-
-      {{ requested_version | default(istio_version) }}
+      {{ requested_version | default(istio_version, true) }}
   when: addon_state == "present"
 
+# 1. Скачиваем (если нет)
 - name: Загрузить Istio CLI (если отсутствует)
   ansible.builtin.shell: |
     if [ ! -d "/opt/istio-{{ istio_target_version }}" ]; then
       cd /opt
       curl -L https://istio.io/downloadIstio | ISTIO_VERSION={{ istio_target_version }} sh -
-      ln -sfn istio-{{ istio_target_version }} istio
     fi
-  register: istio_download_result
-  changed_when: "'istio-{{ istio_target_version }}' not in istio_download_result.stdout"
+  args:
+    creates: "/opt/istio-{{ istio_target_version }}"
   when: addon_state == "present"
 
-- name: Добавить Istio в PATH для будущих сессий
-  ansible.builtin.lineinfile:
-    path: /etc/environment
-    regexp: '^PATH="/opt/istio/bin:.*'
-    line: 'PATH="/opt/istio/bin:$PATH"'
-    create: yes
-    backup: yes
-    state: "{{ 'present' if addon_state == 'present' else 'absent' }}" # Управляем строкой
+# 2. Создаем симлинк (ОБЯЗАТЕЛЬНО)
+- name: Создать/Обновить симлинк /opt/istio
+  ansible.builtin.file:
+    src: "/opt/istio-{{ istio_target_version }}"
+    dest: "/opt/istio"
+    state: link
+    force: yes
+  when: addon_state == "present"
 
+# 3. Настраиваем PATH (Безопасно)
+- name: Добавить Istio в PATH через profile.d
+  ansible.builtin.copy:
+    dest: /etc/profile.d/istio.sh
+    content: 'export PATH="$PATH:/opt/istio/bin"'
+    mode: "0644"
+  when: addon_state == "present"
+
+# 4. Устанавливаем (Используя ПОЛНЫЙ ПУТЬ)
 - name: Установить Istio (профиль default)
   ansible.builtin.shell: |
-    export PATH="/opt/istio/bin:$PATH"
-    istioctl install --set values.defaultRevision=default -y
+    # Вызываем напрямую через полный путь
+    /opt/istio/bin/istioctl install --set values.defaultRevision=default -y
   register: istio_install_result
   changed_when: "'unchanged' not in istio_install_result.stdout"
   when: addon_state == "present"
@@ -42,18 +51,28 @@
 
 - name: Установить/Удалить Istio addons
   kubernetes.core.k8s:
-    state: "{{ addon_state }}" # <-- ИСПОЛЬЗУЕМ ПЕРЕМЕННУЮ
+    state: "{{ addon_state }}"
     src: "{{ istio_addons_url_base }}/{{ item }}.yaml"
   loop: "{{ istio_addons_list }}"
   register: istio_addons_result
+  when: addon_state == "present" # (Addons ставим только если Istio present)
 
 # --- БЛОК УДАЛЕНИЯ ---
 - name: Удалить Istio
   ansible.builtin.shell: |
-    export PATH="/opt/istio/bin:$PATH"
-    istioctl uninstall -y --purge
+    /opt/istio/bin/istioctl uninstall -y --purge
   register: istio_uninstall_result
   changed_when: istio_uninstall_result.rc == 0
+  when: addon_state == "absent"
+  ignore_errors: yes
+
+- name: Удалить симлинк и директорию
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: absent
+  loop:
+    - "/opt/istio"
+    - "/etc/profile.d/istio.sh"
   when: addon_state == "absent"
 
 - name: Отключить Istio injection для namespace 'default'
@@ -61,7 +80,7 @@
   register: istio_label_remove_result
   changed_when: "'unlabeled' in istio_label_remove_result.stdout"
   when: addon_state == "absent"
-  ignore_errors: yes # (Может быть уже удален)
+  ignore_errors: yes
 
 - name: Показать результат
   ansible.builtin.debug:
