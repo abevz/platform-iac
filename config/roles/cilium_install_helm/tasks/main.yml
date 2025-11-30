@@ -98,12 +98,22 @@
       # --- НАЧАЛО: БЛОК ИЗ cilium.yml ---
       operator:
         replicas: 1
+      hostFirewall:
+        enabled: true
+      encryption:
+        enabled: true
+        nodeEncryption: true
+        type: wireguard
+      policyAuditMode: false
+      l7Proxy: true
+      preallocate-bpf-maps: true
       hubble:
         relay:
           enabled: true
         ui:
           enabled: true
         metrics:
+          enableOpenMetrics: true
           enabled:
             - dns
             - drop
@@ -111,7 +121,7 @@
             - flow
             - port-distribution
             - icmp
-            - http
+            - httpV2:exemplars=true;labelsContext=source_ip,source_namespace,source_workload,destination_ip,destination_namespace,destination_workload,traffic_direction
       prometheus:
         enabled: true
       operator.prometheus:
