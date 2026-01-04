@@ -4,7 +4,7 @@
 - name: Install or Uninstall Calico (via Manifest)
   hosts: all
   become: yes
-  
+
   vars:
     addon_state: "present"
 

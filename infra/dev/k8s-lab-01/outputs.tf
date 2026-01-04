@@ -13,13 +13,13 @@ locals {
   all_vms = {
     for vm in local.all_vm_resources_list :
     vm.name => {
-      name                 = vm.name
+      name = vm.name
       # Используем проверенный путь [1][0] для IP
       ipv4_address         = try(vm.ipv4_addresses[1][0], "unknown")
       private_ipv4_address = try(vm.ipv4_addresses[1][0], "unknown")
       vm_id                = vm.id
       # Логика определения роли остается здесь
-      node_role            = can(regex("cp", vm.name)) ? "master" : "worker"
+      node_role = can(regex("cp", vm.name)) ? "master" : "worker"
     }
   }
 }
@@ -32,14 +32,14 @@ output "ansible_inventory_data" {
       hostvars = {
         for name, vm in local.all_vms :
         name => {
-          ansible_host      = vm.ipv4_address
-          private_ip        = vm.private_ipv4_address
-          ansible_user      = var.vm_user
-          ansible_port      = 22 
-          vm_name           = vm.name
-          vm_id             = vm.vm_id
+          ansible_host = vm.ipv4_address
+          private_ip   = vm.private_ipv4_address
+          ansible_user = var.vm_user
+          ansible_port = 22
+          vm_name      = vm.name
+          vm_id        = vm.vm_id
           # Роль берется из универсального Map
-          node_role         = vm.node_role
+          node_role = vm.node_role
         }
       }
     },

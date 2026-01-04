@@ -32,12 +32,12 @@ certbot_domains_to_create:
     domains:
       - "*.bevz.net"                 # Wildcard domain
       - "bevz.net"                   # Root domain
-  
+
   - name: "bevz-dev-wildcard"
     domains:
       - "*.bevz.dev"
       - "bevz.dev"
-  
+
   - name: "s3-minio-bevz-net"
     domains:
       - "s3.minio.bevz.net"          # Single domain
@@ -505,10 +505,10 @@ certbot certificates | grep "Expiry Date"
 server {
     listen 443 ssl http2;
     server_name *.bevz.net;
-    
+
     ssl_certificate /etc/letsencrypt/live/bevz-net-wildcard/fullchain.pem;
     ssl_certificate_key /etc/letsencrypt/live/bevz-net-wildcard/privkey.pem;
-    
+
     # Include SSL hardening
     include /etc/nginx/ssl-params.conf;
 }

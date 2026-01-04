@@ -157,6 +157,7 @@ This is the primary command. It creates the VMs, registers DNS, and runs the ful
 ### Run Ansible Only (Configure Existing VMs)
 
 If you have made a change to an Ansible role and want to re-run the configuration without destroying the VMs, use `configure`.
+# Test diff
 
 ```bash
 # Usage: ./tools/iac-wrapper.sh configure <env> <component> [limit]
@@ -185,34 +186,34 @@ This command will first run the `add_pihole_dns.py` script in `unregister-dns` m
 The `apply` command triggers the main `setup_k8s-lab-01.yml` playbook, which executes in distinct phases:
 
 1. **Phase 1: Bootstrap Nodes (`k8s_bootstrap_node`)**
-    - Waits for `apt` locks to be free (handles `unattended-upgrades`).
-    - Disables swap.
-    - Loads kernel modules (`overlay`, `br_netfilter`) and sets `sysctl` rules.
-    - Installs `containerd`.
-    - Configures `containerd` to use Harbor as a proxy mirror for all major registries.
-    - Installs `kubelet`, `kubeadm`, and `kubectl`.
-    - Copies CKS security profiles (AppArmor, Seccomp).
+   - Waits for `apt` locks to be free (handles `unattended-upgrades`).
+   - Disables swap.
+   - Loads kernel modules (`overlay`, `br_netfilter`) and sets `sysctl` rules.
+   - Installs `containerd`.
+   - Configures `containerd` to use Harbor as a proxy mirror for all major registries.
+   - Installs `kubelet`, `kubeadm`, and `kubectl`.
+   - Copies CKS security profiles (AppArmor, Seccomp).
 
 2. **Phase 2: Manage Cluster (`k8s_cluster_manager`)**
-    - Runs `kubeadm init` on the control plane using a template that enables `serverTLSBootstrap: true`.
-    - Copies `admin.conf` to user and root directories.
-    - Fetches the `kubeadm join` command.
-    - Runs `kubeadm join` on all worker nodes.
-    - Creates the `registry-creds` secret (for Harbor) in `default` and `kube-system` namespaces.
+   - Runs `kubeadm init` on the control plane using a template that enables `serverTLSBootstrap: true`.
+   - Copies `admin.conf` to user and root directories.
+   - Fetches the `kubeadm join` command.
+   - Runs `kubeadm join` on all worker nodes.
+   - Creates the `registry-creds` secret (for Harbor) in `default` and `kube-system` namespaces.
 
 3. **Phase 3: Deploy CNI (`cilium_install_helm`)**
-    - Installs the `helm` binary on the control plane.
-    - Adds the Cilium Helm repository.
-    - Deploys the `cilium` chart into `kube-system` with `kubeProxyReplacement=true`.
+   - Installs the `helm` binary on the control plane.
+   - Adds the Cilium Helm repository.
+   - Deploys the `cilium` chart into `kube-system` with `kubeProxyReplacement=true`.
 
 4. **Phase 3.5: Verify Cluster**
-    - Waits for all nodes to report `Ready` status.
-    - Waits for all worker nodes to create `kubernetes.io/kubelet-serving` CSRs.
-    - Approves all pending `kubelet-serving` CSRs.
-    - Prints the final `kubectl get nodes -o wide` status.
+   - Waits for all nodes to report `Ready` status.
+   - Waits for all worker nodes to create `kubernetes.io/kubelet-serving` CSRs.
+   - Approves all pending `kubelet-serving` CSRs.
+   - Prints the final `kubectl get nodes -o wide` status.
 
 5. **Phase 4: Deploy Security Tooling**
-    - Installs the `falco` package on the control plane host (`k8s_master`).
+   - Installs the `falco` package on the control plane host (`k8s_master`).
 
 <!-- end list -->
 

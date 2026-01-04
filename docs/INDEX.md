@@ -287,6 +287,6 @@ To contribute to documentation:
 - [Quick Reference →](./CHEATSHEET.md)
 - [Architecture →](./ARCHITECTURE.md)
 
-**Last Updated**: November 2025  
-**Documentation Version**: 1.0  
+**Last Updated**: November 2025
+**Documentation Version**: 1.0
 **Project**: platform-iac

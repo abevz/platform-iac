@@ -13,15 +13,15 @@ def get_inventory():
     """
     Читает кэшированный JSON OpenTofu, извлекает инвентарь и выводит его в stdout.
     """
-    
+
     # --- НАЧАЛО ИСПРАВЛЕНИЯ ---
     # По умолчанию считаем, что нужен --list, если не указан --host
     # Это для совместимости с ansible-playbook, который может вызывать скрипт без аргументов
     # для проверки.
-    
+
     is_host_request = '--host' in sys.argv
     is_list_request = '--list' in sys.argv
-    
+
     # Если не --host, считаем, что --list
     if not is_host_request:
         is_list_request = True

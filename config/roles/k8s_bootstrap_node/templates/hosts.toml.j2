@@ -4,6 +4,6 @@ server = "{{ upstream_server }}"
 [host."https://{{ harbor_hostname }}/v2/{{ proxy_project }}"]
   capabilities = ["pull", "resolve"]
   override_path = true
-  
+
 [host."https://{{ harbor_hostname }}/v2/{{ proxy_project }}".header]
 Authorization = ["Basic {{ harbor_auth }}"]

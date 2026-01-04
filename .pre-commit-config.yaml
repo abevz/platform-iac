@@ -1,6 +1,51 @@
-# .pre-commit-config.yaml
 repos:
+  # 1. Base Hygiene
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.6.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+        args: ["--allow-multiple-documents"]
+      - id: check-merge-conflict
+      - id: check-added-large-files
+        args: ["--maxkb=5000"]
+
+  # 2. Security
   - repo: https://github.com/gitleaks/gitleaks
-    rev: v8.18.0
+    rev: v8.18.2
     hooks:
       - id: gitleaks
+
+  # 3. IaC (OpenTofu)
+  - repo: https://github.com/antonbabenko/pre-commit-terraform
+    rev: v1.92.0
+    hooks:
+      - id: terraform_fmt
+      - id: terraform_tflint
+        args:
+          - --args=--config=__GIT_WORKING_DIR__/.tflint.hcl
+      - id: terraform_tfsec
+
+  # 4. Ansible Compliance (SYSTEM BINARY)
+  - repo: local
+    hooks:
+      - id: ansible-lint
+        name: ansible-lint
+        # FIX: Передаем переменные через env, так как ключ environment игнорируется
+        entry: env ANSIBLE_ROLES_PATH=config/roles ANSIBLE_CONFIG=config/ansible.cfg ansible-lint
+        language: system
+        files: \.(yaml|yml)$
+        types: [yaml]
+        pass_filenames: true
+
+  # 5. Golang (SYSTEM BINARY)
+  - repo: local
+    hooks:
+      - id: golangci-lint
+        name: golangci-lint
+        entry: golangci-lint run --fix
+        language: system
+        types: [go]
+        require_serial: true
+        pass_filenames: false

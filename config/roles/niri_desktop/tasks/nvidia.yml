@@ -1,0 +1,14 @@
+---
+- name: Ensure nvidia-drm modeset is enabled
+  ansible.builtin.lineinfile:
+    path: /etc/modprobe.d/nvidia.conf
+    line: "options nvidia-drm modeset=1"
+    create: yes
+    mode: "0644"
+  become: yes
+  register: nvidia_config
+
+- name: Update initramfs if nvidia config changed
+  ansible.builtin.command: mkinitcpio -P
+  become: yes
+  when: nvidia_config.changed

@@ -4,15 +4,15 @@
 # ==============================================================================
 - name: 0. Add K8s Nodes to Pi-hole Local DNS
   # Явно нацелен только на localhost
-  hosts: localhost 
+  hosts: localhost
   connection: local
   become: no
   tags: [dns_setup] # Тег можно оставить или убрать
-  
+
   vars:
-    pihole_url: "http://10.10.10.100" 
-    pihole_web_password: "{{ pihole.web_password }}" 
-  
+    pihole_url: "http://10.10.10.100"
+    pihole_web_password: "{{ pihole.web_password }}"
+
   tasks:
     - name: Get list of all K8s hosts and their IPs from dynamic inventory
       ansible.builtin.set_fact:

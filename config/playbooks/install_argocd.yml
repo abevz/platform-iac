@@ -3,7 +3,7 @@
 - name: Install or Uninstall ArgoCD
   hosts: all # iac-wrapper будет ограничивать это до k8s_master
   become: yes
-  
+
   vars:
     # --- НАЧАЛО ИСПРАВЛЕНИЯ ---
     # По умолчанию, мы устанавливаем.

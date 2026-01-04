@@ -135,8 +135,8 @@ Detects when users access Kubernetes secrets:
     ka.verb in (get, list) and
     ka.objectResource.resource=secrets
   output: >
-    Kubernetes secret accessed (user=%ka.user.name verb=%ka.verb 
-    resource=%ka.target.resource object=%ka.target.name 
+    Kubernetes secret accessed (user=%ka.user.name verb=%ka.verb
+    resource=%ka.target.resource object=%ka.target.name
     namespace=%ka.target.namespace)
   priority: WARNING
 ```
@@ -153,8 +153,8 @@ Alerts on privilege escalation attempts in containers:
     proc.name in (sudo, su, doas) and
     container
   output: >
-    Privilege escalation in container (user=%user.name 
-    command=%proc.cmdline container=%container.name 
+    Privilege escalation in container (user=%user.name
+    command=%proc.cmdline container=%container.name
     image=%container.image.repository)
   priority: WARNING
 ```
@@ -267,7 +267,7 @@ data:
         k8s.ns.name = "production" and
         not proc.name in (node, nginx, java)
       output: >
-        Unauthorized process in production (command=%proc.cmdline 
+        Unauthorized process in production (command=%proc.cmdline
         container=%container.name namespace=%k8s.ns.name)
       priority: CRITICAL
 ```
@@ -344,7 +344,7 @@ falco:
     actions:
       - log
       - alert
-  
+
   # Reduce syscall monitoring
   rules:
     - rule: ...

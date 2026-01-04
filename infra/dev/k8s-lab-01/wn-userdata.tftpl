@@ -19,7 +19,7 @@ write_files:
       ff02::1 ip6-allnodes
       ff02::2 ip6-allrouters
     append: false
-  
+
   # Добавляем sudoers и пользователя abevz
   - path: /etc/sudoers.d/90-cloud-init-users
     permissions: '0440'
@@ -28,7 +28,7 @@ write_files:
 
 # <<< НАЧАЛО: ДОБАВЛЕН БЛОК ДЛЯ DNS RESOLVER >>>
 # Создаем drop-in файл для systemd-resolved.
-# Этот файл устанавливает DNS, отключает DNSSEC (для SERVFAIL) 
+# Этот файл устанавливает DNS, отключает DNSSEC (для SERVFAIL)
 # и включает разрешение однокомпонентных имен (для 'k8s-lab-01-wn-1').
   - path: /etc/systemd/resolved.conf.d/99-lab-dns.conf
     permissions: '0644'
@@ -56,7 +56,7 @@ runcmd:
     TIMESTAMP=$(date +%s%N)
     UNIQUE_ID="${hostname}-$SHELL_HOSTNAME-$MAC_ADDRESS-$RANDOM_DATA-$TIMESTAMP-$(uuidgen)"
     MACHINE_ID=$(echo $UNIQUE_ID | md5sum | cut -c1-32)
-    
+
     if [ -f /etc/machine-id ]; then
       echo "Previous machine-id: $(cat /etc/machine-id)" >> /var/log/machine-id-setup.log
       rm -f /etc/machine-id
@@ -64,27 +64,27 @@ runcmd:
     if [ -f /var/lib/dbus/machine-id ]; then
       rm -f /var/lib/dbus/machine-id
     fi
-    
+
     echo $MACHINE_ID > /etc/machine-id
     chmod 444 /etc/machine-id
     mkdir -p /var/lib/dbus
     cp /etc/machine-id /var/lib/dbus/machine-id
     chmod 444 /var/lib/dbus/machine-id
-    
+
     echo "New machine-id: $MACHINE_ID" >> /var/log/machine-id-setup.log
-  
+
   # Apply hostname changes
   - hostnamectl set-hostname ${hostname}
   - echo "${hostname}" > /etc/hostname
   - hostname ${hostname}
-  
+
   # For Ubuntu specifically
   - 'echo "network:" > /etc/cloud/cloud.cfg.d/99-disable-network-config.cfg'
   - 'echo "  config: disabled" >> /etc/cloud/cloud.cfg.d/99-disable-network-config.cfg'
-  
+
   # Ensure cloud-init doesn't change hostname on next boot
   - 'echo "preserve_hostname: true" > /etc/cloud/cloud.cfg.d/99-preserve-hostname.cfg'
-  
+
   # Restart network services
   - |
     echo "Restarting network services..." >> /var/log/machine-id-setup.log
@@ -97,7 +97,7 @@ runcmd:
       netplan apply || true
     fi
     echo "Machine-ID setup completed at $(date)" >> /var/log/machine-id-setup.log
-  
+
   # Установка QEMU Agent и Python
   - apt-get update
   - apt-get install -y qemu-guest-agent python3

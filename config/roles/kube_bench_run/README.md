@@ -314,7 +314,7 @@ Based on kube-bench output, create fixes:
         regexp: '^\s*- --anonymous-auth='
         line: '    - --anonymous-auth=false'
         insertafter: '^\s*- kube-apiserver'
-      
+
     - name: Restart kubelet to apply changes
       ansible.builtin.systemd:
         name: kubelet

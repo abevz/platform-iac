@@ -4,7 +4,7 @@
 - name: Install or Uninstall cert-manager
   hosts: all
   become: yes
-  
+
   vars:
     addon_state: "present"
     requested_version: ""

@@ -3,6 +3,6 @@ server = "{{ upstream_server }}"
 
 [host."https://{{ harbor_hostname }}"]
   capabilities = ["pull", "resolve"]
-  
+
 [host."https://{{ harbor_hostname }}".header]
 Authorization = ["Basic {{ harbor_auth }}"]

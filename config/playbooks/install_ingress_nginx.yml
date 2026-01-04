@@ -3,7 +3,7 @@
 - name: Install or Uninstall NGINX Ingress Controller
   hosts: all
   become: yes
-  
+
   vars:
     requested_version: ""
     # ПЕРЕМЕННАЯ СОСТОЯНИЯ

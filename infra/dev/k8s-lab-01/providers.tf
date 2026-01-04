@@ -1,4 +1,5 @@
 terraform {
+  required_version = ">= 1.11.0"
   required_providers {
     proxmox = {
       source  = "bpg/proxmox"
@@ -10,10 +11,10 @@ terraform {
 # HCL ТЕПЕРЬ ОЖИДАЕТ ПЕРЕМЕННЫЕ
 provider "proxmox" {
   # API Аутентификация
-  endpoint         = var.proxmox_api_url
+  endpoint = var.proxmox_api_url
   username = var.proxmox_api_username # Используем 'username'
   password = var.proxmox_api_password # Используем 'password'
-  insecure         = true 
+  insecure = true
 
   # SSH Аутентификация (для операций с файлами/сниппетами)
   ssh {
@@ -24,9 +25,9 @@ provider "proxmox" {
 
       # Это FQDN, который Вы используете в ~/.ssh/config
       address = var.proxmox_ssh_address # (т.е. "homelab.bevz.net")
-      
+
       # Это порт из Вашего ~/.ssh/config
-      port = 22006      
-    }    
+      port = 22006
+    }
   }
 }

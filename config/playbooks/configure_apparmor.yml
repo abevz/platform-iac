@@ -4,7 +4,7 @@
 - name: Configure AppArmor Profiles
   hosts: all
   become: yes
-  
+
   vars:
     # По умолчанию 'present'. Переопределить через -e "addon_state=absent"
     addon_state: "present"

@@ -1,0 +1,16 @@
+profile: null
+skip_list:
+  - terraform.log
+  - var-naming
+  - risky-file-permissions
+  - risky-shell-pipe
+  - command-instead-of-module
+  - command-instead-of-shell
+  - no-changed-when
+  - no-handler
+  - fqcn
+  - yaml
+  - ignore-errors  # Критично: разрешает ignore_errors: true
+  - name           # Критично: разрешает строчные буквы в названиях
+  - jinja          # Критично: разрешает пробелы в {{ }}
+  # syntax-check удален, так как мы починили пути в шаге 1

@@ -25,14 +25,14 @@ nginx_proxy_upstreams:
   k8s_ingress: "10.10.10.200:443"
   gitlab_ssh: "10.10.10.104:22"
   proxmox_ssh: "10.10.10.101:22"
-  
+
   # HTTP upstreams - with http:// prefix
   wiki_http: "http://10.10.10.5:3000"
   plantuml_http: "http://10.10.10.5:18080"
   minio_s3_api: "http://minioserver.bevz.net:9000"
   minio_console: "http://minioserver.bevz.net:9001"
   proxmox_https: "https://10.10.10.101:8006"
-  
+
   # HTTP upstreams - without prefix (added in template)
   gitlab_http: "10.10.10.104:80"
   harbor_http: "10.10.10.103:80"
@@ -179,10 +179,10 @@ Virtual host configurations for all proxied services.
 server {
     listen 443 ssl http2;
     server_name gitlab.bevz.net;
-    
+
     ssl_certificate /etc/letsencrypt/live/bevz.net/fullchain.pem;
     ssl_certificate_key /etc/letsencrypt/live/bevz.net/privkey.pem;
-    
+
     location / {
         proxy_pass http://10.10.10.104:80;
         include /etc/nginx/proxy-params-websockets.conf;

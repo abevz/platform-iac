@@ -4,7 +4,7 @@
 pod_cidr: "192.168.0.0/16"
 
 # Здесь мы используем полную версию, чтобы избежать проблем с kubeadm
-kubernetes_version: "1.33.0" 
+kubernetes_version: "1.33.0"
 
 # Переменные, связанные с приватным реестром
 harbor_hostname: "harbor.bevz.net"
