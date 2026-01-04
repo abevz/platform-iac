@@ -8,7 +8,7 @@ services:
       # Главный шлюз (все сервисы)
       - "4566:4566"
       # Отдельный S3 (если нужен)
-      # - "4572:4572" 
+      # - "4572:4572"
     volumes:
       # Bind mount для данных
       - "{{ localstack_data_dir }}:/var/lib/localstack"

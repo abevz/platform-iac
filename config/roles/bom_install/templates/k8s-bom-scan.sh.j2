@@ -25,7 +25,7 @@ fi
 # 2. Генерируем SBOM, если утилита установлена
 if command -v bom >/dev/null 2>&1; then
   echo "Generating SPDX document..."
-  
+
   # Формируем массив аргументов для bom (-i image1 -i image2 ...)
   # Это самый безопасный способ передать список аргументов в bash
   BOM_ARGS=()
@@ -34,7 +34,7 @@ if command -v bom >/dev/null 2>&1; then
           BOM_ARGS+=("-i" "$img")
       fi
   done < "$OUTPUT_DIR/images-$NAMESPACE.txt"
-  
+
   # Запускаем bom
   bom generate -o "$OUTPUT_DIR/bom-$NAMESPACE.spdx.json" \
     --format json "${BOM_ARGS[@]}" || echo "BOM generation failed"

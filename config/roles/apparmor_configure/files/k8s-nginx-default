@@ -1,9 +1,9 @@
 # config/roles/k8s_bootstrap_node/files/k8s-nginx-default
 # Минимальный, рабочий профиль Nginx, не использующий переменные AppArmor.
 profile k8s-nginx-default flags=(attach_disconnected, enforce) {
-  
+
   # --- ИСПРАВЛЕНИЕ: Удалены все include и переменные ---
-  
+
   # Разрешение чтения корневых путей
   / r,
   /bin/ r,
@@ -14,11 +14,11 @@ profile k8s-nginx-default flags=(attach_disconnected, enforce) {
 
   # Разрешаем все сетевые операции
   network,
-  
+
   # Proc/Sys доступ
   /proc/** r,
   /sys/** r,
-  
+
   # Nginx специфичные пути
   /usr/sbin/nginx rix,
   /etc/nginx/** r,
@@ -27,8 +27,8 @@ profile k8s-nginx-default flags=(attach_disconnected, enforce) {
   /var/run/nginx.pid rwk,
 
   # Явный запрет на доступ к /etc/shadow (для CKS)
-  deny /etc/shadow r, 
-  
+  deny /etc/shadow r,
+
   # Закрывающий тег для исполняемого файла
   /usr/sbin/nginx r,
 }

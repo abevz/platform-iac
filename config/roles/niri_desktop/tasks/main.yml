@@ -1,0 +1,141 @@
+---
+# --- СЕКЦИЯ 0: ПЕРЕМЕННЫЕ ПУТЕЙ ---
+- name: "Vars: Определение путей к Dotfiles"
+  ansible.builtin.set_fact:
+    # Источники (Source of Truth)
+    dotfiles_niri_src: "/home/{{ ansible_user_id }}/github/dotfiles/files/niri"
+    dotfiles_scripts_src: "/home/{{ ansible_user_id }}/github/dotfiles/personal-scripts/.local/bin"
+    dotfiles_systemd_src: "/home/{{ ansible_user_id }}/github/dotfiles/files/systemd"
+
+    # Целевые пути
+    niri_config_dir: "/home/{{ ansible_user_id }}/.config/niri"
+    local_bin: "/home/{{ ansible_user_id }}/.local/bin"
+  tags: always
+
+# --- СЕКЦИЯ 1: ОЧИСТКА И ДРАЙВЕРЫ ---
+- name: "NVIDIA: Принудительное удаление конфликтующих пакетов (KMS Cleanup)"
+  ansible.builtin.command: "pacman -Rdd --noconfirm nvidia-dkms nvidia-open-dkms nvidia-utils lib32-nvidia-utils egl-x11"
+  failed_when: false
+  become: yes
+
+- name: "System: Удаление стандартной версии Waybar (для waybar-git)"
+  ansible.builtin.command: "pacman -Rns waybar --noconfirm"
+  failed_when: false
+  become: yes
+
+- name: "System: Установка зависимостей Niri и инструментов"
+  ansible.builtin.package:
+    name:
+      - base-devel
+      - git
+      - patchelf
+      - niri
+      - fuzzel
+      - mako
+      - kanshi
+      - xorg-xwayland
+      - egl-x11
+      - jq # Для скрипта раскладок
+      - libnotify # Для уведомлений
+    state: present
+  become: yes
+
+- name: "AUR: Установка драйверов 580xx и Waybar-git"
+  ansible.builtin.shell: |
+    yay -S --noconfirm --needed \
+    nvidia-580xx-dkms \
+    nvidia-580xx-utils \
+    lib32-nvidia-580xx-utils \
+    waybar-git
+  become: no
+  register: aur_install
+  changed_when: "'Installing' in aur_install.stdout"
+
+# --- СЕКЦИЯ 2: НАСТРОЙКА ЯДРА ---
+- name: "NVIDIA: Конфигурация модулей ядра для Wayland"
+  ansible.builtin.copy:
+    dest: "/etc/modprobe.d/nvidia.conf"
+    content: |
+      options nvidia_drm modeset=1
+      options nvidia_drm fbdev=1
+    owner: root
+    group: root
+    mode: "0644"
+  become: yes
+
+- name: "NVIDIA: Пересборка initramfs (mkinitcpio)"
+  ansible.builtin.command: "mkinitcpio -P"
+  when: aur_install.changed
+  become: yes
+
+# --- СЕКЦИЯ 3: СКРИПТЫ (Layouts) ---
+- name: "Layout: Размещение скрипта niri-layout в personal-scripts"
+  ansible.builtin.copy:
+    src: "niri-layout"
+    dest: "{{ dotfiles_scripts_src }}/niri-layout"
+    mode: "0755"
+
+- name: "System: Симлинк скрипта в ~/.local/bin"
+  ansible.builtin.file:
+    src: "{{ dotfiles_scripts_src }}/niri-layout"
+    dest: "{{ local_bin }}/niri-layout"
+    state: link
+    force: yes
+
+# --- СЕКЦИЯ 4: КОНФИГУРАЦИЯ И СИМЛИНКИ ---
+- name: "Config: Создание структуры директорий"
+  ansible.builtin.file:
+    path: "{{ ansible_user_dir }}/.config/{{ item }}"
+    state: directory
+    mode: "0755"
+  loop:
+    - niri
+    - waybar
+    - mako
+    - kanshi
+    - systemd/user
+
+- name: "Config: Прокладка симлинков (Niri)"
+  ansible.builtin.file:
+    src: "{{ dotfiles_niri_src }}/{{ item }}"
+    dest: "{{ niri_config_dir }}/{{ item }}"
+    state: link
+    force: yes
+  loop:
+    - config.kdl
+    - keybindings.kdl
+    # help.txt УДАЛЕН
+  notify: Reload Niri
+
+- name: "Config: Прокладка остальных симлинков (Waybar, Kanshi, Mako)"
+  ansible.builtin.file:
+    src: "{{ ansible_user_dir }}/github/dotfiles/files/{{ item.src }}"
+    dest: "{{ ansible_user_dir }}/.config/{{ item.dest }}"
+    state: link
+    force: yes
+  loop:
+    - { src: "waybar/config.jsonc", dest: "waybar/config.jsonc" }
+    - { src: "waybar/style.css", dest: "waybar/style.css" }
+    - { src: "kanshi/config", dest: "kanshi/config" }
+    - { src: "mako/config", dest: "mako/config" }
+
+# --- СЕКЦИЯ 5: СЕРВИСЫ SYSTEMD ---
+- name: "Systemd: Развертывание пользовательских юнитов"
+  ansible.builtin.copy:
+    src: "{{ dotfiles_systemd_src }}/{{ item }}"
+    dest: "{{ ansible_user_dir }}/.config/systemd/user/{{ item }}"
+    mode: "0644"
+  loop:
+    - waybar.service
+    - mako.service
+
+- name: "Systemd: Активация и перезапуск сервисов"
+  ansible.builtin.systemd:
+    daemon_reload: yes
+    scope: user
+    name: "{{ item }}"
+    enabled: yes
+    state: restarted
+  loop:
+    - waybar.service
+    - mako.service

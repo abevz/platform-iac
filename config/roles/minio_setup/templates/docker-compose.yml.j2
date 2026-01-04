@@ -6,19 +6,19 @@ services:
     container_name: minio-server
     restart: unless-stopped
     command: server /data --console-address ":9001"
-    
-    # ПРИМЕЧАНИЕ: 
+
+    # ПРИМЕЧАНИЕ:
     # Эти переменные должны быть определены в Вашем файле
     # config/secrets/ansible/extra_vars.sops.yml
     # (по аналогии с harbor, cloudflare и pihole)
     environment:
       MINIO_ROOT_USER: "{{ minio.root_user | default('minioadmin') }}"
       MINIO_ROOT_PASSWORD: "{{ minio.root_password | default('minioadmin') }}"
-      
+
     ports:
       - "9000:9000" # S3 API
       - "9001:9001" # Console
-      
+
     volumes:
       - "{{ minio_data_dir }}:/data"
       - "{{ minio_config_dir }}:/root/.minio"

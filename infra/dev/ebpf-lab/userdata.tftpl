@@ -19,7 +19,7 @@ write_files:
       ff02::1 ip6-allnodes
       ff02::2 ip6-allrouters
     append: false
-  
+
   # Добавляем sudoers и пользователя
   - path: /etc/sudoers.d/90-cloud-init-users
     permissions: '0440'
@@ -55,7 +55,7 @@ runcmd:
     TIMESTAMP=$(date +%s%N)
     UNIQUE_ID="${hostname}-$SHELL_HOSTNAME-$MAC_ADDRESS-$RANDOM_DATA-$TIMESTAMP-$(uuidgen)"
     MACHINE_ID=$(echo $UNIQUE_ID | md5sum | cut -c1-32)
-    
+
     if [ -f /etc/machine-id ]; then
       echo "Previous machine-id: $(cat /etc/machine-id)" >> /var/log/machine-id-setup.log
       rm -f /etc/machine-id
@@ -63,24 +63,24 @@ runcmd:
     if [ -f /var/lib/dbus/machine-id ]; then
       rm -f /var/lib/dbus/machine-id
     fi
-    
+
     echo $MACHINE_ID > /etc/machine-id
     chmod 444 /etc/machine-id
     mkdir -p /var/lib/dbus
     cp /etc/machine-id /var/lib/dbus/machine-id
     chmod 444 /var/lib/dbus/machine-id
-    
+
     echo "New machine-id: $MACHINE_ID" >> /var/log/machine-id-setup.log
-  
+
   # 2. Hostname & Network Fixes (ВАШ КОД)
   - hostnamectl set-hostname ${hostname}
   - echo "${hostname}" > /etc/hostname
   - hostname ${hostname}
-  
+
   - 'echo "network:" > /etc/cloud/cloud.cfg.d/99-disable-network-config.cfg'
   - 'echo "  config: disabled" >> /etc/cloud/cloud.cfg.d/99-disable-network-config.cfg'
   - 'echo "preserve_hostname: true" > /etc/cloud/cloud.cfg.d/99-preserve-hostname.cfg'
-  
+
   - |
     echo "Restarting network services..." >> /var/log/machine-id-setup.log
     systemctl restart systemd-networkd || true
@@ -92,16 +92,16 @@ runcmd:
       netplan apply || true
     fi
     echo "Machine-ID setup completed at $(date)" >> /var/log/machine-id-setup.log
-  
+
   # 3. Установка базовых пакетов и QEMU Agent (ВАШ КОД + eBPF)
   # Мы ставим их здесь, потому что сеть к этому моменту точно работает (после рестарта выше)
   - apt-get update
   - apt-get install -y qemu-guest-agent python3
-  
+
   # 4. --- eBPF Tooling Setup ---
   # Ставим заголовки ядра и инструменты
   - apt-get install -y build-essential linux-headers-generic bpfcc-tools bpftrace clang llvm libbpf-dev git curl
-  
+
   # 5. Финальный запуск агента и проверка BTF
   - systemctl enable --now qemu-guest-agent.service
   - [ sh, -c, "ls -l /sys/kernel/btf/vmlinux > /var/log/btf-check.log 2>&1 || echo 'BTF NOT FOUND' >> /var/log/btf-check.log" ]

@@ -4,7 +4,7 @@
 - name: Install or Uninstall BOM Scanner
   hosts: all # iac-wrapper будет ограничивать это до k8s_master
   become: yes
-  
+
   vars:
     requested_version: ""
     # ПЕРЕМЕННАЯ СОСТОЯНИЯ

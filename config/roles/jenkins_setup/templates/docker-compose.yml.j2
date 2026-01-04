@@ -4,9 +4,9 @@ services:
     image: jenkins/jenkins:lts-jdk17
     container_name: jenkins
     restart: unless-stopped
-    # ❗️ ВАЖНО: Запускаем от root внутри контейнера, 
+    # ❗️ ВАЖНО: Запускаем от root внутри контейнера,
     # чтобы у него был доступ к docker.sock хоста.
-    user: "root" 
+    user: "root"
     ports:
       - "8080:8080" # Web UI
       - "50000:50000" # Agents

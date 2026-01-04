@@ -3,10 +3,10 @@
 - name: Install or Uninstall Traefik Gateway
   hosts: all
   become: yes
-  
+
   vars:
     requested_version: ""
-    requested_version_gateway_api: "" 
+    requested_version_gateway_api: ""
     # ПЕРЕМЕННАЯ СОСТОЯНИЯ
     addon_state: "present" # (Переопределить через -e "addon_state=absent")
 

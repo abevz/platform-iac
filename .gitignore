@@ -11,7 +11,7 @@
 
 # --- КЭШ И АРТЕФАКТЫ ВЫПОЛНЕНИЯ (НОВОЕ) ---
 # Каталог кэша, используемый iac-wrapper.sh
-.cache/ 
+.cache/
 
 # --- Ansible ---
 # Игнорируем виртуальное окружение Python
@@ -23,10 +23,10 @@
 # Игнорируем кэш инвентаря Ansible
 .ansible_inventory_cache.json
 # Временный JSON-инвентарь, если он не был очищен
-iac_inventory_*.json 
+iac_inventory_*.json
 
 # Игнорируем временные инвентари от iac-wrapper.sh (устаревшее .ini)
-iac_inventory_*.ini 
+iac_inventory_*.ini
 
 # Игнорируем временные файлы SOPS, созданные оберткой (КРИТИЧНО!)
 /tmp/iac_vars_*.json

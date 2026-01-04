@@ -4,4 +4,4 @@
   become: yes # Установка пакетов требует 'sudo'
 
   roles:
-    - role: falco-package
+    - falco_install_package

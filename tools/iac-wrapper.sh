@@ -145,7 +145,7 @@ load_tofu_secrets_to_temp_file() {
     --arg ssh_port "$proxmox_ssh_port" \
     --arg pub_key "$PUBLIC_KEY_CONTENT" '
       {
-        "proxmox_api_url": $api_url, 
+        "proxmox_api_url": $api_url,
         "proxmox_api_username": .PROXMOX_VE_API_TOKEN_ID,
         "proxmox_api_password": .PROXMOX_VE_API_TOKEN_SECRET,
         "proxmox_ssh_user": .PROXMOX_VE_SSH_USERNAME,

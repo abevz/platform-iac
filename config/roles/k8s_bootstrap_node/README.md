@@ -160,7 +160,7 @@ Containerd configuration with:
 ```toml
 [plugins."io.containerd.grpc.v1.cri"]
   sandbox_image = "registry.k8s.io/pause:3.10"
-  
+
 [plugins."io.containerd.grpc.v1.cri".registry.configs."{{ harbor_url }}".auth]
   auth = "{{ harbor_auth }}"
 ```

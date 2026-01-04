@@ -512,6 +512,6 @@ For questions or issues:
 
 ---
 
-**Last Updated**: November 2025  
-**Project**: platform-iac  
+**Last Updated**: November 2025
+**Project**: platform-iac
 **Owner**: abevz

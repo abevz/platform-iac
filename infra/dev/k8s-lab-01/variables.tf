@@ -34,7 +34,7 @@ variable "proxmox_ssh_address" {
   description = "FQDN или IP для SSH-подключения к ноде Proxmox"
   type        = string
   # Ваш nginx-proxy
-  default     = "homelab.example.com" 
+  default = "homelab.example.com"
 }
 
 variable "vm_template_id" {
@@ -72,7 +72,7 @@ variable "ssh_public_key" {
   description = "Содержимое <ssh-private-key>.pub"
   type        = string
   # Вставьте сюда содержимое Вашего <ssh-private-key>.pub
-  default     = "ssh-rsa AAAA..." 
+  default = "ssh-rsa AAAA..."
 }
 
 # --- Счетчики ---
@@ -95,11 +95,11 @@ variable "cp_cores" {
 }
 variable "cp_memory" {
   type    = number
-  default = 4096 
+  default = 4096
 }
 variable "cp_disk_size" {
   type    = number
-  default = 32 
+  default = 32
 }
 variable "worker_cores" {
   type    = number
@@ -107,25 +107,25 @@ variable "worker_cores" {
 }
 variable "worker_memory" {
   type    = number
-  default = 4096 
+  default = 4096
 }
 variable "worker_disk_size" {
   type    = number
-  default = 50 
+  default = 50
 }
 
 variable "control_plane_ips" {
   description = "Список статических IP для control plane нод"
   type        = list(string)
   # Укажите IP, который Вы хотите для CP
-  default     = ["192.0.2.200"] 
+  default = ["192.0.2.200"]
 }
 
 variable "worker_ips" {
   description = "Список статических IP для worker нод"
   type        = list(string)
   # Укажите IP, которые Вы хотите для WN
-  default     = ["192.0.2.201", "192.0.2.202"]
+  default = ["192.0.2.201", "192.0.2.202"]
 }
 
 variable "gateway" {

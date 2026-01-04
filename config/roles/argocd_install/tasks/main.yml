@@ -19,7 +19,7 @@
     namespace: "{{ argocd_namespace }}"
   register: argocd_apply_result
 
-# (Остальные задачи, такие как 'wait' и 'get password', 
+# (Остальные задачи, такие как 'wait' и 'get password',
 # должны запускаться только при установке)
 
 - name: Ожидать готовности ArgoCD Server

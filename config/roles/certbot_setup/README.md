@@ -32,12 +32,12 @@ certbot_domains_to_create:
     domains:
       - "*.example.com"                 # Wildcard domain
       - "example.com"                   # Root domain
-  
+
   - name: "example-dev-wildcard"
     domains:
       - "*.dev.example.com"
       - "dev.example.com"
-  
+
   - name: "s3-minio-example-com"
     domains:
       - "s3.minio.example.com"          # Single domain
@@ -505,10 +505,10 @@ certbot certificates | grep "Expiry Date"
 server {
     listen 443 ssl http2;
     server_name *.example.com;
-    
+
     ssl_certificate /etc/letsencrypt/live/example-com-wildcard/fullchain.pem;
     ssl_certificate_key /etc/letsencrypt/live/example-com-wildcard/privkey.pem;
-    
+
     # Include SSL hardening
     include /etc/nginx/ssl-params.conf;
 }

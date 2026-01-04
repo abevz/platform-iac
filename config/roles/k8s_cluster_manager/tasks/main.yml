@@ -174,7 +174,7 @@
                   "auths": {
                     (harbor_hostname): {
                       "username": harbor_robot_username,
-                      "password": harbor_robot_token,           
+                      "password": harbor_robot_token,
                       "auth": (harbor_robot_username + ":" + harbor_robot_token) | b64encode
                     }
                   }

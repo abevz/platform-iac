@@ -1,0 +1,5 @@
+---
+- name: Setup Local Workstation
+  hosts: workstation
+  roles:
+    - niri_desktop

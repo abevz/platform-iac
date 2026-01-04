@@ -1,9 +1,9 @@
 # /config/playbooks/install_istio.yml
 ---
 - name: Install or Uninstall Istio Service Mesh
-  hosts: all 
+  hosts: all
   become: yes
-  
+
   vars:
     # Переменная для переопределения версии
     requested_version: ""

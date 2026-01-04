@@ -5,8 +5,8 @@ Quick overview of all available Ansible roles with their primary use cases.
 ## Infrastructure Roles
 
 ### k8s_bootstrap_node
-**Purpose:** Bootstrap Kubernetes nodes with containerd and required packages  
-**Tags:** `bootstrap_prereqs`, `containerd`, `k8s_packages`  
+**Purpose:** Bootstrap Kubernetes nodes with containerd and required packages
+**Tags:** `bootstrap_prereqs`, `containerd`, `k8s_packages`
 **Docs:** [Full Documentation](./k8s_bootstrap_node/README.md)
 
 ```bash
@@ -14,8 +14,8 @@ ansible-playbook playbook.yml --tags k8s_bootstrap
 ```
 
 ### k8s_cluster_manager
-**Purpose:** Initialize control plane and join worker nodes  
-**Tags:** `init_cluster`, `join_workers`  
+**Purpose:** Initialize control plane and join worker nodes
+**Tags:** `init_cluster`, `join_workers`
 **Docs:** [Full Documentation](./k8s_cluster_manager/README.md)
 
 ```bash
@@ -23,7 +23,7 @@ ansible-playbook playbook.yml --tags init_cluster,join_workers
 ```
 
 ### set_timezone
-**Purpose:** Configure system timezone  
+**Purpose:** Configure system timezone
 **Tags:** `timezone`
 
 ```yaml
@@ -34,27 +34,27 @@ vars:
 ## Networking Roles
 
 ### calico_install_manifest
-**Purpose:** Install Calico CNI via Kubernetes manifests  
-**Tags:** `calico`  
-**Default CIDR:** `10.244.0.0/16`  
+**Purpose:** Install Calico CNI via Kubernetes manifests
+**Tags:** `calico`
+**Default CIDR:** `10.244.0.0/16`
 **Docs:** [Full Documentation](./calico_install_manifest/README.md)
 
 ### calico_install_helm
-**Purpose:** Install Calico CNI via Helm  
-**Tags:** `calico`  
-**Recommended for:** Production environments  
+**Purpose:** Install Calico CNI via Helm
+**Tags:** `calico`
+**Recommended for:** Production environments
 **Docs:** [Full Documentation](./calico_install_helm/README.md)
 
 ### cilium_install_helm
-**Purpose:** Install Cilium CNI with eBPF-based networking  
-**Tags:** `cilium`  
-**Features:** kube-proxy replacement, Hubble observability  
+**Purpose:** Install Cilium CNI with eBPF-based networking
+**Tags:** `cilium`
+**Features:** kube-proxy replacement, Hubble observability
 **Docs:** [Full Documentation](./cilium_install_helm/README.md)
 
 ### metallb_install
-**Purpose:** Provide LoadBalancer type services on bare-metal  
-**Tags:** `metallb`  
-**Requires:** IP address pool configuration  
+**Purpose:** Provide LoadBalancer type services on bare-metal
+**Tags:** `metallb`
+**Requires:** IP address pool configuration
 **Docs:** [Full Documentation](./metallb_install/README.md)
 
 ```yaml
@@ -62,8 +62,8 @@ metallb_ip_range: "192.168.1.200-192.168.1.250"
 ```
 
 ### ingress_nginx_install
-**Purpose:** Install NGINX Ingress Controller  
-**Tags:** `ingress`  
+**Purpose:** Install NGINX Ingress Controller
+**Tags:** `ingress`
 **Docs:** [Full Documentation](./ingress_nginx_install/README.md)
 
 ```bash
@@ -72,19 +72,19 @@ kubectl get svc -n ingress-nginx
 ```
 
 ### traefik_install
-**Purpose:** Alternative Ingress Controller with built-in dashboard  
+**Purpose:** Alternative Ingress Controller with built-in dashboard
 **Tags:** `traefik`
 
 ### istio_install
-**Purpose:** Install Istio Service Mesh  
-**Tags:** `istio`  
+**Purpose:** Install Istio Service Mesh
+**Tags:** `istio`
 **Use cases:** mTLS, traffic management, observability
 
 ## Security Roles
 
 ### falco_install_helm
-**Purpose:** Runtime security monitoring with system call analysis  
-**Tags:** `falco`  
+**Purpose:** Runtime security monitoring with system call analysis
+**Tags:** `falco`
 **Docs:** [Full Documentation](./falco_install_helm/README.md)
 
 ```bash
@@ -93,12 +93,12 @@ kubectl logs -n falco -l app.kubernetes.io/name=falco -f
 ```
 
 ### falco_install_package
-**Purpose:** Install Falco as system package (alternative to Helm)  
-**Tags:** `falco`  
+**Purpose:** Install Falco as system package (alternative to Helm)
+**Tags:** `falco`
 **Use when:** Direct host installation preferred
 
 ### trivy_operator_deploy
-**Purpose:** Continuous vulnerability and configuration scanning  
+**Purpose:** Continuous vulnerability and configuration scanning
 **Tags:** `trivy`
 
 ```bash
@@ -108,7 +108,7 @@ kubectl get configauditreports -A
 ```
 
 ### trivy_package_install
-**Purpose:** Install Trivy CLI for manual scanning  
+**Purpose:** Install Trivy CLI for manual scanning
 **Tags:** `trivy`
 
 ```bash
@@ -117,8 +117,8 @@ trivy k8s --report summary cluster
 ```
 
 ### kube_bench_run
-**Purpose:** Run CIS Kubernetes Benchmark security audit  
-**Tags:** `kube_bench`  
+**Purpose:** Run CIS Kubernetes Benchmark security audit
+**Tags:** `kube_bench`
 **Docs:** [Full Documentation](./kube_bench_run/README.md)
 
 ```bash
@@ -128,8 +128,8 @@ kubectl logs -n kube-bench job/kube-bench
 ```
 
 ### apparmor_configure
-**Purpose:** Deploy and configure AppArmor security profiles  
-**Tags:** `apparmor`  
+**Purpose:** Deploy and configure AppArmor security profiles
+**Tags:** `apparmor`
 **Profiles:** Docker, Kubernetes, custom application profiles
 
 ```bash
@@ -138,9 +138,9 @@ sudo aa-status
 ```
 
 ### cert_manager_install
-**Purpose:** Automated TLS certificate management  
-**Tags:** `cert_manager`  
-**Supports:** Let's Encrypt, self-signed, Vault  
+**Purpose:** Automated TLS certificate management
+**Tags:** `cert_manager`
+**Supports:** Let's Encrypt, self-signed, Vault
 **Docs:** [Full Documentation](./cert_manager_install/README.md)
 
 ```yaml
@@ -163,8 +163,8 @@ spec:
 ## Application Delivery
 
 ### argocd_install
-**Purpose:** GitOps continuous delivery platform  
-**Tags:** `argocd`  
+**Purpose:** GitOps continuous delivery platform
+**Tags:** `argocd`
 **Docs:** [Full Documentation](./argocd_install/README.md)
 
 ```bash
@@ -177,14 +177,14 @@ kubectl port-forward svc/argocd-server -n argocd 8080:443
 ```
 
 ### bom_install
-**Purpose:** Install Bill of Materials (BOM) tooling  
-**Tags:** `bom`  
+**Purpose:** Install Bill of Materials (BOM) tooling
+**Tags:** `bom`
 **Use cases:** Supply chain security, SBOM generation
 
 ### nginx_proxy_setup
-**Purpose:** Configure Nginx reverse proxy with Docker Compose  
-**Tags:** `nginx_proxy`  
-**Use cases:** Reverse proxy for services, SSL termination  
+**Purpose:** Configure Nginx reverse proxy with Docker Compose
+**Tags:** `nginx_proxy`
+**Use cases:** Reverse proxy for services, SSL termination
 **Docs:** [Full Documentation](./nginx_proxy_setup/README.md)
 
 ```yaml
@@ -195,9 +195,9 @@ vars:
 ```
 
 ### certbot_setup
-**Purpose:** Setup Certbot for Let's Encrypt SSL certificates  
-**Tags:** `certbot`  
-**Features:** Automatic certificate renewal, DNS-01 challenge support  
+**Purpose:** Setup Certbot for Let's Encrypt SSL certificates
+**Tags:** `certbot`
+**Features:** Automatic certificate renewal, DNS-01 challenge support
 **Docs:** [Full Documentation](./certbot_setup/README.md)
 
 ```yaml
@@ -425,5 +425,5 @@ For detailed role documentation, see individual `README.md` files in each role d
 
 ---
 
-**Last Updated**: November 2025  
+**Last Updated**: November 2025
 **Platform**: platform-iac

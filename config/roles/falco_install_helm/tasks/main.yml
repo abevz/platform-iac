@@ -35,10 +35,10 @@
               ka.verb in (get, list) and
               ka.objectResource.resource=secrets
             output: >
-              Kubernetes secret accessed (user=%ka.user.name verb=%ka.verb 
+              Kubernetes secret accessed (user=%ka.user.name verb=%ka.verb
               resource=%ka.target.resource object=%ka.target.name namespace=%ka.target.namespace)
             priority: WARNING
-            
+
           - rule: Container Privilege Escalation
             desc: Detect containers running with privilege escalation
             condition: >
@@ -46,17 +46,17 @@
               proc.name in (sudo, su, doas) and
               container
             output: >
-              Privilege escalation in container (user=%user.name command=%proc.cmdline 
+              Privilege escalation in container (user=%user.name command=%proc.cmdline
               container=%container.name image=%container.image.repository)
             priority: HIGH
-            
+
           - rule: Sensitive File Access
             desc: Detect access to sensitive files
             condition: >
               open_read and
               fd.name in (/etc/passwd, /etc/shadow, /etc/sudoers, /root/.ssh/authorized_keys)
             output: >
-              Sensitive file accessed (user=%user.name command=%proc.cmdline file=%fd.name 
+              Sensitive file accessed (user=%user.name command=%proc.cmdline file=%fd.name
               container=%container.name)
             priority: WARNING
 
