@@ -1,0 +1,37 @@
+# config/roles/mailserver_setup/tasks/main.yml
+---
+- name: Create mailserver directories
+  file:
+    path: "{{ item }}"
+    state: directory
+    mode: '0755'
+  loop:
+    - /opt/mailserver
+    - /opt/mailserver/data/dms/mail-data
+    - /opt/mailserver/data/dms/mail-state
+    - /opt/mailserver/data/dms/mail-logs
+    - /opt/mailserver/data/dms/config
+
+- name: Deploy docker-compose.yaml
+  template:
+    src: docker-compose.yaml.j2
+    dest: /opt/mailserver/docker-compose.yaml
+    mode: '0644'
+
+- name: Deploy mailserver.env
+  template:
+    src: mailserver.env.j2
+    dest: /opt/mailserver/mailserver.env
+    mode: '0600'  # Содержит sensitive данные
+
+- name: Start mailserver container
+  community.docker.docker_compose_v2:
+    project_src: /opt/mailserver
+    state: present
+  when: addon_state == "present"
+
+- name: Stop mailserver container
+  community.docker.docker_compose_v2:
+    project_src: /opt/mailserver
+    state: absent
+  when: addon_state == "absent"
