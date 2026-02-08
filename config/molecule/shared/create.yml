@@ -1,0 +1,86 @@
+# Shared create playbook for delegated driver
+# Creates VM via OpenTofu and waits for SSH
+---
+- name: Create test infrastructure
+  hosts: localhost
+  connection: local
+  gather_facts: false
+
+  vars:
+    molecule_scenario: "{{ lookup('env', 'MOLECULE_SCENARIO_NAME') }}"
+    tofu_dir: "{{ playbook_dir }}/../../../infra/dev/{{ molecule_scenario }}"
+    molecule_instance_config: "{{ lookup('env', 'MOLECULE_INSTANCE_CONFIG') }}"
+
+  tasks:
+    - name: Check if tofu directory exists
+      ansible.builtin.stat:
+        path: "{{ tofu_dir }}"
+      register: tofu_dir_stat
+
+    - name: Initialize OpenTofu
+      ansible.builtin.command:
+        cmd: tofu init -input=false
+        chdir: "{{ tofu_dir }}"
+      when: tofu_dir_stat.stat.exists
+      changed_when: true
+
+    - name: Apply OpenTofu configuration
+      ansible.builtin.command:
+        cmd: tofu apply -auto-approve -input=false
+        chdir: "{{ tofu_dir }}"
+      when: tofu_dir_stat.stat.exists
+      register: tofu_apply
+      changed_when: true
+
+    - name: Get VM IP from tofu output
+      ansible.builtin.command:
+        cmd: tofu output -json
+        chdir: "{{ tofu_dir }}"
+      when: tofu_dir_stat.stat.exists
+      register: tofu_output
+      changed_when: false
+
+    - name: Parse tofu output
+      ansible.builtin.set_fact:
+        vm_info: "{{ tofu_output.stdout | from_json }}"
+      when: tofu_dir_stat.stat.exists and tofu_output.stdout | length > 0
+
+    - name: Build instance config
+      ansible.builtin.set_fact:
+        instance_config:
+          - instance: "{{ molecule_scenario }}-test"
+            address: "{{ vm_info.vm_ip.value | default('127.0.0.1') }}"
+            user: "{{ lookup('env', 'MOLECULE_SSH_USER') | default('ubuntu', true) }}"
+            port: 22
+            identity_file: "{{ lookup('env', 'MOLECULE_SSH_KEY') | default('~/.ssh/id_ed25519', true) }}"
+      when: tofu_dir_stat.stat.exists
+
+    - name: Write instance config (for existing infra)
+      ansible.builtin.copy:
+        content: "{{ instance_config | to_nice_yaml }}"
+        dest: "{{ molecule_instance_config }}"
+        mode: "0644"
+      when: tofu_dir_stat.stat.exists
+
+    # Fallback: use existing VM from inventory
+    - name: Use existing VM from inventory (no tofu)
+      when: not tofu_dir_stat.stat.exists
+      block:
+        - name: Write instance config from molecule.yml
+          ansible.builtin.copy:
+            content: |
+              - instance: {{ molecule_scenario }}-test
+                address: "{{ lookup('env', 'MOLECULE_TEST_HOST') | default('localhost', true) }}"
+                user: "{{ lookup('env', 'MOLECULE_SSH_USER') | default('ubuntu', true) }}"
+                port: 22
+                identity_file: "{{ lookup('env', 'MOLECULE_SSH_KEY') | default('~/.ssh/id_ed25519', true) }}"
+            dest: "{{ molecule_instance_config }}"
+            mode: "0644"
+
+    - name: Wait for SSH
+      ansible.builtin.wait_for:
+        host: "{{ (instance_config | first).address | default(lookup('env', 'MOLECULE_TEST_HOST')) }}"
+        port: 22
+        delay: 5
+        timeout: 300
+      when: instance_config is defined or lookup('env', 'MOLECULE_TEST_HOST') | length > 0

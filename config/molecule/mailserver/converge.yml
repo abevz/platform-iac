@@ -1,0 +1,65 @@
+# Converge playbook for mailserver scenario
+# Applies the mailserver_setup role to the test VM
+---
+- name: Converge - Setup Mailserver
+  hosts: mailservers
+  become: true
+  gather_facts: true
+
+  vars:
+    # Override for testing - use present to deploy, absent to remove
+    addon_state: "present"
+
+    # Test-specific variables (can be overridden via env)
+    mailserver_domain: "{{ lookup('env', 'MAILSERVER_DOMAIN') | default('test.example.com', true) }}"
+    mailserver_hostname: "{{ lookup('env', 'MAILSERVER_HOSTNAME') | default('mail.test.example.com', true) }}"
+
+    # Disable SSL for testing (unless explicitly enabled)
+    mailserver_ssl_type: "{{ lookup('env', 'MAILSERVER_SSL_TYPE') | default('', true) }}"
+
+  pre_tasks:
+    - name: Update apt cache (Debian/Ubuntu)
+      ansible.builtin.apt:
+        update_cache: true
+        cache_valid_time: 3600
+      when: ansible_os_family == "Debian"
+
+    - name: Install Docker prerequisites
+      ansible.builtin.package:
+        name:
+          - docker.io
+          - docker-compose-v2
+        state: present
+      when: ansible_os_family == "Debian"
+
+    - name: Ensure Docker service is running
+      ansible.builtin.service:
+        name: docker
+        state: started
+        enabled: true
+
+  roles:
+    - role: mailserver_setup
+
+  post_tasks:
+    - name: Verify mailserver directories exist
+      ansible.builtin.stat:
+        path: "{{ item }}"
+      loop:
+        - /opt/mailserver
+        - /opt/mailserver/data/dms/mail-data
+        - /opt/mailserver/data/dms/mail-state
+        - /opt/mailserver/data/dms/mail-logs
+        - /opt/mailserver/data/dms/config
+      register: dir_check
+
+    - name: Assert all directories created
+      ansible.builtin.assert:
+        that:
+          - item.stat.exists
+          - item.stat.isdir
+        fail_msg: "Directory {{ item.item }} does not exist!"
+        success_msg: "Directory {{ item.item }} exists"
+      loop: "{{ dir_check.results }}"
+      loop_control:
+        label: "{{ item.item }}"
