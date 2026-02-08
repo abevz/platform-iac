@@ -7,6 +7,7 @@ pod_cidr: "192.168.0.0/16"
 kubernetes_version: "1.33.0"
 
 # Private registry related variables
+# REPLACE with your real domain:
 harbor_hostname: "harbor.<your-domain>.com"
 harbor_robot_username: "k8s-puller"
 # harbor_robot_token is passed via sops/extra-vars, this is correct
