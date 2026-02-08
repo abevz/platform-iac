@@ -537,7 +537,7 @@ UNREACHABLE! => {"changed": false, "msg": "Failed to connect via ssh"}
 **Solution:**
 ```bash
 # Verify SSH key
-ls -la <repo>/<ssh-private-key>
+ls -la /path/to/platform-iac/<ssh-private-key>
 
 # Test SSH manually
 ssh -i /path/to/key root@192.168.1.100

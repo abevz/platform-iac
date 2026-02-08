@@ -1,6 +1,6 @@
 #Для ограничения доступа строго одним бакетом стандартные политики AWS (типа `AmazonS3FullAccess`) не подходят, так как они дают доступ ко **всем** бакетам.
 
-Вам нужно создать **Custom Inline Policy** (встроенную политику) для пользователя `bevz.cks`. Это делается в три шага: очистка, создание JSON-файла и применение.
+Вам нужно создать **Custom Inline Policy** (встроенную политику) для пользователя `your-user`. Это делается в три шага: очистка, создание JSON-файла и применение.
 
 ### Шаг 1. Отзовите полные права (если уже выдали)
 
@@ -8,7 +8,7 @@
 
 ```bash
 aws iam detach-user-policy \
-    --user-name bevz.cks \
+    --user-name your-user \
     --policy-arn arn:aws:iam::aws:policy/AmazonS3FullAccess \
     --profile golddragon
 ```
@@ -27,13 +27,13 @@ aws iam detach-user-policy \
       "Sid": "AllowListingOfBucket",
       "Effect": "Allow",
       "Action": ["s3:ListBucket"],
-      "Resource": ["arn:aws:s3:::cks-storage-abevz"]
+      "Resource": ["arn:aws:s3:::cks-storage-yourbucket"]
     },
     {
       "Sid": "AllowAllActionsInBucket",
       "Effect": "Allow",
       "Action": ["s3:PutObject", "s3:GetObject", "s3:DeleteObject"],
-      "Resource": ["arn:aws:s3:::cks-storage-abevz/*"]
+      "Resource": ["arn:aws:s3:::cks-storage-yourbucket/*"]
     }
   ]
 }
@@ -47,7 +47,7 @@ _Обратите внимание: `Resource` указывается дважд
 
 ```bash
 aws iam put-user-policy \
-    --user-name bevz.cks \
+    --user-name your-user \
     --policy-name CksStorageOnlyAccess \
     --policy-document file://s3-limit.json \
     --profile golddragon
@@ -55,12 +55,12 @@ aws iam put-user-policy \
 
 ### Шаг 4. Проверка (Важный нюанс)
 
-Теперь поведение CLI для пользователя `bevz.cks` изменится.
+Теперь поведение CLI для пользователя `your-user` изменится.
 
 1.  **Глобальный список бакетов (FAIL):**
 
     ```bash
-    aws s3 ls --profile bevz.cks
+    aws s3 ls --profile your-user
     ```
 
     _Результат:_ `AccessDenied`. Это **нормально**, так как мы не дали права `s3:ListAllMyBuckets`. Пользователь не должен знать о существовании других бакетов.
@@ -68,7 +68,7 @@ aws iam put-user-policy \
 2.  **Доступ к конкретному бакету (SUCCESS):**
 
     ```bash
-    aws s3 ls s3://cks-storage-abevz --profile bevz.cks
+    aws s3 ls s3://cks-storage-yourbucket --profile your-user
     ```
 
     _Результат:_ Список файлов.
@@ -76,11 +76,11 @@ aws iam put-user-policy \
 3.  **Попытка доступа к чужому бакету (FAIL):**
 
     ```bash
-    aws s3 ls s3://another-bucket --profile bevz.cks
+    aws s3 ls s3://another-bucket --profile your-user
     ```
 
     _Результат:_ `AccessDenied`.
 
 ### Резюме
 
-Вы реализовали принцип **Least Privilege**. Пользователь `bevz.cks` теперь работает как "в туннеле": он не видит ничего вокруг, но имеет полный контроль внутри `cks-storage-abevz`. READMI_policy_s3.md
+Вы реализовали принцип **Least Privilege**. Пользователь `your-user` теперь работает как "в туннеле": он не видит ничего вокруг, но имеет полный контроль внутри `cks-storage-yourbucket`. READMI_policy_s3.md

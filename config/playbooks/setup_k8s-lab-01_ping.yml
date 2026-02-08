@@ -7,7 +7,7 @@
     - name: Ping all hosts
       ansible.builtin.ping:
 
-    - name: Verify 'abevz' user and sudo (whoami)
+    - name: Verify user and sudo access (whoami)
       ansible.builtin.command: whoami
       register: whoami_output
 

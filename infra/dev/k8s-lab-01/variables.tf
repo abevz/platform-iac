@@ -59,7 +59,7 @@ variable "proxmox_snippet_storage" {
 variable "vm_user" {
   description = "Имя пользователя для Ansible"
   type        = string
-  default     = "ansible"
+  default     = ""
 }
 
 variable "ssh_port" {

@@ -5,6 +5,10 @@
 *.tfstate
 *.tfstate.backup
 
+# Игнорируем tfvars с личными данными (используйте .tfvars.example как шаблон)
+*.tfvars
+!*.tfvars.example
+
 # Игнорируем плагины и кэш провайдеров
 .terraform/
 .terraform.lock.hcl
@@ -16,6 +20,9 @@
 # --- Ansible ---
 # Игнорируем виртуальное окружение Python
 .venv/
+
+# Игнорируем локальный inventory (используйте static.ini.example как шаблон)
+config/inventory/static.ini
 
 # Игнорируем файлы повторов Ansible
 *.retry

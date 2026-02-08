@@ -1,0 +1,12 @@
+# Example terraform.tfvars
+# Copy this file to your module directory and customize:
+#   cp terraform.tfvars.example minio/terraform.tfvars
+
+# VM username for Ansible provisioning
+vm_user = "your-username"
+
+# SSH public key for VM access
+vm_ssh_key = "ssh-rsa AAAA... your-email@example.com"
+
+# Proxmox target node (optional, usually set per-module)
+# proxmox_target_node = "pve"
