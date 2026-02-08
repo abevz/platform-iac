@@ -2,14 +2,6 @@
 
 > **Platform Infrastructure as Code** - Universal IaC solution for managing all virtual machines on Proxmox VE with automated provisioning, configuration management, and security hardening.
 
-> [!WARNING]
-> **Example Configuration**
-> This repository contains example IP addresses (`<YOUR-LAN-IP>`) and domain names (`<your-domain>.com`) for demonstration purposes.
-> **Before deployment:**
-> 1. Copy `config/platform.conf.example` to `config/platform.conf`.
-> 2. Update `config/platform.conf` with your specific infrastructure details (IPs, domains, SSH ports).
-> 3. Ensure your SSH keys are placed in `keys/` directory (or update the path in config).
-
 ## Overview
 
 `platform-iac` is a comprehensive **Infrastructure as Code (IaC)** and **Configuration Management (CM)** solution for managing **all virtual infrastructure** on **Proxmox VE**. This includes Kubernetes clusters, database servers (Percona XtraDB, PostgreSQL), GitLab instances, mail servers, application servers, and any other VM-based workloads.
@@ -157,7 +149,8 @@ All secrets are managed by `sops` and stored in `config/secrets/`. The `iac-wrap
 
 - `config/secrets/proxmox/provider.sops.yml`: Holds Proxmox API and SSH credentials for Tofu.
 - `config/secrets/minio/backend.sops.yml`: Holds AWS keys for the MinIO S3 Tofu state backend.
-- `config/secrets/ansible/extra_vars.sops.yml`: Holds credentials for Ansible, primarily the `pihole.web_password` and `harbor.robot_token`.
+- `config/secrets/ansible/extra_vars.sops.yml`: Holds credentials and custom environment variables (domains, IPs for proxy, tokens).
+- `config/group_vars/all.yml`: Global variable mapping that connects SOPS secrets to roles.
 
 Non-secret configuration (like IPs, VM specs, and domains) is managed in `infra/dev/k8s-lab-01/variables.tf` and Ansible `group_vars`.
 

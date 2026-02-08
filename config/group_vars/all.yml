@@ -1,0 +1,7 @@
+---
+# Central variable mapping to bridge SOPS secrets with role variables
+# These variables will be available to all playbooks
+
+mailserver_domain: '{{ mailserver.domain | default("<your-domain>.com") }}'
+mailserver_hostname: '{{ mailserver.hostname | default("mail.<your-domain>.com") }}'
+dev_domain: '{{ dev_domain_secret | default("<your-dev-domain>.dev") }}'

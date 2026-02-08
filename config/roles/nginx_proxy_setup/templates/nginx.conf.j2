@@ -12,7 +12,7 @@ events {
 
 stream {
     map $ssl_preread_server_name $backend_stream {
-        ~^(.*)\.k8s\.bevz\.net$  {{ nginx_proxy_upstreams.k8s_ingress }};
+        ~^(.*)\.k8s\.{{ mailserver_domain | default("<your-domain>.com") }}$  {{ nginx_proxy_upstreams.k8s_ingress }};
         default                 127.0.0.1:1443;
     }
 
