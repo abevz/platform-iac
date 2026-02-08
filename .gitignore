@@ -68,6 +68,10 @@ tmp/
 keys/
 config/platform.conf
 
+# --- Ansible Group Vars ---
+# Local group_vars with real values (use .example as template)
+config/group_vars/k8s_master.yml
+
 # --- Playground ---
 # Local experimentation directory - not for production use
 playground/
