@@ -1,7 +1,7 @@
 ---
 # ==============================================================================
-# ФАЗА 1: BOOTSTRAP (ВСЕ НОДЫ)
-# (k8s_bootstrap_node включает: sysctl, swap, containerd, Kubelet/Kubeadm,
+# PHASE 1: BOOTSTRAP (ALL NODES)
+# (k8s_bootstrap_node includes: sysctl, swap, containerd, Kubelet/Kubeadm,
 # Harbor Proxy, AppArmor/Seccomp setup)
 # ==============================================================================
 - name: 1. Bootstrap All Nodes and Kernel Security (Prereqs, Containerd, Kubelet)
@@ -11,8 +11,8 @@
   tags: [bootstrap]
 
   vars:
-    # Переменные для Harbor. Приходят из SOPS (--extra-vars).
-    # Используются ролями k8s_bootstrap_node и k8s_cluster_manager.
+    # Harbor variables. Comes from SOPS (--extra-vars).
+    # Used by k8s_bootstrap_node and k8s_cluster_manager roles.
     harbor_hostname: "{{ harbor.hostname | default('harbor.bevz.net') }}"
     harbor_robot_username: "{{ harbor.robot_username | default('k8s-puller') }}"
     harbor_robot_token: "{{ harbor.robot_token | default('') }}"
@@ -20,11 +20,11 @@
     k8s_long_version_debian: "1.33.0-1.1"
 
   roles:
-    # Роль, включающая всю логику install_kubernetes_cluster.yml
+    # Role including all logic from install_kubernetes_cluster.yml
     - role: k8s_bootstrap_node
 
 # ==============================================================================
-# ФАЗА 2: УПРАВЛЕНИЕ КЛАСТЕРОМ (Init, Join, Secrets)
+# PHASE 2: CLUSTER MANAGEMENT (Init, Join, Secrets)
 # (k8s_cluster_manager: kubeadm init, kubeadm join, CSR approve, Harbor Secret)
 # ==============================================================================
 - name: 2. Manage K8s Cluster State (Init, Join, Verify)
@@ -34,27 +34,25 @@
   tags: [cluster_manage]
 
   vars:
-    # Повторяем, чтобы быть уверенным в наличии (хотя должны быть из Фазы 1)
+    # Repeat variables to ensure availability
     harbor_hostname: "{{ harbor.hostname | default('harbor.bevz.net') }}"
     harbor_robot_username: "{{ harbor.robot_username | default('k8s-puller') }}"
     harbor_robot_token: "{{ harbor.robot_token | default('') }}"
     k8s_short_version: "1.33"
     k8s_long_version_debian: "1.33.0-1.1"
-    # <<< ДОБАВЛЯЕМ ПЕРЕМЕННУЮ ЗДЕСЬ >>>
-    # Определяем 'target_namespaces' прямо в плее,
-    # чтобы обойти проблему с загрузкой group_vars
+    # Define 'target_namespaces' directly in the play
+    # to avoid issues with group_vars loading
     target_namespaces:
       - default
       - kube-system
-    # --- КОНЕЦ ИСПРАВЛЕНИЯ ---
-    #
+
   roles:
-    # Роль, включающая всю логику initialize_kubernetes_cluster_with_dns.yml,
-    # но без CNI.
+    # Role including all logic from initialize_kubernetes_cluster_with_dns.yml,
+    # but without CNI.
     - role: k8s_cluster_manager
 
 # ==============================================================================
-# ФАЗА 3: УСТАНОВКА CNI (Выберите ОДНУ роль)
+# PHASE 3: CNI DEPLOYMENT (Choose ONE role)
 # ==============================================================================
 - name: 3. Deploy CNI Plugin (Cilium via Helm)
   hosts: k8s_master
@@ -65,32 +63,32 @@
     addon_state: "present"
 
   roles:
-    # ВНИМАНИЕ: Выберите только ОДНУ роль CNI.
-    # В данном примере используется Cilium Helm.
+    # WARNING: Choose only ONE CNI role.
+    # This example uses Cilium Helm.
     - role: cilium_install_helm
     #- role: cilium_install_cli
     #- role: calico_install_helm
     #- role: calico_install_manifest
 
 # ==============================================================================
-# ФАЗА 3.5: ВЕРИФИКАЦИЯ НОД И CSR (ПОСЛЕ CNI)
+# PHASE 3.5: NODE VERIFICATION AND CSR APPROVAL (POST-CNI)
 # ==============================================================================
 - name: 3.5. Verify Node Readiness and Approve CSRs (Post-CNI)
   hosts: k8s_master
   become: yes
   gather_facts: no
-  tags: [cluster_verify] # Можно добавить новый тег
+  tags: [cluster_verify]
 
   tasks:
     - name: Wait for all nodes to report Ready status (post-CNI)
       ansible.builtin.command: "kubectl wait --for=condition=Ready nodes --all --timeout=300s"
-      changed_when: false # Ожидание не является изменением
+      changed_when: false # Waiting is not a change
 
     - name: Wait until all worker CSRs are created
       ansible.builtin.command: >
         kubectl get csr -o jsonpath='{.items[?(@.spec.signerName=="kubernetes.io/kubelet-serving")].metadata.name}'
       register: pending_csr_names
-      # 'until' должен использовать 'groups', а не 'hostvars'
+      # 'until' should use 'groups', not 'hostvars'
       until: "pending_csr_names.stdout.split(' ') | length >= (groups['k8s_worker'] | length)"
       retries: 30
       delay: 10
@@ -115,7 +113,7 @@
           {{ final_cluster_status.stdout }}
 
 # ==============================================================================
-# ФАЗА 4: УСТАНОВКА ИНСТРУМЕНТОВ БЕЗОПАСНОСТИ
+# PHASE 4: SECURITY TOOLING DEPLOYMENT
 # ==============================================================================
 - name: 4. Deploy CKS Security Tooling (Falco and Trivy)
   hosts: k8s_master
@@ -123,11 +121,11 @@
   tags: [security]
 
   roles:
-    # Развертывание Falco (DaemonSet через Helm)
+    # Deploy Falco (DaemonSet via Helm)
     - role: falco_install_package
 
-    # Установка Trivy CLI на мастер-ноду (для сканирования)
+    # Install Trivy CLI on master node (for scanning)
     - role: trivy_package_install
 
-    # Развертывание Trivy Operator (в кластер)
+    # Deploy Trivy Operator (in cluster)
     - role: trivy_operator_deploy
