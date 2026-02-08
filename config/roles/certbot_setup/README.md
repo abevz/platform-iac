@@ -30,17 +30,17 @@ certbot_email: "admin@example.com"
 certbot_domains_to_create:
   - name: "example-com-wildcard"        # Certificate name
     domains:
-      - "*.example.com"                 # Wildcard domain
-      - "example.com"                   # Root domain
+      - "*.<your-domain>.com"                 # Wildcard domain
+      - "<your-domain>.com"                   # Root domain
 
   - name: "example-dev-wildcard"
     domains:
-      - "*.dev.example.com"
-      - "dev.example.com"
+      - "*.<your-dev-domain>.dev"
+      - "<your-dev-domain>.dev"
 
   - name: "s3-minio-example-com"
     domains:
-      - "s3.minio.example.com"          # Single domain
+      - "s3.minio.<your-domain>.com"          # Single domain
 ```
 
 ### Override Variables
@@ -198,7 +198,7 @@ cloudflare:
 
 This role uses **DNS-01** challenge validation, which:
 
-- Allows wildcard certificates (e.g., `*.example.com`)
+- Allows wildcard certificates (e.g., `*.<your-domain>.com`)
 - Works without exposing port 80/443
 - Requires DNS provider API access (Cloudflare)
 - More secure than HTTP-01 for internal infrastructure
@@ -221,7 +221,7 @@ This role uses **DNS-01** challenge validation, which:
 4. Use **Edit zone DNS** template
 5. Configure:
    - **Permissions**: Zone → DNS → Edit
-   - **Zone Resources**: Include → Specific zone → `example.com`
+   - **Zone Resources**: Include → Specific zone → `<your-domain>.com`
 6. Copy the generated token
 
 ### Store Token Securely
@@ -283,16 +283,16 @@ certbot certificates
 **Expected output:**
 ```
 Certificate Name: example-com-wildcard
-  Domains: *.example.com example.com
+  Domains: *.<your-domain>.com <your-domain>.com
   Expiry Date: 2025-02-15 12:34:56+00:00 (VALID: 89 days)
-  Certificate Path: /etc/letsencrypt/live/example-com-wildcard/fullchain.pem
-  Private Key Path: /etc/letsencrypt/live/example-com-wildcard/privkey.pem
+  Certificate Path: /etc/letsencrypt/live/<your-domain>-wildcard/fullchain.pem
+  Private Key Path: /etc/letsencrypt/live/<your-domain>-wildcard/privkey.pem
 ```
 
 ### Verify Certificate
 
 ```bash
-openssl x509 -in /etc/letsencrypt/live/example-com-wildcard/fullchain.pem -text -noout
+openssl x509 -in /etc/letsencrypt/live/<your-domain>-wildcard/fullchain.pem -text -noout
 ```
 
 ### Test Certificate with Nginx
@@ -368,7 +368,7 @@ curl -X GET "https://api.cloudflare.com/client/v4/user/tokens/verify" \
   -H "Authorization: Bearer YOUR_TOKEN"
 
 # Verify DNS propagation
-dig +short TXT _acme-challenge.example.com
+dig +short TXT _acme-challenge.<your-domain>.com
 
 # Check DNS plugin
 certbot plugins
@@ -376,12 +376,12 @@ certbot plugins
 
 # Retry with verbose output
 certbot certonly --dns-multi --dns-multi-credentials /etc/letsencrypt/dns-multi.ini \
-  -d "*.example.com" -d "example.com" --dry-run -v
+  -d "*.<your-domain>.com" -d "<your-domain>.com" --dry-run -v
 ```
 
 ### Issue: Rate limit exceeded
 
-**Symptom**: `too many certificates already issued for: example.com`
+**Symptom**: `too many certificates already issued for: <your-domain>.com`
 
 **Solution**: Let's Encrypt has rate limits:
 - **50 certificates** per registered domain per week
@@ -398,7 +398,7 @@ Wait for rate limit to reset or use `--dry-run` for testing.
 ```bash
 certbot certonly --dns-multi \
   --dns-multi-credentials /etc/letsencrypt/dns-multi.ini \
-  -d "*.example.com" -d "example.com" \
+  -d "*.<your-domain>.com" -d "<your-domain>.com" \
   --force-renewal
 ```
 
@@ -504,10 +504,10 @@ certbot certificates | grep "Expiry Date"
 ```nginx
 server {
     listen 443 ssl http2;
-    server_name *.example.com;
+    server_name *.<your-domain>.com;
 
-    ssl_certificate /etc/letsencrypt/live/example-com-wildcard/fullchain.pem;
-    ssl_certificate_key /etc/letsencrypt/live/example-com-wildcard/privkey.pem;
+    ssl_certificate /etc/letsencrypt/live/<your-domain>-wildcard/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/<your-domain>-wildcard/privkey.pem;
 
     # Include SSL hardening
     include /etc/nginx/ssl-params.conf;

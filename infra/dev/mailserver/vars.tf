@@ -1,6 +1,6 @@
 variable "proxmox_host" {
   type    = string
-  default = "192.0.2.124"
+  default = "<MAILSERVER-IP>"
 }
 
 variable "common" {
@@ -8,8 +8,8 @@ variable "common" {
   default = {
     os_type       = "ubuntu"
     clone         = "ubuntu-2210-cloudinit-template"
-    search_domain = "homelab.dev.example.com"
-    nameserver    = "192.0.2.1"
+    search_domain = "homelab.<your-dev-domain>.dev"
+    nameserver    = "<LAN-GATEWAY-IP>"
   }
 }
 
@@ -18,9 +18,9 @@ variable "mailserver" {
   default = {
     devmail = {
       id          = 5010
-      cidr        = "192.0.2.185/24"
+      cidr        = "<MAIL-NETWORK-IP>/24"
       cores       = 2
-      gw          = "192.0.2.1"
+      gw          = "<LAN-GATEWAY-IP>"
       memory      = 2096
       disk        = "40G"
       target_node = "homelab"

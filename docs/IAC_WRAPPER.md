@@ -561,7 +561,7 @@ ERROR: Failed to add DNS record for k8s-cp
 **Solution:**
 ```bash
 # Check Pi-hole is accessible
-curl -I http://10.10.10.x/admin
+curl -I http://<YOUR-LAN-IP>/admin
 
 # Verify credentials in credentials.sops.yml
 sops -d infra/dev/k8s-lab-01/credentials.sops.yml | grep pihole
