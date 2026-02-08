@@ -1,0 +1,39 @@
+# Platform IAC Configuration
+# Copy this file to platform.conf and customize for your environment
+#
+# This file is sourced by tools/iac-wrapper.sh
+# Add platform.conf to .gitignore (already done)
+
+# --- SSH Configuration ---
+# Path to SSH private key for Ansible connections
+# Default: ${REPO_ROOT}/keys/deployment_key
+SSH_KEY="${REPO_ROOT}/keys/deployment_key"
+
+# --- Proxmox Configuration ---
+# Direct IP address of Proxmox VE host (internal network)
+PROXMOX_DIRECT_IP="10.10.10.101"
+
+# Proxmox API URL for direct access (internal network)
+PROXMOX_DIRECT_API_URL="https://${PROXMOX_DIRECT_IP}:8006"
+
+# SSH port for direct Proxmox access
+PROXMOX_DIRECT_SSH_PORT=22
+
+# --- Proxmox Proxy/Tunnel Configuration ---
+# External hostname for Proxmox access via tunnel/proxy
+PROXMOX_PROXY_SSH_ADDR="homelab.example.com"
+
+# SSH port for tunneled Proxmox access
+PROXMOX_PROXY_SSH_PORT=22006
+
+# --- Terraform/Tofu State Backend ---
+# S3 bucket name for Terraform state (MinIO or AWS S3)
+TF_STATE_BUCKET="terraform-state-example"
+
+# --- DNS Configuration (Pi-hole) ---
+# Pi-hole server IP for automatic DNS registration
+PIHOLE_IP="10.10.10.100"
+
+# --- Network Ranges ---
+# Internal network CIDR (used in examples and documentation)
+INTERNAL_NETWORK="10.10.10.0/24"

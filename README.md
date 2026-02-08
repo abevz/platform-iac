@@ -2,6 +2,12 @@
 
 > **Platform Infrastructure as Code** - Universal IaC solution for managing all virtual machines on Proxmox VE with automated provisioning, configuration management, and security hardening.
 
+> [!WARNING]
+> **Example Configuration**
+> This repository contains example IP addresses (`10.10.10.x`) and domain names (`bevz.net`) for demonstration purposes.
+> Please update `config/platform.conf` with your own infrastructure details before deployment.
+> See `config/platform.conf.example` for reference.
+
 ## Overview
 
 `platform-iac` is a comprehensive **Infrastructure as Code (IaC)** and **Configuration Management (CM)** solution for managing **all virtual infrastructure** on **Proxmox VE**. This includes Kubernetes clusters, database servers (Percona XtraDB, PostgreSQL), GitLab instances, application servers, and any other VM-based workloads.

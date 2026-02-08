@@ -11,10 +11,22 @@
 set -euo pipefail
 
 REPO_ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/..
+
+# --- Load platform configuration ---
+PLATFORM_CONF="${REPO_ROOT}/config/platform.conf"
+if [ -f "$PLATFORM_CONF" ]; then
+  # shellcheck source=/dev/null
+  source "$PLATFORM_CONF"
+else
+  echo "WARN: ${PLATFORM_CONF} not found. Using defaults or environment variables." >&2
+  echo "      Copy config/platform.conf.example to config/platform.conf and customize." >&2
+fi
+
+# --- Configuration with defaults (can be overridden by platform.conf or env) ---
 STATIC_INVENTORY="${REPO_ROOT}/config/inventory/static.ini"
 ANSIBLE_CONFIG_FILE="${REPO_ROOT}/config/ansible.cfg"
-SSH_KEY="/home/abevz/Projects/platform-iac/cpc_deployment_key"
-readonly TF_STATE_BUCKET="terraform-state-bevz-net"
+SSH_KEY="${SSH_KEY:-${REPO_ROOT}/keys/deployment_key}"
+readonly TF_STATE_BUCKET="${TF_STATE_BUCKET:-terraform-state}"
 
 # --- НОВЫЕ КОНСТАНТЫ ДЛЯ ИНВЕНТАРЯ (Интеграция) ---
 readonly TOFU_CACHE_DIR="${REPO_ROOT}/.cache"
@@ -79,14 +91,15 @@ load_tofu_secrets_to_temp_file() {
   local COMPONENT="$1"
 
   # --- НАЧАЛО: ИСПРАВЛЕНИЕ "КУРИЦЫ И ЯЙЦА" (API, SSH Addr, SSH Port) ---
-  local PROXMOX_DIRECT_IP="10.10.10.101"
-  local PROXMOX_DIRECT_API_URL="https://10.10.10.101:8006" # <-- ИСПРАВЛЕНИЕ ЗДЕСЬ
-  local PROXMOX_DIRECT_SSH_PORT=22
+  # Values loaded from config/platform.conf (with fallback defaults)
+  local _PROXMOX_DIRECT_IP="${PROXMOX_DIRECT_IP:-10.10.10.101}"
+  local _PROXMOX_DIRECT_API_URL="${PROXMOX_DIRECT_API_URL:-https://${_PROXMOX_DIRECT_IP}:8006}"
+  local _PROXMOX_DIRECT_SSH_PORT="${PROXMOX_DIRECT_SSH_PORT:-22}"
 
   local PROXMOX_PROXY_API_URL
   PROXMOX_PROXY_API_URL=$(sops -d "$PROXMOX_SECRETS_FILE" | yq -r '.PROXMOX_VE_ENDPOINT')
-  local PROXMOX_PROXY_SSH_ADDR="homelab.bevz.net"
-  local PROXMOX_PROXY_SSH_PORT=22006
+  local _PROXMOX_PROXY_SSH_ADDR="${PROXMOX_PROXY_SSH_ADDR:-homelab.example.com}"
+  local _PROXMOX_PROXY_SSH_PORT="${PROXMOX_PROXY_SSH_PORT:-22006}"
 
   local proxmox_api_url
   local proxmox_ssh_address
@@ -125,15 +138,15 @@ load_tofu_secrets_to_temp_file() {
   PUBLIC_KEY_CONTENT="${PUBLIC_KEY_CONTENT%$'\n'}"
 
   if [ "$COMPONENT" == "nginx-proxy" ] || [ "$COMPONENT" == "minio" ]; then
-    log "ВНИМАНИЕ: Bootstrap-компонент. Используем ПРЯМОЙ IP ($PROXMOX_DIRECT_IP) и ПРЯМОЙ порт ($PROXMOX_DIRECT_SSH_PORT)."
-    proxmox_api_url="$PROXMOX_DIRECT_API_URL"
-    proxmox_ssh_address="$PROXMOX_DIRECT_IP"
-    proxmox_ssh_port=$PROXMOX_DIRECT_SSH_PORT
+    log "ВНИМАНИЕ: Bootstrap-компонент. Используем ПРЯМОЙ IP ($_PROXMOX_DIRECT_IP) и ПРЯМОЙ порт ($_PROXMOX_DIRECT_SSH_PORT)."
+    proxmox_api_url="$_PROXMOX_DIRECT_API_URL"
+    proxmox_ssh_address="$_PROXMOX_DIRECT_IP"
+    proxmox_ssh_port=$_PROXMOX_DIRECT_SSH_PORT
   else
-    log "INFO: Service-компонент. Используем ПРОКСИ FQDN ($PROXMOX_PROXY_SSH_ADDR) и ПРОКСИ порт ($PROXMOX_PROXY_SSH_PORT)."
-    proxmox_api_url="$PROXMOX_PROXY_API_URL"
-    proxmox_ssh_address="$PROXMOX_PROXY_SSH_ADDR"
-    proxmox_ssh_port=$PROXMOX_PROXY_SSH_PORT
+    log "INFO: Service-компонент. Используем ПРОКСИ FQDN ($_PROXMOX_PROXY_SSH_ADDR) и ПРОКСИ порт ($_PROXMOX_PROXY_SSH_PORT)."
+    proxmox_api_url="$_PROXMOX_PROXY_API_URL"
+    proxmox_ssh_address="$_PROXMOX_PROXY_SSH_ADDR"
+    proxmox_ssh_port=$_PROXMOX_PROXY_SSH_PORT
   fi
   # --- КОНЕЦ: ИСПРАВЛЕНИЯ "КУРИЦЫ И ЯЙЦА" ---
 

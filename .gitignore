@@ -51,3 +51,5 @@ config/secrets/certbot/dns-multi.ini
 
 # Временный каталог
 tmp/
+keys/
+config/platform.conf
