@@ -11,13 +11,22 @@
   tags: [bootstrap]
 
   vars:
-    # Harbor variables. Comes from SOPS (--extra-vars).
-    # Used by k8s_bootstrap_node and k8s_cluster_manager roles.
-    harbor_hostname: "{{ harbor.hostname | default('harbor.<your-domain>.com') }}"
-    harbor_robot_username: "{{ harbor.robot_username | default('k8s-puller') }}"
-    harbor_robot_token: "{{ harbor.robot_token | default('') }}"
+    # Harbor variables loaded from sops (config/secrets/ansible/extra_vars.sops.yml)
+    # Do not use defaults here - all required variables must be defined in sops
+    harbor_hostname: "{{ harbor.hostname }}"
+    harbor_robot_username: "{{ harbor.robot_username }}"
+    harbor_robot_token: "{{ harbor.robot_token }}"
     k8s_short_version: "1.33"
     k8s_long_version_debian: "1.33.0-1.1"
+
+  pre_tasks:
+    - name: Assert required harbor variables are defined
+      ansible.builtin.assert:
+        that:
+          - harbor.hostname is defined
+          - harbor.robot_username is defined
+          - harbor.robot_token is defined
+        fail_msg: "Required harbor variables not defined. Check config/secrets/ansible/extra_vars.sops.yml"
 
   roles:
     # Role including all logic from install_kubernetes_cluster.yml
@@ -34,10 +43,10 @@
   tags: [cluster_manage]
 
   vars:
-    # Repeat variables to ensure availability
-    harbor_hostname: "{{ harbor.hostname | default('harbor.<your-domain>.com') }}"
-    harbor_robot_username: "{{ harbor.robot_username | default('k8s-puller') }}"
-    harbor_robot_token: "{{ harbor.robot_token | default('') }}"
+    # Harbor variables loaded from sops (config/secrets/ansible/extra_vars.sops.yml)
+    harbor_hostname: "{{ harbor.hostname }}"
+    harbor_robot_username: "{{ harbor.robot_username }}"
+    harbor_robot_token: "{{ harbor.robot_token }}"
     k8s_short_version: "1.33"
     k8s_long_version_debian: "1.33.0-1.1"
     # Define 'target_namespaces' directly in the play
@@ -45,6 +54,15 @@
     target_namespaces:
       - default
       - kube-system
+
+  pre_tasks:
+    - name: Assert required harbor variables are defined
+      ansible.builtin.assert:
+        that:
+          - harbor.hostname is defined
+          - harbor.robot_username is defined
+          - harbor.robot_token is defined
+        fail_msg: "Required harbor variables not defined. Check config/secrets/ansible/extra_vars.sops.yml"
 
   roles:
     # Role including all logic from initialize_kubernetes_cluster_with_dns.yml,

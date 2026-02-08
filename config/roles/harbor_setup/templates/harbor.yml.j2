@@ -1,6 +1,8 @@
 # File managed by Ansible
-hostname: harbor.{{ domain | default('<your-domain>.com') }}
-external_url: https://harbor.{{ domain | default('<your-domain>.com') }}
+# REQUIRED VARIABLES (must be defined in config/secrets/ansible/extra_vars.sops.yml):
+# harbor.hostname, harbor.admin_password, harbor.db_password
+hostname: harbor.{{ harbor.hostname }}
+external_url: https://harbor.{{ harbor.hostname }}
 
 http:
   port: 80
@@ -11,11 +13,11 @@ http:
 #   certificate: ...
 #   private_key: ...
 
-# These variables should be in config/secrets/ansible/extra_vars.sops.yml
-harbor_admin_password: '{{ harbor.admin_password | default('ChangeThisPassword') }}'
+# These variables must be in config/secrets/ansible/extra_vars.sops.yml
+harbor_admin_password: '{{ harbor.admin_password }}'
 
 database:
-  password: '{{ harbor.db_password | default('ChangeThisDBPassword') }}'
+  password: '{{ harbor.db_password }}'
   max_idle_conns: 100
   max_open_conns: 900
   conn_max_lifetime: 5m

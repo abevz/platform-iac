@@ -6,19 +6,10 @@ certbot_venv_path: "/opt/certbot"
 # Path to credentials file
 certbot_credentials_path: "/etc/letsencrypt/dns-multi.ini"
 
-# Email for Let's Encrypt
-certbot_email: "<your-email>@example.com"
-
-# List of domains for certificates (from your script)
-certbot_domains_to_create:
-  - name: "your-domain-wildcard"
-    domains:
-      - "*.<your-domain>.com"
-      - "<your-domain>.com"
-  - name: "your-dev-domain-wildcard"
-    domains:
-      - "*.<your-dev-domain>.com"
-      - "<your-dev-domain>.com"
-  - name: "s3-minio-your-domain"
-    domains:
-      - "s3.minio.<your-domain>.com"
+# REQUIRED VARIABLES (must be defined in config/secrets/ansible/extra_vars.sops.yml):
+# certbot_email: "admin@example.com"
+# certbot_domains_to_create:
+#   - name: "domain-wildcard"
+#     domains:
+#       - "*.example.com"
+#       - "example.com"

@@ -8,6 +8,5 @@ pod_cidr: "192.168.0.0/16"
 kubernetes_version: "{{ k8s_short_version | default('1.33.0') }}"
 # Note: Set default to full format vX.Y.Z to avoid errors.
 
-# Other variables that may be environment-specific should also be moved.
-# For example, harbor_hostname, harbor_robot_username
-# harbor_hostname: "harbor.<your-domain>.com"
+# REQUIRED VARIABLES (must be defined in config/secrets/ansible/extra_vars.sops.yml):
+# harbor.hostname, harbor.robot_username, harbor.robot_token
