@@ -60,3 +60,7 @@ config/secrets/certbot/dns-multi.ini
 tmp/
 keys/
 config/platform.conf
+
+# --- Playground ---
+# Local experimentation directory - not for production use
+playground/
