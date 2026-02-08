@@ -6,8 +6,18 @@
 
   vars:
     addon_state: "present"
-    mailserver_domain: "<your-dev-domain>.dev"
-    mailserver_hostname: "mail.<your-dev-domain>.dev"
+    # REQUIRED VARIABLES (must be defined in config/secrets/ansible/extra_vars.sops.yml):
+    # mailserver_domain, mailserver_hostname
+    mailserver_domain: "{{ mailserver.domain }}"
+    mailserver_hostname: "{{ mailserver.hostname }}"
+
+  pre_tasks:
+    - name: Assert required mailserver variables are defined
+      ansible.builtin.assert:
+        that:
+          - mailserver.domain is defined
+          - mailserver.hostname is defined
+        fail_msg: "Required mailserver variables not defined. Check config/secrets/ansible/extra_vars.sops.yml"
 
   roles:
     - role: mailserver_setup
