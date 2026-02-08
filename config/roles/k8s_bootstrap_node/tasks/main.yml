@@ -8,14 +8,14 @@
   changed_when: false
   register: wait_for_lock
   until: wait_for_lock.rc == 0
-  retries: 18 # Ждать максимум 3 минуты (18 * 10 секунд)
+  retries: 18 # Wait max 3 minutes (18 * 10 seconds)
   delay: 10
   tags: [bootstrap_prereqs]
 
 - name: Encode data for Harbor authorization
   ansible.builtin.set_fact:
     harbor_auth: "{{ [harbor_robot_username,harbor_robot_token] | join(':') | b64encode }}"
-  tags: [always] # Этот тег гарантирует, что переменная будет доступна всегда
+  tags: [always] # Ensure variable is always available
 
 - name: Update package cache (Debian/Ubuntu)
   ansible.builtin.apt:
@@ -304,7 +304,7 @@
   ansible.builtin.package:
     name: python3-kubernetes
     state: present
-  tags: [k8s_packages, harbor_secret] # Необходимо для модуля k8s
+  tags: [k8s_packages, harbor_secret] # Required for k8s module
 
 - name: Install jmespath for json_query filter
   ansible.builtin.package:
@@ -326,13 +326,13 @@
     enabled: yes
   tags: [k8s_packages]
 
-- name: Проверить, доступен ли Seccomp
+- name: Check if Seccomp is available
   ansible.builtin.shell: 'if grep -q seccomp /proc/version; then echo "available"; else echo "not_available"; fi'
   register: seccomp_check
   changed_when: false
   tags: [cks, seccomp]
 
-- name: Создать директорию Seccomp
+- name: Create Seccomp directory
   ansible.builtin.file:
     path: /var/lib/kubelet/seccomp/profiles
     state: directory
@@ -341,7 +341,7 @@
   when: seccomp_check.stdout == "available"
   tags: [cks, seccomp]
 
-- name: Создать профиль Seccomp 'restricted.json'
+- name: Create Seccomp profile 'restricted.json'
   ansible.builtin.copy:
     content: |
       {
@@ -397,7 +397,7 @@
   when: seccomp_check.stdout == "available"
   tags: [cks, seccomp]
 
-- name: Создать профиль Seccomp 'audit.json'
+- name: Create Seccomp profile 'audit.json'
   ansible.builtin.copy:
     content: |
       {
