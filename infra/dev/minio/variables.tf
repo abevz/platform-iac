@@ -56,7 +56,7 @@ variable "proxmox_snippet_storage" {
 variable "vm_user" {
   description = "Имя пользователя для Ansible"
   type        = string
-  default     = "abevz"
+  default     = ""
 }
 variable "ssh_public_key" {
   description = "Содержимое cpc_deployment_key.pub"

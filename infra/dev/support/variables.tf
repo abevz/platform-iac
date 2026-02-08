@@ -55,7 +55,7 @@ variable "proxmox_snippet_storage" {
 
 variable "vm_user" {
   type    = string
-  default = "abevz"
+  default = ""
 }
 
 variable "ssh_public_key" {

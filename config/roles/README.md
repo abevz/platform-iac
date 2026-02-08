@@ -80,7 +80,7 @@ service_cidr: "10.96.0.0/12"
 ### 3. Run Playbook
 
 ```bash
-cd /home/abevz/Projects/platform-iac
+cd /path/to/platform-iac
 ansible-playbook -i config/inventory/static.ini config/playbooks/setup_k8s-lab-01.yml
 ```
 

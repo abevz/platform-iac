@@ -39,5 +39,5 @@ variable "pi_ip" {
 }
 variable "pi_user" {
   type    = string
-  default = "abevz" # Или root, смотря как настроено
+  default = "" # Или root, смотря как настроено
 }

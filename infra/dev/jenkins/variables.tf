@@ -48,7 +48,7 @@ variable "proxmox_snippet_storage" {
 # --- Переменные для Ansible ---
 variable "vm_user" {
   type    = string
-  default = "abevz"
+  default = ""
 }
 variable "ssh_public_key" {
   type    = string

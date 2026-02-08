@@ -1,0 +1,27 @@
+# Example Ansible inventory
+# Copy to static.ini and customize with your IPs and username:
+#   cp static.ini.example static.ini
+
+[proxmox_nodes]
+# Your Proxmox host (FQDN or IP)
+proxmox.example.com ansible_user=terraform
+
+[my_k8s_cp]
+# Control plane node(s)
+10.0.0.10 ansible_user=your-username
+
+[my_k8s_workers]
+# Worker nodes
+10.0.0.11 ansible_user=your-username
+10.0.0.12 ansible_user=your-username
+10.0.0.13 ansible_user=your-username
+
+[my_k8s_cluster:children]
+my_k8s_cp
+my_k8s_workers
+
+[all:vars]
+ansible_user=your-username
+
+[workstation]
+127.0.0.1 ansible_connection=local

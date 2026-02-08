@@ -44,9 +44,9 @@
     update_cache: yes
   become: yes
 
-- name: ❗️ Добавить пользователя 'abevz' в группу 'docker'
+- name: Add VM user to docker group
   ansible.builtin.user:
-    name: "{{ vm_user }}" # (var 'abevz' из Tofu)
+    name: "{{ vm_user }}"
     groups: docker
     append: yes
   become: yes
