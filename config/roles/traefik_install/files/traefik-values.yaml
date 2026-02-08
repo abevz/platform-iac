@@ -1,5 +1,5 @@
 # config/roles/traefik_install/files/traefik-values.yaml
-# (Содержимое Вашего traefik-values.yaml)
+# (Your traefik-values.yaml content)
 
 providers:
   kubernetesGateway:
@@ -20,7 +20,7 @@ experimental:
     enabled: true
     gateway:
       service:
-        type: LoadBalancer # Примечание: В Вашем lab-кластере это может создать 'pending' LoadBalancer
+        type: LoadBalancer # Note: In your lab cluster this may create a 'pending' LoadBalancer
 
 entryPoints:
   websecure:

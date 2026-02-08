@@ -1,16 +1,16 @@
 #!/bin/bash
 
-# Цвета для вывода
+# Colors for output
 RED='\033[0;31m'
 BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
-echo -e "${BLUE}=== Аудит ссылок на директорию 'config/' ===${NC}"
-echo "Поиск файлов, которые сломаются при переименовании 'config' -> 'ansible'..."
+echo -e "${BLUE}=== Audit references to 'config/' directory ===${NC}"
+echo "Searching for files that will break when renaming 'config' -> 'ansible'..."
 echo ""
 
-# 1. Поиск прямых вхождений 'config/' в коде и скриптах
-# Исключаем: .git, .bare (worktrees), сам скрипт и README (текст не ломает сборку)
+# 1. Search for direct 'config/' occurrences in code and scripts
+# Excludes: .git, .bare (worktrees), this script and README (text doesn't break build)
 grep -rnI "config/" . \
   --exclude-dir={.git,.bare,.idea,.vscode} \
   --exclude="audit_config_refs.sh" \
@@ -19,19 +19,19 @@ grep -rnI "config/" . \
   grep --color=always "config/"
 
 echo ""
-echo -e "${BLUE}=== Проверка ansible.cfg ===${NC}"
+echo -e "${BLUE}=== Checking ansible.cfg ===${NC}"
 
-# 2. Проверка путей внутри ansible.cfg (roles_path)
-# Если roles_path относительный, он может сломаться при перемещении самого конфига
+# 2. Check paths inside ansible.cfg (roles_path)
+# If roles_path is relative, it may break when moving the config itself
 if [ -f config/ansible.cfg ]; then
-  echo "Найден config/ansible.cfg. Проверяем roles_path:"
+  echo "Found config/ansible.cfg. Checking roles_path:"
   grep -H "roles_path" config/ansible.cfg
 else
-  echo -e "${RED}Файл config/ansible.cfg не найден!${NC}"
+  echo -e "${RED}File config/ansible.cfg not found!${NC}"
 fi
 
 echo ""
-echo -e "${BLUE}=== Итог ===${NC}"
-echo "1. CI/CD: Проверьте .github/workflows или .gitlab-ci.yml (если есть)"
-echo "2. Wrappers: Обратите внимание на скрипты в tools/"
-echo "3. Hooks: Проверьте .pre-commit-config.yaml"
+echo -e "${BLUE}=== Summary ===${NC}"
+echo "1. CI/CD: Check .github/workflows or .gitlab-ci.yml (if any)"
+echo "2. Wrappers: Pay attention to scripts in tools/"
+echo "3. Hooks: Check .pre-commit-config.yaml"

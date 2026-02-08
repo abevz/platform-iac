@@ -1,25 +1,25 @@
-# Файл управляется Ansible
+# File managed by Ansible
 services:
   localstack:
     image: localstack/localstack:latest
     container_name: localstack
     restart: unless-stopped
     ports:
-      # Главный шлюз (все сервисы)
+      # Main gateway (all services)
       - "4566:4566"
-      # Отдельный S3 (если нужен)
+      # Separate S3 (if needed)
       # - "4572:4572"
     volumes:
-      # Bind mount для данных
+      # Bind mount for data
       - "{{ localstack_data_dir }}:/var/lib/localstack"
-      # Bind mount для Docker socket
+      # Bind mount for Docker socket
       - "/var/run/docker.sock:/var/run/docker.sock"
     networks:
       - localstack-net
     environment:
       - DEBUG=0
       - DOCKER_HOST=unix:///var/run/docker.sock
-      # (Добавьте сюда ключи AWS, если они нужны для 'pro' версии)
+      # (Add AWS keys here if needed for 'pro' version)
       # - LOCALSTACK_API_KEY=...
 
 networks:

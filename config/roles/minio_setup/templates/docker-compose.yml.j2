@@ -1,5 +1,5 @@
 # /config/roles/minio_setup/templates/docker-compose.yml.j2
-# Файл управляется Ansible.
+# File managed by Ansible.
 services:
   minio:
     image: minio/minio:RELEASE.2025-04-22T22-12-26Z
@@ -7,10 +7,10 @@ services:
     restart: unless-stopped
     command: server /data --console-address ":9001"
 
-    # ПРИМЕЧАНИЕ:
-    # Эти переменные должны быть определены в Вашем файле
+    # NOTE:
+    # These variables should be defined in your file
     # config/secrets/ansible/extra_vars.sops.yml
-    # (по аналогии с harbor, cloudflare и pihole)
+    # (similar to harbor, cloudflare and pihole)
     environment:
       MINIO_ROOT_USER: "{{ minio.root_user | default('minioadmin') }}"
       MINIO_ROOT_PASSWORD: "{{ minio.root_password | default('minioadmin') }}"

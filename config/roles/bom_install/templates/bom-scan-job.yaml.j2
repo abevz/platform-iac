@@ -14,21 +14,21 @@ spec:
         - /bin/sh
         - -c
         - |
-          # 1. Установка зависимостей
+          # 1. Install dependencies
           apk add --no-cache curl bash
 
-          # 2. Установка kubectl (нужен для получения списка подов)
+          # 2. Install kubectl (needed to get pod list)
           curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
           chmod +x kubectl
           mv kubectl /usr/local/bin/
 
-          # 3. Установка bom
+          # 3. Install bom
           curl -L "https://github.com/kubernetes-sigs/bom/releases/download/v{{ bom_target_version }}/bom-amd64-linux" -o /usr/local/bin/bom
           chmod +x /usr/local/bin/bom
 
           echo "Scanning cluster for software components..."
 
-          # 4. Получение списка образов
+          # 4. Get list of images
           kubectl get pods --all-namespaces -o jsonpath='{.items[*].spec.containers[*].image}' | tr ' ' '\n' | sort -u | grep -v "^$" > /tmp/cluster-images.txt
 
           IMAGE_COUNT=$(wc -l < /tmp/cluster-images.txt)
@@ -39,7 +39,7 @@ spec:
               exit 0
           fi
 
-          # 5. Генерация SBOM (используем bash для массивов)
+          # 5. Generate SBOM (using bash for arrays)
           /bin/bash -c '
             BOM_ARGS=()
             while read -r img; do
@@ -58,7 +58,7 @@ spec:
             ls -lh /tmp/cluster-bom.spdx.json
           fi
 
-          # Ждем, чтобы можно было посмотреть логи или скопировать файл
+          # Wait to view logs or copy file
           sleep 60
       restartPolicy: Never
   backoffLimit: 3

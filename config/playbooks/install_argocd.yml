@@ -1,7 +1,7 @@
 # config/playbooks/install_argocd.yml
 ---
 - name: Install or Uninstall ArgoCD
-  hosts: all # iac-wrapper будет ограничивать это до k8s_master
+  hosts: all # iac-wrapper will limit this to k8s_master
   become: yes
 
   vars:

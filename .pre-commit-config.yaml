@@ -32,7 +32,7 @@ repos:
     hooks:
       - id: ansible-lint
         name: ansible-lint
-        # FIX: Передаем переменные через env, так как ключ environment игнорируется
+        # FIX: Pass variables via env because environment key is ignored
         entry: env ANSIBLE_ROLES_PATH=config/roles ANSIBLE_CONFIG=config/ansible.cfg ansible-lint
         language: system
         files: \.(yaml|yml)$
