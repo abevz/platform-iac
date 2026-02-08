@@ -29,7 +29,7 @@ variable "proxmox_node_name" {
 variable "proxmox_ssh_address" {
   description = "FQDN or IP for SSH connection to Proxmox node"
   type        = string
-  default     = "homelab.bevz.net"
+  default     = "homelab.<your-domain>.com"
 }
 variable "proxmox_ssh_port" {
   description = "SSH port for Proxmox node connection"
@@ -85,12 +85,12 @@ variable "cp_disk_size" {
 variable "vm_ip_address" {
   description = "Static IP for minio-server"
   type        = string
-  default     = "10.10.10.102"
+  default     = "<MINIO-IP>"
 }
 variable "gateway" {
   description = "Network gateway"
   type        = string
-  default     = "10.10.10.1"
+  default     = "<LAN-GATEWAY-IP>"
 }
 variable "ip_prefix_length" {
   description = "CIDR prefix length (e.g. 24 for /24)"
@@ -105,5 +105,5 @@ variable "vm_started" {
 variable "vm_dns_server" {
   description = "DNS server IP address (Pi-hole)"
   type        = string
-  default     = "10.10.10.100"
+  default     = "<PIHOLE-IP>"
 }

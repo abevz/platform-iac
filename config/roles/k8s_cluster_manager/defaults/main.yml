@@ -10,4 +10,4 @@ kubernetes_version: "{{ k8s_short_version | default('1.33.0') }}"
 
 # Other variables that may be environment-specific should also be moved.
 # For example, harbor_hostname, harbor_robot_username
-# harbor_hostname: "harbor.bevz.net"
+# harbor_hostname: "harbor.<your-domain>.com"

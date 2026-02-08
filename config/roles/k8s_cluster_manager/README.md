@@ -25,7 +25,7 @@ pod_cidr: "192.168.0.0/16"
 kubernetes_version: "{{ k8s_short_version | default('1.33.0') }}"
 
 # Harbor registry configuration (optional)
-# harbor_hostname: "harbor.bevz.net"
+# harbor_hostname: "harbor.<your-domain>.com"
 # harbor_robot_username: "robot$k8s-pull"
 # harbor_robot_token: ""  # Pass via -e or SOPS
 # target_namespaces: ["default", "production"]
@@ -123,7 +123,7 @@ k8s_short_version: "1.31"
   hosts: k8s_cluster
   become: yes
   vars:
-    harbor_hostname: "harbor.bevz.net"
+    harbor_hostname: "harbor.<your-domain>.com"
     harbor_robot_username: "robot$k8s-pull"
     harbor_robot_token: "{{ lookup('env', 'HARBOR_ROBOT_TOKEN') }}"
     target_namespaces:
@@ -252,11 +252,11 @@ The role generates a comprehensive kubeadm configuration:
 apiVersion: kubeadm.k8s.io/v1beta3
 kind: InitConfiguration
 localAPIEndpoint:
-  advertiseAddress: 10.10.10.200
+  advertiseAddress: <K8S-INGRESS-IP>
   bindPort: 6443
 nodeRegistration:
   kubeletExtraArgs:
-    node-ip: 10.10.10.200
+    node-ip: <K8S-INGRESS-IP>
 ---
 apiVersion: kubeadm.k8s.io/v1beta3
 kind: ClusterConfiguration
@@ -264,7 +264,7 @@ kubernetesVersion: "v1.31.0"
 controlPlaneEndpoint: "k8s-master.example.com:6443"
 apiServer:
   certSANs:
-  - 10.10.10.200
+  - <K8S-INGRESS-IP>
   - k8s-master
   - k8s-master.example.com
   - localhost
@@ -300,9 +300,9 @@ kubectl get nodes -o wide
 
 # Expected output:
 # NAME         STATUS   ROLES           AGE   VERSION   INTERNAL-IP
-# k8s-master   Ready    control-plane   5m    v1.31.0   10.10.10.200
-# k8s-worker1  Ready    <none>          3m    v1.31.0   10.10.10.201
-# k8s-worker2  Ready    <none>          3m    v1.31.0   10.10.10.202
+# k8s-master   Ready    control-plane   5m    v1.31.0   <K8S-INGRESS-IP>
+# k8s-worker1  Ready    <none>          3m    v1.31.0   <K8S-WORKER-1-IP>
+# k8s-worker2  Ready    <none>          3m    v1.31.0   <K8S-WORKER-2-IP>
 
 # Check component status
 kubectl get pods -n kube-system
@@ -331,7 +331,7 @@ kubectl certificate approve <csr-name>
 kubectl get secret registry-creds -n default -o yaml
 
 # Test image pull from Harbor
-kubectl run test-pod --image=harbor.bevz.net/library/nginx:latest \
+kubectl run test-pod --image=harbor.<your-domain>.com/library/nginx:latest \
   --image-pull-policy=Always \
   --overrides='{"spec":{"imagePullSecrets":[{"name":"registry-creds"}]}}'
 
@@ -370,7 +370,7 @@ spec:
   - name: registry-creds
   containers:
   - name: app
-    image: harbor.bevz.net/library/myapp:latest
+    image: harbor.<your-domain>.com/library/myapp:latest
 ```
 
 ### Generate Harbor Robot Account
@@ -491,7 +491,7 @@ kubectl get secret registry-creds -n default
 kubectl get secret registry-creds -o jsonpath='{.data.\.dockerconfigjson}' | base64 -d
 
 # Test Harbor login manually
-docker login harbor.bevz.net -u robot$k8s-pull -p YOUR_TOKEN
+docker login harbor.<your-domain>.com -u robot$k8s-pull -p YOUR_TOKEN
 
 # Verify pod uses imagePullSecrets
 kubectl describe pod <pod-name> | grep -A5 "Image Pull"

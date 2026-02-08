@@ -16,8 +16,8 @@ variables {
   common = {
     os_type = "ubuntu"
     clone = "ubuntu-2210-cloudinit-template"
-    search_domain = "homelab.bevz.dev"
-    nameserver = "10.10.10.1"
+    search_domain = "homelab.<your-dev-domain>.dev"
+    nameserver = "<LAN-GATEWAY-IP>"
   }
 
   mailserver = {

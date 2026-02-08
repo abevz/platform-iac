@@ -1,6 +1,6 @@
 # File managed by Ansible
-hostname: harbor.bevz.net
-external_url: https://harbor.bevz.net
+hostname: harbor.{{ domain | default('<your-domain>.com') }}
+external_url: https://harbor.{{ domain | default('<your-domain>.com') }}
 
 http:
   port: 80

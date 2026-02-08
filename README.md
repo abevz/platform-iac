@@ -4,7 +4,7 @@
 
 > [!WARNING]
 > **Example Configuration**
-> This repository contains example IP addresses (`10.10.10.x`) and domain names (`bevz.net`) for demonstration purposes.
+> This repository contains example IP addresses (`<YOUR-LAN-IP>`) and domain names (`<your-domain>.com`) for demonstration purposes.
 > **Before deployment:**
 > 1. Copy `config/platform.conf.example` to `config/platform.conf`.
 > 2. Update `config/platform.conf` with your specific infrastructure details (IPs, domains, SSH ports).
@@ -97,8 +97,8 @@ The `iac-wrapper.sh` script requires these tools on your local machine:
 
 1. **Proxmox VE:** A running Proxmox server.
 2. **VM Template:** A prepared Ubuntu Cloud-Init VM template (e.g., ID `9420` as referenced in `variables.tf`).
-3. **Pi-hole:** A running Pi-hole instance (e.g., at `10.10.10.100`) for internal DNS.
-4. **Harbor:** A running Harbor instance (e.g., at `harbor.bevz.net`) for container proxy caching.
+3. **Pi-hole:** A running Pi-hole instance (e.g., at `<PIHOLE-IP>`) for internal DNS.
+4. **Harbor:** A running Harbor instance (e.g., at `harbor.<your-domain>.com`) for container proxy caching.
 5. **S3 Backend:** An S3-compatible bucket (like MinIO) for storing Tofu state.
 6. **SSH Key:** An SSH key pair for Ansible access (e.g., `cpc_deployment_key`).
 

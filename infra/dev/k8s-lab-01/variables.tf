@@ -33,7 +33,7 @@ variable "proxmox_node_name" {
 variable "proxmox_ssh_address" {
   description = "FQDN or IP for SSH connection to Proxmox node"
   type        = string
-  default     = "homelab.bevz.net"
+  default     = "homelab.<your-domain>.com"
 }
 
 variable "vm_template_id" {
@@ -115,19 +115,19 @@ variable "worker_disk_size" {
 variable "control_plane_ips" {
   description = "Static IPs for control plane nodes"
   type        = list(string)
-  default     = ["10.10.10.200"]
+  default     = ["<K8S-INGRESS-IP>"]
 }
 
 variable "worker_ips" {
   description = "Static IPs for worker nodes"
   type        = list(string)
-  default     = ["10.10.10.201", "10.10.10.202"]
+  default     = ["<K8S-WORKER-1-IP>", "<K8S-WORKER-2-IP>"]
 }
 
 variable "gateway" {
   description = "Network gateway"
   type        = string
-  default     = "10.10.10.1"
+  default     = "<LAN-GATEWAY-IP>"
 }
 
 variable "ip_prefix_length" {
@@ -145,5 +145,5 @@ variable "vm_started" {
 variable "vm_dns_server" {
   description = "DNS server IP for VMs (e.g. Pi-hole)"
   type        = string
-  default     = "10.10.10.100"
+  default     = "<PIHOLE-IP>"
 }

@@ -25,7 +25,7 @@ variable "proxmox_node_name" {
 }
 variable "proxmox_ssh_address" {
   type    = string
-  default = "homelab.bevz.net"
+  default = "homelab.<your-domain>.com"
 }
 variable "proxmox_ssh_port" {
   type      = number
@@ -35,7 +35,7 @@ variable "proxmox_ssh_port" {
 # Existing Raspberry Pi settings
 variable "pi_ip" {
   type    = string
-  default = "10.10.10.100"
+  default = "<PIHOLE-IP>"
 }
 variable "pi_user" {
   type    = string

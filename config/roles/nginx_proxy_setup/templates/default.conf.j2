@@ -3,7 +3,7 @@
 server {
     listen 80;
     listen [::]:80;
-    server_name homelab.bevz.net harbor.bevz.net wiki.bevz.dev gitlab.bevz.net s3.minio.bevz.net minio.bevz.net plantuml.bevz.dev;
+    server_name homelab.<your-domain>.com harbor.<your-domain>.com wiki.<your-dev-domain>.dev gitlab.<your-domain>.com s3.minio.<your-domain>.com minio.<your-domain>.com plantuml.<your-dev-domain>.dev;
 
     location /.well-known/acme-challenge/ {
         root /var/www/html;
@@ -17,11 +17,11 @@ server {
 
 server {
     listen 127.0.0.1:1443 ssl http2 proxy_protocol;
-    server_name wiki.bevz.dev;
+    server_name wiki.<your-dev-domain>.dev;
 
-    ssl_certificate /etc/letsencrypt/live/bevz-dev-wildcard/fullchain.pem;
-    ssl_certificate_key /etc/letsencrypt/live/bevz-dev-wildcard/privkey.pem;
-    ssl_trusted_certificate /etc/letsencrypt/live/bevz-dev-wildcard/chain.pem;
+    ssl_certificate /etc/letsencrypt/live/<your-dev-domain>-wildcard/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/<your-dev-domain>-wildcard/privkey.pem;
+    ssl_trusted_certificate /etc/letsencrypt/live/<your-dev-domain>-wildcard/chain.pem;
     include conf.d/ssl-params.conf;
     include conf.d/gzip.conf;
     proxy_intercept_errors on;
@@ -38,11 +38,11 @@ server {
 
 server {
     listen 127.0.0.1:1443 ssl http2 proxy_protocol;
-    server_name gitlab.bevz.net;
+    server_name gitlab.<your-domain>.com;
 
-    ssl_certificate /etc/letsencrypt/live/bevz-net-wildcard/fullchain.pem;
-    ssl_certificate_key /etc/letsencrypt/live/bevz-net-wildcard/privkey.pem;
-    ssl_trusted_certificate /etc/letsencrypt/live/bevz-net-wildcard/chain.pem;
+    ssl_certificate /etc/letsencrypt/live/<your-domain>-wildcard/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/<your-domain>-wildcard/privkey.pem;
+    ssl_trusted_certificate /etc/letsencrypt/live/<your-domain>-wildcard/chain.pem;
 
     limit_req zone=mylimit burst=10 nodelay;
 
@@ -58,11 +58,11 @@ server {
 
 server {
     listen 127.0.0.1:1443 ssl http2 proxy_protocol;
-    server_name s3.minio.bevz.net;
+    server_name s3.minio.<your-domain>.com;
 
-    ssl_certificate /etc/letsencrypt/live/s3-minio-bevz-net/fullchain.pem;
-    ssl_certificate_key /etc/letsencrypt/live/s3-minio-bevz-net/privkey.pem;
-    ssl_trusted_certificate /etc/letsencrypt/live/s3-minio-bevz-net/chain.pem;
+    ssl_certificate /etc/letsencrypt/live/s3-minio-<your-domain>/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/s3-minio-<your-domain>/privkey.pem;
+    ssl_trusted_certificate /etc/letsencrypt/live/s3-minio-<your-domain>/chain.pem;
     include conf.d/ssl-params.conf;
 
     client_max_body_size 0;
@@ -85,11 +85,11 @@ server {
 
 server {
     listen 127.0.0.1:1443 ssl http2 proxy_protocol;
-    server_name plantuml.bevz.dev;
+    server_name plantuml.<your-dev-domain>.dev;
 
-    ssl_certificate /etc/letsencrypt/live/bevz-dev-wildcard/fullchain.pem;
-    ssl_certificate_key /etc/letsencrypt/live/bevz-dev-wildcard/privkey.pem;
-    ssl_trusted_certificate /etc/letsencrypt/live/bevz-dev-wildcard/chain.pem;
+    ssl_certificate /etc/letsencrypt/live/<your-dev-domain>-wildcard/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/<your-dev-domain>-wildcard/privkey.pem;
+    ssl_trusted_certificate /etc/letsencrypt/live/<your-dev-domain>-wildcard/chain.pem;
     include conf.d/ssl-params.conf;
     include conf.d/gzip.conf;
     proxy_intercept_errors on;
@@ -106,11 +106,11 @@ server {
 
 server {
     listen 127.0.0.1:1443 ssl http2 proxy_protocol;
-    server_name minio.bevz.net;
+    server_name minio.<your-domain>.com;
 
-    ssl_certificate /etc/letsencrypt/live/bevz-net-wildcard/fullchain.pem;
-    ssl_certificate_key /etc/letsencrypt/live/bevz-net-wildcard/privkey.pem;
-    ssl_trusted_certificate /etc/letsencrypt/live/bevz-net-wildcard/chain.pem;
+    ssl_certificate /etc/letsencrypt/live/<your-domain>-wildcard/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/<your-domain>-wildcard/privkey.pem;
+    ssl_trusted_certificate /etc/letsencrypt/live/<your-domain>-wildcard/chain.pem;
     include conf.d/ssl-params.conf;
     limit_req zone=mylimit burst=10 nodelay;
 
@@ -129,11 +129,11 @@ server {
 
 server {
     listen 127.0.0.1:1443 ssl http2 proxy_protocol;
-    server_name harbor.bevz.net;
+    server_name harbor.<your-domain>.com;
 
-    ssl_certificate /etc/letsencrypt/live/bevz-net-wildcard/fullchain.pem;
-    ssl_certificate_key /etc/letsencrypt/live/bevz-net-wildcard/privkey.pem;
-    ssl_trusted_certificate /etc/letsencrypt/live/bevz-net-wildcard/chain.pem;
+    ssl_certificate /etc/letsencrypt/live/<your-domain>-wildcard/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/<your-domain>-wildcard/privkey.pem;
+    ssl_trusted_certificate /etc/letsencrypt/live/<your-domain>-wildcard/chain.pem;
     include conf.d/ssl-params.conf;
     #limit_req zone=mylimit burst=10 nodelay;
 
@@ -157,11 +157,11 @@ server {
 
 server {
     listen 127.0.0.1:1443 ssl http2 proxy_protocol;
-    server_name homelab.bevz.net;
+    server_name homelab.<your-domain>.com;
 
-    ssl_certificate /etc/letsencrypt/live/bevz-net-wildcard/fullchain.pem;
-    ssl_certificate_key /etc/letsencrypt/live/bevz-net-wildcard/privkey.pem;
-    ssl_trusted_certificate /etc/letsencrypt/live/bevz-net-wildcard/chain.pem;
+    ssl_certificate /etc/letsencrypt/live/<your-domain>-wildcard/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/<your-domain>-wildcard/privkey.pem;
+    ssl_trusted_certificate /etc/letsencrypt/live/<your-domain>-wildcard/chain.pem;
     include conf.d/ssl-params.conf;
 
     location / {

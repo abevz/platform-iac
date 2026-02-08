@@ -10,7 +10,7 @@
   tags: [dns_setup]
 
   vars:
-    pihole_url: "http://10.10.10.100"
+    pihole_url: "http://<PIHOLE-IP>"
     pihole_web_password: "{{ pihole.web_password }}"
 
   tasks:

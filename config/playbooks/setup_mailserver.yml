@@ -6,8 +6,8 @@
 
   vars:
     addon_state: "present"
-    mailserver_domain: "bevz.dev"
-    mailserver_hostname: "mail.bevz.dev"
+    mailserver_domain: "<your-dev-domain>.dev"
+    mailserver_hostname: "mail.<your-dev-domain>.dev"
 
   roles:
     - role: mailserver_setup

@@ -130,7 +130,7 @@ def get_dns_records(pihole_ip, sid, csrf_token, debug=False):
                          "hosts" in response_json["config"]["dns"]:
                         hosts = response_json["config"]["dns"]["hosts"]
                         if isinstance(hosts, list):
-                            # Parse entries like "10.10.10.187 pi.alert" into structured records
+                            # Parse entries like "<EXAMPLE-IP-187> pi.alert" into structured records
                             records = []
                             for entry in hosts:
                                 if isinstance(entry, str) and " " in entry:
@@ -486,7 +486,7 @@ def main():
     )
     parser.add_argument(
         "--domain-suffix",
-        help="Filter DNS records by this domain suffix (e.g., 'bevz.net'). Used to identify cluster records."
+        help="Filter DNS records by this domain suffix (e.g., '<your-domain>.com'). Used to identify cluster records."
     )
     parser.add_argument(
         "--debug",
@@ -606,7 +606,7 @@ def main():
         domain_suffixes.append(suffix)
     else:
         # Default domain suffixes
-        domain_suffixes = [".bevz.net", ".lan"]
+        domain_suffixes = [".<your-domain>.com", ".lan"]
 
     if args.debug:
         print(f"DEBUG: Using domain suffixes for filtering: {domain_suffixes}")

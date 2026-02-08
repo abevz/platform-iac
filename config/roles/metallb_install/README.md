@@ -27,7 +27,7 @@ metallb_namespace: "metallb-system"
 metallb_install_url: "https://raw.githubusercontent.com/metallb/metallb/{{ metallb_target_version }}/config/manifests/metallb-native.yaml"
 
 # IP address range for LoadBalancer services
-metallb_ip_range: "10.10.10.200-10.10.10.220"
+metallb_ip_range: "<K8S-INGRESS-IP>-<K8S-IP-END>"
 ```
 
 ### Override Variables
@@ -108,7 +108,7 @@ metallb_namespace: "loadbalancer-system"
   hosts: k8s_prod_master
   become: yes
   vars:
-    metallb_ip_range: "10.10.10.100-10.10.10.200"
+    metallb_ip_range: "<PIHOLE-IP>-<K8S-INGRESS-IP>"
   roles:
     - metallb_install
 
@@ -152,7 +152,7 @@ metallb_namespace: "loadbalancer-system"
 │ apiVersion: metallb.io/v1beta1  │
 │ kind: IPAddressPool             │
 │ addresses:                      │
-│ - 10.10.10.200-10.10.10.220     │
+│ - <K8S-INGRESS-IP>-<K8S-IP-END>     │
 └────────────┬────────────────────┘
              │
              ▼
@@ -205,7 +205,7 @@ metadata:
   namespace: metallb-system
 spec:
   addresses:
-  - 10.10.10.200-10.10.10.220  # IP range
+  - <K8S-INGRESS-IP>-<K8S-IP-END>  # IP range
 ```
 
 **L2Advertisement:**
@@ -288,7 +288,7 @@ kubectl apply -f nginx-lb-service.yaml
 # MetalLB will automatically assign an IP from the pool
 kubectl get svc nginx-lb
 # NAME       TYPE           CLUSTER-IP      EXTERNAL-IP     PORT(S)
-# nginx-lb   LoadBalancer   10.96.123.45    10.10.10.200    80:30123/TCP
+# nginx-lb   LoadBalancer   10.96.123.45    <K8S-INGRESS-IP>    80:30123/TCP
 ```
 
 ### Request Specific IP
@@ -300,7 +300,7 @@ metadata:
   name: app-lb
 spec:
   type: LoadBalancer
-  loadBalancerIP: 10.10.10.205  # Request specific IP from pool
+  loadBalancerIP: <METALLB-EXAMPLE-IP-1>  # Request specific IP from pool
   selector:
     app: myapp
   ports:
@@ -319,20 +319,20 @@ metadata:
     metallb.universe.tf/allow-shared-ip: "shared-key"
 spec:
   type: LoadBalancer
-  loadBalancerIP: 10.10.10.210
-  ports:
-  - port: 80
-    targetPort: 8080
+  loadBalancerIP: <METALLB-EXAMPLE-IP-2>
+   ports:
+   - port: 80
+     targetPort: 8080
 ---
 apiVersion: v1
 kind: Service
 metadata:
-  name: https-service
-  annotations:
-    metallb.universe.tf/allow-shared-ip: "shared-key"
+   name: https-service
+   annotations:
+     metallb.universe.tf/allow-shared-ip: "shared-key"
 spec:
-  type: LoadBalancer
-  loadBalancerIP: 10.10.10.210  # Same IP as http-service
+   type: LoadBalancer
+   loadBalancerIP: <METALLB-EXAMPLE-IP-2>  # Same IP as http-service
   ports:
   - port: 443
     targetPort: 8443
@@ -388,7 +388,7 @@ metadata:
   namespace: metallb-system
 spec:
   addresses:
-  - 10.10.10.100-10.10.10.150
+   - <PIHOLE-IP>-<METALLB-POOL-END>
 ---
 apiVersion: metallb.io/v1beta1
 kind: IPAddressPool
@@ -507,7 +507,7 @@ kubectl get pods -l app=<your-app> -o wide
 # Check router DHCP pool settings
 
 # Scan network for IP usage
-nmap -sn 10.10.10.0/24
+nmap -sn <YOUR-LAN-CIDR>
 
 # Change MetalLB IP range
 kubectl delete ipaddresspool default-pool -n metallb-system
@@ -547,7 +547,7 @@ metadata:
 spec:
   myASN: 64512
   peerASN: 64512
-  peerAddress: 10.10.10.1  # Router IP
+  peerAddress: <LAN-GATEWAY-IP>  # Router IP
 ---
 apiVersion: metallb.io/v1beta1
 kind: BGPAdvertisement

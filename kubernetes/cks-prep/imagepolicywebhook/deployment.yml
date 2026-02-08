@@ -33,7 +33,7 @@ spec:
               - key: tls.key
                 path: webhook-server.key
       containers:
-        - image: harbor.bevz.net/library/imagepolicywebhook:latest
+        - image: harbor.<your-domain>.com/library/imagepolicywebhook:latest
           name: imagepolicywebhook
           ports:
             - containerPort: 443

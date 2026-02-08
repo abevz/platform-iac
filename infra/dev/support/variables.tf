@@ -30,7 +30,7 @@ variable "proxmox_node_name" {
 
 variable "proxmox_ssh_address" {
   type    = string
-  default = "homelab.bevz.net"
+  default = "homelab.<your-domain>.com"
 }
 
 variable "proxmox_ssh_port" {
@@ -65,7 +65,7 @@ variable "ssh_public_key" {
 
 variable "gateway" {
   type    = string
-  default = "10.10.10.1"
+  default = "<LAN-GATEWAY-IP>"
 }
 
 variable "ip_prefix_length" {
@@ -80,7 +80,7 @@ variable "vm_started" {
 
 variable "vm_dns_server" {
   type    = string
-  default = "10.10.10.100"
+  default = "<PIHOLE-IP>"
 }
 
 # --- Support VM Settings ---
@@ -93,7 +93,7 @@ variable "vm_id" {
 variable "vm_ip" {
   description = "Static IP for Support server"
   type        = string
-  default     = "10.10.10.106"
+  default     = "<SERVICE-IP-106>"
 }
 
 variable "cp_cores" {

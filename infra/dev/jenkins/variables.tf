@@ -26,7 +26,7 @@ variable "proxmox_node_name" {
 }
 variable "proxmox_ssh_address" {
   type    = string
-  default = "homelab.bevz.net"
+  default = "homelab.<your-domain>.com"
 }
 variable "proxmox_ssh_port" {
   type      = number
@@ -76,11 +76,11 @@ variable "cp_disk_size" {
 variable "control_plane_ips" {
   description = "Static IP for Jenkins"
   type        = list(string)
-  default     = ["10.10.10.109"]
+  default     = ["<JENKINS-IP>"]
 }
 variable "gateway" {
   type    = string
-  default = "10.10.10.1"
+  default = "<LAN-GATEWAY-IP>"
 }
 variable "ip_prefix_length" {
   type    = number
@@ -92,5 +92,5 @@ variable "vm_started" {
 }
 variable "vm_dns_server" {
   type    = string
-  default = "10.10.10.100"
+  default = "<PIHOLE-IP>"
 }

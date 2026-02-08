@@ -4,4 +4,4 @@
 metallb_version: "v0.14.8"
 metallb_namespace: "metallb-system"
 metallb_install_url: "https://raw.githubusercontent.com/metallb/metallb/{{ metallb_target_version }}/config/manifests/metallb-native.yaml"
-metallb_ip_range: "10.10.10.200-10.10.10.220" # (From old playbook)
+metallb_ip_range: "<K8S-INGRESS-IP>-<K8S-IP-END>" # (From old playbook)

@@ -22,20 +22,20 @@ nginx_proxy_root_dir: "/srv/nginx-proxy"
 # Upstream services (IP:PORT mappings)
 nginx_proxy_upstreams:
   # Stream (TCP/UDP) upstreams - no http:// prefix
-  k8s_ingress: "10.10.10.200:443"
-  gitlab_ssh: "10.10.10.104:22"
-  proxmox_ssh: "10.10.10.101:22"
+  k8s_ingress: "<K8S-INGRESS-IP>:443"
+  gitlab_ssh: "<GITLAB-IP>:22"
+  proxmox_ssh: "<PROXMOX-HOST-IP>:22"
 
   # HTTP upstreams - with http:// prefix
-  wiki_http: "http://10.10.10.5:3000"
-  plantuml_http: "http://10.10.10.5:18080"
-  minio_s3_api: "http://minioserver.bevz.net:9000"
-  minio_console: "http://minioserver.bevz.net:9001"
-  proxmox_https: "https://10.10.10.101:8006"
+  wiki_http: "http://10.<OTHER-LAN-IP>:3000"
+  plantuml_http: "http://10.<OTHER-LAN-IP>:18080"
+  minio_s3_api: "http://minio.<your-domain>.com:9000"
+  minio_console: "http://minio.<your-domain>.com:9001"
+  proxmox_https: "https://<PROXMOX-HOST-IP>:8006"
 
   # HTTP upstreams - without prefix (added in template)
-  gitlab_http: "10.10.10.104:80"
-  harbor_http: "10.10.10.103:80"
+  gitlab_http: "<GITLAB-IP>:80"
+  harbor_http: "<HARBOR-IP>:80"
 ```
 
 ### Override Variables
@@ -83,9 +83,9 @@ nginx_proxy_upstreams:
   become: yes
   vars:
     nginx_proxy_upstreams:
-      gitlab_http: "10.10.10.104:80"
-      harbor_http: "10.10.10.103:80"
-      wiki_http: "http://10.10.10.5:3000"
+      gitlab_http: "<GITLAB-IP>:80"
+      harbor_http: "<HARBOR-IP>:80"
+      wiki_http: "http://10.<OTHER-LAN-IP>:3000"
   roles:
     - nginx_proxy_setup
 ```
@@ -178,13 +178,13 @@ Virtual host configurations for all proxied services.
 # GitLab
 server {
     listen 443 ssl http2;
-    server_name gitlab.bevz.net;
+    server_name gitlab.<your-domain>.com;
 
-    ssl_certificate /etc/letsencrypt/live/bevz.net/fullchain.pem;
-    ssl_certificate_key /etc/letsencrypt/live/bevz.net/privkey.pem;
+    ssl_certificate /etc/letsencrypt/live/<your-domain>.com/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/<your-domain>.com/privkey.pem;
 
     location / {
-        proxy_pass http://10.10.10.104:80;
+        proxy_pass http://<GITLAB-IP>:80;
         include /etc/nginx/proxy-params-websockets.conf;
     }
 }
@@ -249,13 +249,13 @@ docker logs nginx-proxy
 
 ```bash
 # Test SSL certificate
-curl -I https://gitlab.bevz.net
+curl -I https://gitlab.<your-domain>.com
 
 # Test specific vhost
-curl -H "Host: harbor.bevz.net" https://your-proxy-ip/
+curl -H "Host: harbor.<your-domain>.com" https://your-proxy-ip/
 
 # Check SSL grade
-openssl s_client -connect gitlab.bevz.net:443 -servername gitlab.bevz.net
+openssl s_client -connect gitlab.<your-domain>.com:443 -servername gitlab.<your-domain>.com
 ```
 
 ### Verify Port Bindings
@@ -272,22 +272,22 @@ This role is designed to proxy the following services:
 
 | Service | Domain | Upstream | Port |
 |---------|--------|----------|------|
-| GitLab | gitlab.bevz.net | 10.10.10.104:80 | 443 |
-| Harbor | harbor.bevz.net | 10.10.10.103:80 | 443 |
-| Wiki.js | wiki.bevz.net | 10.10.10.5:3000 | 443 |
-| PlantUML | plantuml.bevz.net | 10.10.10.5:18080 | 443 |
-| MinIO S3 | s3.bevz.net | minioserver:9000 | 443 |
-| MinIO Console | minio.bevz.net | minioserver:9001 | 443 |
-| Proxmox | pve.bevz.net | 10.10.10.101:8006 | 443 |
-| Kubernetes | *.bevz.net | 10.10.10.200:443 | 443 |
+| GitLab | gitlab.<your-domain>.com | <GITLAB-IP>:80 | 443 |
+| Harbor | harbor.<your-domain>.com | <HARBOR-IP>:80 | 443 |
+| Wiki.js | wiki.<your-domain>.com | 10.<OTHER-LAN-IP>:3000 | 443 |
+| PlantUML | plantuml.<your-domain>.com | 10.<OTHER-LAN-IP>:18080 | 443 |
+| MinIO S3 | s3.<your-domain>.com | <MINIO-IP>:9000 | 443 |
+| MinIO Console | minio.<your-domain>.com | <MINIO-IP>:9001 | 443 |
+| Proxmox | pve.<your-domain>.com | <PROXMOX-HOST-IP>:8006 | 443 |
+| Kubernetes | *.<your-domain>.com | <K8S-INGRESS-IP>:443 | 443 |
 
 ### TCP/Stream Services
 
 | Service | Port | Upstream |
 |---------|------|----------|
-| Proxmox SSH | 2222 | 10.10.10.101:22 |
-| GitLab SSH | 2223 | 10.10.10.104:22 |
-| Kubernetes Ingress | 443 | 10.10.10.200:443 |
+| Proxmox SSH | 2222 | <PROXMOX-HOST-IP>:22 |
+| GitLab SSH | 2223 | <GITLAB-IP>:22 |
+| Kubernetes Ingress | 443 | <K8S-INGRESS-IP>:443 |
 
 ## SSL Certificate Management
 
@@ -300,8 +300,8 @@ This role expects SSL certificates to be present in `/etc/letsencrypt/live/`. Us
     - role: certbot_setup
       vars:
         certbot_domains:
-          - "bevz.net"
-          - "*.bevz.net"
+          - "<your-domain>.com"
+          - "*.<your-domain>.com"
     - role: nginx_proxy_setup
 ```
 
@@ -345,7 +345,7 @@ docker logs nginx-proxy --tail 100
 **Solution**:
 ```bash
 # Verify certificate exists
-ls -la /etc/letsencrypt/live/bevz.net/
+ls -la /etc/letsencrypt/live/<your-domain>.com/
 
 # Run certbot_setup role first
 ansible-playbook -i inventory playbooks/install_certbot.yml
@@ -360,14 +360,14 @@ ansible-playbook -i inventory playbooks/install_certbot.yml
 **Solution**:
 ```bash
 # Test upstream connectivity from proxy host
-curl -v http://10.10.10.104:80
-telnet 10.10.10.104 80
+curl -v http://<GITLAB-IP>:80
+telnet <GITLAB-IP> 80
 
 # Check firewall rules
 iptables -L -n
 
 # Verify upstream service is running
-ssh user@10.10.10.104 'systemctl status gitlab'
+ssh user@<GITLAB-IP> 'systemctl status gitlab'
 ```
 
 ### Issue: WebSocket connections failing

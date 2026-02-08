@@ -2,8 +2,8 @@ services:
   mailserver:
     image: docker.io/mailserver/docker-mailserver:latest
     container_name: mailserver
-    hostname: mail.bevz.dev
-    domainname: bevz.dev
+    hostname: mail.<your-dev-domain>.com
+    domainname: <your-dev-domain>.com
     env_file: mailserver.env
     ports:
       - "25:25"    # SMTP  (explicit TLS => STARTTLS)

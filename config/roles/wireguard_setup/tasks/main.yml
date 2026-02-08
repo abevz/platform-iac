@@ -60,6 +60,6 @@
       WG_HOST: "{{ wg_public_ip }}"
       PASSWORD_HASH: "{{ wg_ui_password_hash }}"
       WG_PORT: "51820"
-      WG_DEFAULT_DNS: "10.10.10.100"
-      WG_ALLOWED_IPS: "10.10.10.0/24, 10.10.100.0/24"
+      WG_DEFAULT_DNS: "<PIHOLE-IP>"
+      WG_ALLOWED_IPS: "<YOUR-LAN-CIDR>, <YOUR-VPN-CIDR>"
   become: yes

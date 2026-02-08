@@ -7,18 +7,18 @@ certbot_venv_path: "/opt/certbot"
 certbot_credentials_path: "/etc/letsencrypt/dns-multi.ini"
 
 # Email for Let's Encrypt
-certbot_email: "aleksey.bevz@gmail.com"
+certbot_email: "<your-email>@example.com"
 
 # List of domains for certificates (from your script)
 certbot_domains_to_create:
-  - name: "bevz-net-wildcard"
+  - name: "your-domain-wildcard"
     domains:
-      - "*.bevz.net"
-      - "bevz.net"
-  - name: "bevz-dev-wildcard"
+      - "*.<your-domain>.com"
+      - "<your-domain>.com"
+  - name: "your-dev-domain-wildcard"
     domains:
-      - "*.bevz.dev"
-      - "bevz.dev"
-  - name: "s3-minio-bevz-net"
+      - "*.<your-dev-domain>.com"
+      - "<your-dev-domain>.com"
+  - name: "s3-minio-your-domain"
     domains:
-      - "s3.minio.bevz.net"
+      - "s3.minio.<your-domain>.com"

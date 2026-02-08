@@ -4,7 +4,7 @@
 #    # 'key' and 'bucket' will be passed dynamically
 #
 #    # Specify your MinIO endpoint
-#    endpoint = "https://s3.minio.bevz.net"
+#    endpoint = "https://s3.minio.<your-domain>.com"
 #
 #    region                      = "us-east-1"
 #    skip_credentials_validation = true

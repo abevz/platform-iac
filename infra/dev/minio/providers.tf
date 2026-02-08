@@ -24,7 +24,7 @@ provider "proxmox" {
       name = var.proxmox_node_name # (e.g. "homelab")
 
       # This is the FQDN you use in ~/.ssh/config
-      address = var.proxmox_ssh_address # (e.g. "homelab.bevz.net")
+      address = var.proxmox_ssh_address # (e.g. "homelab.<your-domain>.com")
 
       # This is the port from your ~/.ssh/config
       port = var.proxmox_ssh_port # <-- USING VARIABLE

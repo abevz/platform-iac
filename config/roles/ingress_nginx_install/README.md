@@ -203,7 +203,7 @@ kubectl get svc -n ingress-nginx
 
 # Expected output:
 # NAME                                 TYPE           CLUSTER-IP      EXTERNAL-IP     PORT(S)
-# ingress-nginx-controller             LoadBalancer   10.96.45.123    10.10.10.200    80:31234/TCP,443:32345/TCP
+# ingress-nginx-controller             LoadBalancer   10.96.45.123    <K8S-INGRESS-IP>    80:31234/TCP,443:32345/TCP
 # ingress-nginx-controller-admission   ClusterIP      10.96.67.89     <none>          443/TCP
 ```
 
@@ -219,7 +219,7 @@ kubectl logs -n ingress-nginx deployment/ingress-nginx-controller
 
 ```bash
 # Access LoadBalancer IP (should return 404 - no backends yet)
-curl http://10.10.10.200
+curl http://<K8S-INGRESS-IP>
 
 # Expected: "404 Not Found" from NGINX (means controller is working)
 ```
@@ -251,7 +251,7 @@ spec:
 
 Test:
 ```bash
-curl -H "Host: app.example.com" http://10.10.10.200/
+curl -H "Host: app.example.com" http://<K8S-INGRESS-IP>/
 ```
 
 ### HTTPS Ingress with TLS

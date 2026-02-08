@@ -9,7 +9,7 @@
     addon_state: "present"
     requested_version: ""
     # (You can override IP pool here or in group_vars)
-    # metallb_ip_range: "10.10.10.200-10.10.10.220"
+    # metallb_ip_range: "<K8S-INGRESS-IP>-<K8S-IP-END>"
 
   roles:
     - role: metallb_install
