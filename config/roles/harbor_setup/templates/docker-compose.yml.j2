@@ -1,26 +1,26 @@
 # /config/roles/harbor_setup/templates/docker-compose.yml.j2
-# Файл управляется Ansible.
-# В ЭТОЙ ВЕРСИИ ДОБАВЛЕНЫ 'healthcheck' И 'depends_on' ДЛЯ ИСПРАВЛЕНИЯ 'connection refused'
+# File managed by Ansible.
+# THIS VERSION ADDS 'healthcheck' AND 'depends_on' TO FIX 'connection refused'
 
 services:
-  # Nginx (Встроенный прокси Harbor, не Ваш внешний nginx-proxy)
+  # Nginx (Built-in Harbor proxy, not your external nginx-proxy)
   nginx:
     image: goharbor/nginx-photon:{{ harbor_version }}
     container_name: nginx
     restart: unless-stopped
     ports:
-      - "80:8080" # Мы открываем 8080 как порт 80, как указано в harbor.yml
+      - "80:8080" # We expose 8080 as port 80, as specified in harbor.yml
     volumes:
       - ./common/config/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
     depends_on:
       harbor-core:
-        condition: service_healthy # 👈 Ждать, пока 'core' будет здоров
+        condition: service_healthy # 👈 Wait until 'core' is healthy
       harbor-portal:
         condition: service_started
     networks:
       - harbor
 
-  # Harbor Core (Главный API)
+  # Harbor Core (Main API)
   harbor-core:
     image: goharbor/harbor-core:{{ harbor_version }}
     container_name: harbor-core
@@ -38,15 +38,15 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
-    # 👈 *** КЛЮЧЕВОЕ ИСПРАВЛЕНИЕ ***
+    # 👈 *** KEY FIX ***
     healthcheck:
       test: ["CMD-SHELL", "curl -f http://localhost:8080/api/v2.0/ping || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 5
-      start_period: 30s # Дать 30с на миграцию БД перед первой проверкой
+      start_period: 30s # Give 30s for DB migration before first check
 
-  # Harbor Jobservice (Который падал)
+  # Harbor Jobservice (Which was failing)
   harbor-jobservice:
     image: goharbor/harbor-jobservice:{{ harbor_version }}
     container_name: harbor-jobservice
@@ -57,16 +57,16 @@ services:
       - /data/secret:/etc/jobservice/secret
     networks:
       - harbor
-    # 👈 *** КЛЮЧЕВОЕ ИСПРАВЛЕНИЕ ***
+    # 👈 *** KEY FIX ***
     depends_on:
       harbor-core:
-        condition: service_healthy # 👈 Запускаться ТОЛЬКО ПОСЛЕ 'core'
+        condition: service_healthy # 👈 Start ONLY AFTER 'core'
       harbor-db:
         condition: service_healthy
       redis:
         condition: service_healthy
 
-  # База данных
+  # Database
   harbor-db:
     image: goharbor/harbor-db:{{ harbor_version }}
     container_name: harbor-db
@@ -99,7 +99,7 @@ services:
       timeout: 5s
       retries: 5
 
-  # Остальные компоненты...
+  # Other components...
   harbor-portal:
     image: goharbor/harbor-portal:{{ harbor_version }}
     container_name: harbor-portal

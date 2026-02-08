@@ -1,6 +1,6 @@
 #!/bin/bash
 # k8s-bom-scan.sh.j2
-# Файл управляется Ansible. НЕ РЕДАКТИРОВАТЬ ВРУЧНУЮ.
+# File managed by Ansible. DO NOT EDIT MANUALLY.
 
 # Kubernetes Cluster Bill of Materials Generator
 NAMESPACE="${1:-default}"
@@ -10,7 +10,7 @@ mkdir -p "$OUTPUT_DIR"
 
 echo "Generating BOM for namespace: $NAMESPACE"
 
-# 1. Получаем список образов и фильтруем пустые строки
+# 1. Get list of images and filter empty lines
 kubectl get pods -n "$NAMESPACE" -o jsonpath='{.items[*].spec.containers[*].image}' | \
   tr ' ' '\n' | sort -u | grep -v "^$" > "$OUTPUT_DIR/images-$NAMESPACE.txt"
 
@@ -22,12 +22,12 @@ if [ "$IMAGE_COUNT" -eq 0 ]; then
     exit 0
 fi
 
-# 2. Генерируем SBOM, если утилита установлена
+# 2. Generate SBOM if utility is installed
 if command -v bom >/dev/null 2>&1; then
   echo "Generating SPDX document..."
 
-  # Формируем массив аргументов для bom (-i image1 -i image2 ...)
-  # Это самый безопасный способ передать список аргументов в bash
+  # Build argument array for bom (-i image1 -i image2 ...)
+  # This is the safest way to pass argument list in bash
   BOM_ARGS=()
   while read -r img; do
       if [ -n "$img" ]; then
@@ -35,14 +35,14 @@ if command -v bom >/dev/null 2>&1; then
       fi
   done < "$OUTPUT_DIR/images-$NAMESPACE.txt"
 
-  # Запускаем bom
+  # Run bom
   bom generate -o "$OUTPUT_DIR/bom-$NAMESPACE.spdx.json" \
     --format json "${BOM_ARGS[@]}" || echo "BOM generation failed"
 else
   echo "WARNING: 'bom' utility not found. Skipping SPDX generation."
 fi
 
-# 3. Генерируем простой Markdown отчет
+# 3. Generate simple Markdown report
 REPORT_FILE="$OUTPUT_DIR/report-$NAMESPACE.md"
 echo "# Bill of Materials Report for namespace: $NAMESPACE" > "$REPORT_FILE"
 echo "Generated: $(date)" >> "$REPORT_FILE"

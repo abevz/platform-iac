@@ -1,5 +1,5 @@
 ---
-apiVersion: kubeadm.k8s.io/v1beta3 # Возвращаемся к рабочему API, совместимому с Вашим форматом kubeletExtraArgs
+apiVersion: kubeadm.k8s.io/v1beta3 # Reverting to working API compatible with your kubeletExtraArgs format
 kind: InitConfiguration
 localAPIEndpoint:
   advertiseAddress: {{ ansible_default_ipv4.address }}
@@ -8,9 +8,9 @@ nodeRegistration:
   kubeletExtraArgs:
     node-ip: {{ ansible_default_ipv4.address }}
 ---
-apiVersion: kubeadm.k8s.io/v1beta3 # Возвращаемся к рабочему API
+apiVersion: kubeadm.k8s.io/v1beta3 # Reverting to working API
 kind: ClusterConfiguration
-# ИСПРАВЛЕНИЕ: Принудительное форматирование версии.
+# FIX: Forced version formatting.
 # "1.33" -> "v1.33.0". "1.29.0" -> "v1.29.0".
 kubernetesVersion: "v{{ kubernetes_version | replace('v', '') }}{{ '.0' if kubernetes_version | split('.') | length < 3 else '' }}"
 controlPlaneEndpoint: "{{ ansible_fqdn }}:6443"
@@ -30,7 +30,7 @@ networking:
   podSubnet: {{ pod_cidr }}
   serviceSubnet: 10.96.0.0/12
 ---
-# Этот блок включает ServerTLSBootstrap для ВСЕХ kubelet'ов (включая workers)
+# This block enables ServerTLSBootstrap for ALL kubelets (including workers)
 apiVersion: kubelet.config.k8s.io/v1beta1
 kind: KubeletConfiguration
 serverTLSBootstrap: true

@@ -1,17 +1,17 @@
-# Файл управляется Ansible
+# File managed by Ansible
 hostname: harbor.bevz.net
 external_url: https://harbor.bevz.net
 
 http:
   port: 80
 
-# Мы отключаем HTTPS здесь, так как nginx-proxy будет его терминировать
+# We disable HTTPS here as nginx-proxy will terminate it
 # https:
 #   port: 443
 #   certificate: ...
 #   private_key: ...
 
-# Эти переменные должны быть в config/secrets/ansible/extra_vars.sops.yml
+# These variables should be in config/secrets/ansible/extra_vars.sops.yml
 harbor_admin_password: '{{ harbor.admin_password | default('ChangeThisPassword') }}'
 
 database:
@@ -49,7 +49,7 @@ log:
     rotate_size: 200M
     location: /var/log/harbor
 
-_version: 2.14.0 # (Это версия файла .yml, а не Harbor)
+_version: 2.14.0 # (This is the .yml file version, not Harbor version)
 
 proxy:
   components: [ "core", "jobservice", "trivy" ]

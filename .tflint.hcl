@@ -5,8 +5,8 @@ plugin "aws" {
 }
 
 config {
-    # Исправление ошибки: module = true удален
-    # "local" проверяет локальные модули (./modules/...), "all" проверяет и внешние
+    # Fix error: module = true removed
+    # "local" checks local modules (./modules/...), "all" checks external modules too
     call_module_type = "local"
     force = false
 }
