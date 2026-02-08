@@ -1,0 +1,13 @@
+# config/playbooks/setup_mailserver.yml
+---
+- name: Setup Mailserver (docker-mailserver)
+  hosts: mailservers
+  become: yes
+
+  vars:
+    addon_state: "present"
+    mailserver_domain: "bevz.dev"
+    mailserver_hostname: "mail.bevz.dev"
+
+  roles:
+    - role: mailserver_setup
