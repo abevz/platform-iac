@@ -181,8 +181,10 @@ load_tofu_secrets_to_temp_file() {
     exit 1
   fi
 
-  # Load MinIO endpoint for backend configuration
-  export MINIO_ENDPOINT=$(sops -d "$MINIO_SECRETS_FILE" | yq -r '.MINIO_ENDPOINT // "https://s3.minio.example.com"')
+  # Load MinIO endpoint for backend configuration (use env var if set, otherwise read from sops)
+  if [ -z "$MINIO_ENDPOINT" ]; then
+    export MINIO_ENDPOINT=$(sops -d "$MINIO_SECRETS_FILE" | yq -r '.MINIO_ENDPOINT // "https://s3.minio.example.com"')
+  fi
   if [ -z "$MINIO_ENDPOINT" ] || [ "$MINIO_ENDPOINT" = "null" ]; then
     log "WARN: MINIO_ENDPOINT not found in secrets. Using default."
     export MINIO_ENDPOINT="https://s3.minio.example.com"
