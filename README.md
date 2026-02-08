@@ -161,6 +161,68 @@ All secrets are managed by `sops` and stored in `config/secrets/`. The `iac-wrap
 
 Non-secret configuration (like IPs, VM specs, and domains) is managed in `infra/dev/k8s-lab-01/variables.tf` and Ansible `group_vars`.
 
+### Initial Secrets Setup
+
+Before first deployment, you must create your encrypted secrets from the provided examples:
+
+1. **Copy example files to real secrets:**
+   ```bash
+   # MinIO/S3 Backend Credentials (for Terraform state storage)
+   cp config/secrets/minio/backend.sops.yml.example \
+      config/secrets/minio/backend.sops.yml
+
+   # Proxmox API and SSH Credentials
+   cp config/secrets/proxmox/provider.sops.yml.example \
+      config/secrets/proxmox/provider.sops.yml
+
+   # Ansible Credentials (Cloudflare, Harbor, Pi-hole, etc.)
+   cp config/secrets/ansible/extra_vars.sops.yml.example \
+      config/secrets/ansible/extra_vars.sops.yml
+   ```
+
+2. **Edit each file with your real values:**
+   ```bash
+   # Use your preferred editor
+   vim config/secrets/minio/backend.sops.yml
+   vim config/secrets/proxmox/provider.sops.yml
+   vim config/secrets/ansible/extra_vars.sops.yml
+   ```
+
+3. **Encrypt with SOPS:**
+   ```bash
+   # Using age (recommended)
+   sops --encrypt --in-place \
+        --age $(cat ~/.config/sops/age/keys.txt | grep -oP 'public key: \K(.*)') \
+        config/secrets/minio/backend.sops.yml
+
+   sops --encrypt --in-place \
+        --age $(cat ~/.config/sops/age/keys.txt | grep -oP 'public key: \K(.*)') \
+        config/secrets/proxmox/provider.sops.yml
+
+   sops --encrypt --in-place \
+        --age $(cat ~/.config/sops/age/keys.txt | grep -oP 'public key: \K(.*)') \
+        config/secrets/ansible/extra_vars.sops.yml
+
+   # Or using GPG
+   sops --encrypt --in-place --pgp YOUR_GPG_KEY_ID config/secrets/*/backend.sops.yml
+   ```
+
+4. **Verify encryption:**
+   ```bash
+   # Should show encrypted content
+   cat config/secrets/minio/backend.sops.yml
+
+   # Should show decrypted content
+   sops --decrypt config/secrets/minio/backend.sops.yml
+   ```
+
+5. **Test the wrapper:**
+   ```bash
+   ./tools/iac-wrapper.sh get-inventory dev k8s-lab-01
+   ```
+
+**Important:** Real secret files (`*.sops.yml`) are git-ignored and should never be committed. Only the `.example` files are tracked in git.
+
 ---
 
 ## Usage
