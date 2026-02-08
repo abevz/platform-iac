@@ -99,7 +99,8 @@ load_tofu_secrets_to_temp_file() {
   local PROXMOX_PROXY_API_URL
   PROXMOX_PROXY_API_URL=$(sops -d "$PROXMOX_SECRETS_FILE" | yq -r '.PROXMOX_VE_ENDPOINT')
   local _PROXMOX_PROXY_API_URL="${PROXMOX_PROXY_API_URL}"
-  local _PROXMOX_PROXY_SSH_ADDR="${PROXMOX_PROXY_SSH_ADDR:-homelab.example.com}"
+  # Extract SSH address from PROXMOX_VE_ENDPOINT (remove https:// and port)
+  local _PROXMOX_PROXY_SSH_ADDR="${PROXMOX_PROXY_SSH_ADDR:-$(echo $_PROXMOX_PROXY_API_URL | sed 's|https://||; s|:.*||')}"
   local _PROXMOX_PROXY_SSH_PORT="${PROXMOX_PROXY_SSH_PORT:-22006}"
 
   local proxmox_api_url
@@ -157,7 +158,8 @@ load_tofu_secrets_to_temp_file() {
     --arg api_url "$proxmox_api_url" \
     --arg ssh_addr "$proxmox_ssh_address" \
     --arg ssh_port "$proxmox_ssh_port" \
-    --arg pub_key "$PUBLIC_KEY_CONTENT" '
+    --arg pub_key "$PUBLIC_KEY_CONTENT" \
+    --arg node_name "homelab" '
       {
         "proxmox_api_url": $api_url,
         "proxmox_api_username": .PROXMOX_VE_API_TOKEN_ID,
@@ -166,6 +168,7 @@ load_tofu_secrets_to_temp_file() {
         "proxmox_ssh_private_key": .PROXMOX_VE_SSH_PRIVATE_KEY,
         "proxmox_ssh_address": $ssh_addr,
         "proxmox_ssh_port": ($ssh_port | tonumber),
+        "proxmox_node_name": $node_name,
         "ssh_public_key": $pub_key
       }
     ')
