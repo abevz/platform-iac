@@ -6,6 +6,10 @@
 # Your Proxmox host (FQDN or IP)
 proxmox.example.com ansible_user=terraform
 
+[mailservers]
+# Укажите IP или FQDN вашего почтового сервера
+mail.example.com ansible_user=your-username
+
 [my_k8s_cp]
 # Control plane node(s)
 10.0.0.10 ansible_user=your-username

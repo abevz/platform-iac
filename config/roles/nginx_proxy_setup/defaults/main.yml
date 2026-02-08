@@ -6,17 +6,17 @@ nginx_proxy_root_dir: "/srv/nginx-proxy"
 # Upstream service IP addresses (CORRECTED VERSION)
 nginx_proxy_upstreams:
   # Used in 'stream', prefix not needed
-  k8s_ingress: "<K8S-INGRESS-IP>:443"
-  gitlab_ssh: "<GITLAB-IP>:22"
-  proxmox_ssh: "<PROXMOX-HOST-IP>:22"
+  k8s_ingress: '{{ nginx_proxy_ips.k8s_ingress | default("10.10.10.10:443") }}'
+  gitlab_ssh: '{{ nginx_proxy_ips.gitlab_ssh | default("10.10.10.11:22") }}'
+  proxmox_ssh: '{{ nginx_proxy_ips.proxmox_ssh | default("10.10.10.12:22") }}'
 
   # Used in 'http', prefix required in variable
-  wiki_http: "http://10.<OTHER-LAN-IP>:3000"
-  plantuml_http: "http://10.<OTHER-LAN-IP>:18080"
+  wiki_http: '{{ nginx_proxy_ips.wiki_http | default("http://10.10.10.13:3000") }}'
+  plantuml_http: '{{ nginx_proxy_ips.plantuml_http | default("http://10.10.10.14:18080") }}'
   minio_s3_api: "http://minio-server:9000"
   minio_console: "http://minio-server:9001"
-  proxmox_https: "https://<PROXMOX-HOST-IP>:8006"
+  proxmox_https: '{{ nginx_proxy_ips.proxmox_https | default("https://10.10.10.12:8006") }}'
 
   # Used in 'http', BUT 'http://' prefix is already in the .j2 template
-  gitlab_http: "<GITLAB-IP>:80" # <-- CORRECTED
-  harbor_http: "<HARBOR-IP>:80"
+  gitlab_http: '{{ nginx_proxy_ips.gitlab_http | default("10.10.10.11:80") }}'
+  harbor_http: '{{ nginx_proxy_ips.harbor_http | default("10.10.10.15:80") }}'
