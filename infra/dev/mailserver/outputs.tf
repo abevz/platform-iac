@@ -1,7 +1,7 @@
 # /infra/dev/mailserver/outputs.tf
 
 locals {
-  # Берём первый (и единственный) mailserver из for_each
+  # Take the first (and only) mailserver from for_each
   mailserver_instances = { for k, v in proxmox_vm_qemu.mailserver : k => v }
 }
 

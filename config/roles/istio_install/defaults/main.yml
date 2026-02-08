@@ -1,13 +1,13 @@
 # config/roles/istio_install/defaults/main.yml
 # /config/roles/istio_install/defaults/main.yml
 ---
-# Версия Istio по умолчанию, если 'requested_version' не передана
+# Default Istio version if 'requested_version' is not provided
 istio_version: "1.28.0"
 
-# Базовый URL для манифестов аддонов (используется версия из istio.yml)
+# Base URL for addon manifests (version from istio.yml is used)
 istio_addons_url_base: "https://raw.githubusercontent.com/istio/istio/release-1.28/samples/addons"
 
-# Список аддонов для установки
+# List of addons to install
 istio_addons_list:
   - kiali
   - jaeger

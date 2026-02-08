@@ -1,19 +1,19 @@
 # config/roles/certbot_setup/tasks/main.yml
 # /config/roles/certbot_setup/tasks/main.yml
 ---
-- name: Установить/Удалить зависимости (python venv)
+- name: Install/Remove dependencies (python venv)
   ansible.builtin.apt:
     name: python3-venv
     state: "{{ addon_state }}"
   become: yes
 
-- name: Создать/Удалить Python venv для Certbot
+- name: Create/Remove Python venv for Certbot
   ansible.builtin.file:
     path: "{{ certbot_venv_path }}"
     state: "{{ 'directory' if addon_state == 'present' else 'absent' }}"
   become: yes
 
-- name: Установить/Удалить Certbot и плагин dns-multi в venv
+- name: Install/Remove Certbot and dns-multi plugin in venv
   ansible.builtin.pip:
     name:
       - pip
@@ -24,41 +24,41 @@
     state: "{{ addon_state }}"
   become: yes
 
-- name: Создать/Удалить символическую ссылку на certbot
+- name: Create/Remove symlink to certbot
   ansible.builtin.file:
     src: "{{ certbot_venv_path }}/bin/certbot"
     dest: /usr/bin/certbot
     state: "{{ 'link' if addon_state == 'present' else 'absent' }}"
   become: yes
 
-- name: Создать/Удалить директорию /etc/letsencrypt
+- name: Create/Remove /etc/letsencrypt directory
   ansible.builtin.file:
     path: /etc/letsencrypt
     state: "{{ 'directory' if addon_state == 'present' else 'absent' }}"
     mode: "0700"
   become: yes
 
-- name: Убедиться, что токен Cloudflare доступен (из Sops)
+- name: Ensure Cloudflare token is available (from Sops)
   ansible.builtin.fail:
-    msg: "Переменная 'cloudflare.api_token' не найдена в Sops (extra_vars.sops.yml)"
+    msg: "Variable 'cloudflare.api_token' not found in Sops (extra_vars.sops.yml)"
   when: (cloudflare.api_token is not defined or cloudflare.api_token | length == 0) and addon_state == "present"
 
-- name: Создать файл учетных данных dns-multi.ini
+- name: Create dns-multi.ini credentials file
   ansible.builtin.template:
     src: dns-multi.ini.j2
     dest: "{{ certbot_credentials_path }}"
     mode: "0600"
   become: yes
-  when: addon_state == "present" # <-- Условие на создание
+  when: addon_state == "present"
 
-- name: Удалить файл учетных данных dns-multi.ini
+- name: Remove dns-multi.ini credentials file
   ansible.builtin.file:
     path: "{{ certbot_credentials_path }}"
     state: absent
   become: yes
-  when: addon_state == "absent" # <-- Условие на удаление
+  when: addon_state == "absent"
 
-- name: Запросить сертификаты Let's Encrypt (idempotent)
+- name: Request Let's Encrypt certificates (idempotent)
   ansible.builtin.command:
     cmd: >
       certbot certonly

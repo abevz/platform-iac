@@ -21,7 +21,7 @@
     state: present
     wait: true
     values:
-      # Включаем сканирование конфигураций (важно для CKS)
+      # Enable configuration scanning (important for CKS)
       trivy:
         ignoreUnfixed: true
       operator:

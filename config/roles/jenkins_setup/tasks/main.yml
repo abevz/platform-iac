@@ -15,14 +15,14 @@
   delay: 10
   become: yes
 
-- name: Установить необходимые пакеты для Docker
+- name: Install Docker prerequisites
   ansible.builtin.apt:
     name: ["ca-certificates", "curl", "gnupg"]
     state: present
     update_cache: yes
   become: yes
 
-- name: Добавить GPG-ключ Docker
+- name: Add Docker GPG key
   ansible.builtin.get_url:
     url: "https://download.docker.com/linux/{{ ansible_distribution | lower }}/gpg"
     dest: /etc/apt/keyrings/docker.asc
@@ -30,14 +30,14 @@
     force: true
   become: yes
 
-- name: Добавить репозиторий Docker
+- name: Add Docker repository
   ansible.builtin.apt_repository:
     repo: "deb [arch={{ ansible_architecture if ansible_architecture == 'aarch64' else 'amd64' }} signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/{{ ansible_distribution | lower }} {{ ansible_distribution_release }} stable"
     state: present
     filename: docker
   become: yes
 
-- name: Убедиться, что Docker и Docker Compose установлены
+- name: Ensure Docker and Docker Compose are installed
   ansible.builtin.apt:
     name: ["docker-ce", "docker-compose-plugin"]
     state: present
@@ -51,7 +51,7 @@
     append: yes
   become: yes
 
-- name: Убедиться, что директории для Jenkins существуют
+- name: Ensure Jenkins directories exist
   ansible.builtin.file:
     path: "{{ item }}"
     state: directory
@@ -61,17 +61,16 @@
     - "{{ jenkins_root_dir }}"
     - "{{ jenkins_home_dir }}"
 
-- name: ❗️ Установить владельца для jenkins_home
+- name: Set owner for jenkins_home
   ansible.builtin.file:
     path: "{{ jenkins_home_dir }}"
     state: directory
-    # UID 1000 (jenkins) внутри контейнера jenkins/jenkins
     owner: "1000"
     group: "1000"
     recurse: yes
   become: yes
 
-- name: Скопировать docker-compose.yml для Jenkins
+- name: Copy docker-compose.yml for Jenkins
   ansible.builtin.template:
     src: docker-compose.yml.j2
     dest: "{{ jenkins_root_dir }}/docker-compose.yml"
@@ -79,22 +78,22 @@
   become: yes
   register: compose_file
 
-- name: Запустить Jenkins (Docker Compose)
+- name: Start Jenkins (Docker Compose)
   community.docker.docker_compose_v2:
     project_src: "{{ jenkins_root_dir }}"
     state: present
   become: yes
 
-# --- БЛОК АВТОЗАПУСКА (из Harbor) ---
-- name: Скопировать systemd unit-файл для Jenkins
+# --- Autostart block ---
+- name: Copy systemd unit file for Jenkins
   ansible.builtin.template:
-    src: jenkins.service.j2 # (Мы создадим этот файл)
+    src: jenkins.service.j2
     dest: /etc/systemd/system/jenkins-compose.service
     mode: "0644"
   become: yes
   notify: Reload systemd
 
-- name: Включить сервис Jenkins (для автозапуска при загрузке)
+- name: Enable Jenkins service (autostart on boot)
   ansible.builtin.systemd:
     name: jenkins-compose
     enabled: yes

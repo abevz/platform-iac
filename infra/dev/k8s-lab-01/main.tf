@@ -1,5 +1,5 @@
 # ---
-# ЭТАП 1: Создание Cloud-Init Snippets (Метод v3.13)
+# STEP 1: Create Cloud-Init Snippets
 # ---
 
 resource "proxmox_virtual_environment_file" "cp_user_data" {
@@ -10,7 +10,6 @@ resource "proxmox_virtual_environment_file" "cp_user_data" {
   content_type = "snippets"
 
   source_raw {
-    # Tofu рендерит шаблон cp-userdata.tftpl
     data = templatefile("${path.module}/cp-userdata.tftpl", {
       hostname       = "k8s-lab-01-cp-${count.index + 1}"
       vm_user        = var.vm_user
@@ -24,7 +23,7 @@ resource "proxmox_virtual_environment_file" "cp_user_data" {
 resource "proxmox_virtual_environment_file" "wn_user_data" {
   count = var.worker_count
 
-  # Зависит от CP-файла (для решения проблемы блокировки)
+  # Depends on CP file (to prevent locking issues)
   depends_on = [
     proxmox_virtual_environment_file.cp_user_data
   ]
@@ -34,7 +33,6 @@ resource "proxmox_virtual_environment_file" "wn_user_data" {
   content_type = "snippets"
 
   source_raw {
-    # Tofu рендерит шаблон wn-userdata.tftpl
     data = templatefile("${path.module}/wn-userdata.tftpl", {
       hostname       = "k8s-lab-01-wn-${count.index + 1}"
       vm_user        = var.vm_user
@@ -47,7 +45,7 @@ resource "proxmox_virtual_environment_file" "wn_user_data" {
 
 
 # ---
-# ЭТАП 2: Создание VM (со Статическими IP)
+# STEP 2: Create VMs (with Static IPs)
 # ---
 
 resource "proxmox_virtual_environment_vm" "control_plane" {
@@ -74,12 +72,11 @@ resource "proxmox_virtual_environment_vm" "control_plane" {
     size         = var.cp_disk_size
   }
 
-  # Этот provisioner запускается при создании ресурса
+  # This provisioner runs when the resource is created
   provisioner "local-exec" {
-    # Даем VM 60 секунд на первую загрузку и запуск QEMU Agent
-    # перед тем, как Terraform попытается выполнить 'reboot' через агент.
+    # Give VM 60 seconds for initial boot and QEMU Agent startup
     when    = create
-    command = "echo 'VM ${self.name} создана, ожидание 60 секунд для запуска QEMU Agent...' && sleep 60"
+    command = "echo 'VM ${self.name} created, waiting 60s for QEMU Agent...' && sleep 60"
   }
 
   network_device {
@@ -87,7 +84,7 @@ resource "proxmox_virtual_environment_vm" "control_plane" {
     model  = "virtio"
   }
 
-  # --- ИСПРАВЛЕНО: Статический IP ---
+  # --- FIXED: Static IP ---
   initialization {
     ip_config {
       ipv4 {
@@ -113,7 +110,7 @@ resource "proxmox_virtual_environment_vm" "workers" {
   count = var.worker_count
   name  = "k8s-lab-01-wn-${count.index + 1}"
 
-  # Зависит от WN-файлов И CP-VM (для решения проблемы блокировки)
+  # Depends on WN files AND CP VM (to prevent locking issues)
   depends_on = [
     proxmox_virtual_environment_file.wn_user_data,
     proxmox_virtual_environment_vm.control_plane
@@ -135,10 +132,10 @@ resource "proxmox_virtual_environment_vm" "workers" {
     size         = var.worker_disk_size
   }
 
-  # --- ИСПРАВЛЕНИЕ: Добавляем принудительную задержку ---
+  # --- Force delay for QEMU Agent ---
   provisioner "local-exec" {
     when    = create
-    command = "echo 'VM ${self.name} создана, ожидание 60 секунд для запуска QEMU Agent...' && sleep 60"
+    command = "echo 'VM ${self.name} created, waiting 60s for QEMU Agent...' && sleep 60"
   }
 
   network_device {
@@ -146,7 +143,7 @@ resource "proxmox_virtual_environment_vm" "workers" {
     model  = "virtio"
   }
 
-  # --- ИСПРАВЛЕНО: Статический IP ---
+  # --- FIXED: Static IP ---
   initialization {
     ip_config {
       ipv4 {

@@ -21,7 +21,7 @@ resource "proxmox_virtual_environment_vm" "vm" {
   depends_on = [proxmox_virtual_environment_file.user_data]
   clone { vm_id = var.vm_template_id }
 
-  # Ресурсы побольше для RustDesk
+  # More resources for RustDesk
   cpu {
     cores = 2
     type  = "host"

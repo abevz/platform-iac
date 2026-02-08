@@ -49,14 +49,14 @@ variable "vm_user" {
 }
 variable "ssh_public_key" {
   type    = string
-  default = "ssh-rsa AAAA..." # (Вставьте Ваш ключ)
+  default = "ssh-rsa AAAA..."
 }
 
-# --- Спецификации VM ---
+# --- VM Specifications ---
 variable "vm_id" {
-  description = "VMID"
+  description = "VM ID"
   type        = number
-  default     = 108 # 👈 НОВЫЙ ID
+  default     = 108
 }
 variable "cp_cores" {
   type    = number
@@ -70,10 +70,10 @@ variable "cp_disk_size" {
   type    = number
   default = 40 # 40G
 }
-variable "control_plane_ips" { # (Используем это имя для совместимости)
-  description = "Статический IP для LocalStack"
+variable "control_plane_ips" {
+  description = "Static IP for LocalStack"
   type        = list(string)
-  default     = ["192.0.2.108"] # 👈 НОВЫЙ IP
+  default     = ["192.0.2.108"]
 }
 variable "gateway" {
   type    = string

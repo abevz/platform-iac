@@ -1,7 +1,7 @@
 # infra/dev/minio/main.tf
 # /infra/dev/minio/main.tf
 
-# ЭТАП 1: Создание Cloud-Init Snippets
+# STEP 1: Create Cloud-Init Snippets
 # ---
 resource "proxmox_virtual_environment_file" "minio_user_data" {
   datastore_id = var.proxmox_snippet_storage
@@ -10,7 +10,7 @@ resource "proxmox_virtual_environment_file" "minio_user_data" {
 
   source_raw {
     data = templatefile("${path.module}/cp-userdata.tftpl", {
-      hostname       = "minio-server" # (Используем новое имя)
+      hostname       = "minio-server" # (Using new name)
       vm_user        = var.vm_user
       ssh_public_key = var.ssh_public_key
       vm_dns         = var.vm_dns_server
@@ -20,7 +20,7 @@ resource "proxmox_virtual_environment_file" "minio_user_data" {
 }
 
 # ---
-# ЭТАП 2: Создание VM
+# STEP 2: Create VM
 # ---
 resource "proxmox_virtual_environment_vm" "minio_vm" {
   vm_id = var.vm_id

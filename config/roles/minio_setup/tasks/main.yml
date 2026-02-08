@@ -2,8 +2,8 @@
 ---
 # /config/roles/minio_setup/tasks/main.yml
 
-# --- НАЧАЛО: Блок установки репозитория Docker (из nginx_proxy_setup) ---
-- name: Установить необходимые пакеты для Docker
+# --- Docker Repository Installation Block ---
+- name: Install Docker prerequisites
   ansible.builtin.apt:
     name:
       - ca-certificates
@@ -13,7 +13,7 @@
     update_cache: yes
   become: yes
 
-- name: Добавить GPG-ключ Docker (Debian/Ubuntu)
+- name: Add Docker GPG key (Debian/Ubuntu)
   ansible.builtin.get_url:
     url: "https://download.docker.com/linux/{{ ansible_distribution | lower }}/gpg"
     dest: /etc/apt/keyrings/docker.asc
@@ -21,15 +21,15 @@
     force: true
   become: yes
 
-- name: Добавить репозиторий Docker (Debian/Ubuntu)
+- name: Add Docker repository (Debian/Ubuntu)
   ansible.builtin.apt_repository:
     repo: "deb [arch={{ ansible_architecture if ansible_architecture == 'aarch64' else 'amd64' }} signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/{{ ansible_distribution | lower }} {{ ansible_distribution_release }} stable"
     state: present
     filename: docker
   become: yes
-# --- КОНЕЦ: Блок установки репозитория ---
+# --- End Docker Repository Block ---
 
-- name: Убедиться, что Docker и Docker Compose установлены
+- name: Ensure Docker and Docker Compose are installed
   ansible.builtin.apt:
     name:
       - docker-ce
@@ -38,7 +38,7 @@
     update_cache: yes
   become: yes
 
-- name: Убедиться, что директории для MinIO существуют
+- name: Ensure MinIO directories exist
   ansible.builtin.file:
     path: "{{ item }}"
     state: directory
@@ -49,7 +49,7 @@
     - "{{ minio_data_dir }}"
     - "{{ minio_config_dir }}"
 
-- name: Скопировать docker-compose.yml для MinIO
+- name: Copy docker-compose.yml for MinIO
   ansible.builtin.template:
     src: docker-compose.yml.j2
     dest: "{{ minio_root_dir }}/docker-compose.yml"
@@ -57,8 +57,8 @@
   become: yes
   notify: Restart minio-server
 
-- name: Убедиться, что MinIO запущен (Docker Compose)
+- name: Ensure MinIO is running (Docker Compose)
   community.docker.docker_compose_v2:
     project_src: "{{ minio_root_dir }}"
-    state: present # 'present' = up
+    state: present
   become: yes

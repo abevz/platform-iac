@@ -1,16 +1,15 @@
 # /infra/dev/nginx-proxy/main.tf
 
-# ЭТАП 1: Создание Cloud-Init Snippets
+# STEP 1: Create Cloud-Init Snippets
 # ---
 resource "proxmox_virtual_environment_file" "proxy_user_data" {
-  # (Удален 'count')
   datastore_id = var.proxmox_snippet_storage
   node_name    = var.proxmox_node_name
   content_type = "snippets"
 
   source_raw {
     data = templatefile("${path.module}/cp-userdata.tftpl", {
-      hostname       = "nginx-proxy" # (Используем простое имя)
+      hostname       = "nginx-proxy" # (Use simple name)
       vm_user        = var.vm_user
       ssh_public_key = var.ssh_public_key
       vm_dns         = var.vm_dns_server
@@ -20,13 +19,11 @@ resource "proxmox_virtual_environment_file" "proxy_user_data" {
 }
 
 # ---
-# ЭТАП 2: Создание VM
+# STEP 2: Create VM
 # ---
-# ИСПРАВЛЕНО: Ресурс переименован в "proxy_vm"
 resource "proxmox_virtual_environment_vm" "proxy_vm" {
-  # (Удален 'count')
 
-  vm_id = var.vm_id # 👈 *** ВАШ VMID (напр. 102) ***
+  vm_id = var.vm_id
   name  = "nginx-proxy"
 
   depends_on = [
@@ -54,12 +51,10 @@ resource "proxmox_virtual_environment_vm" "proxy_vm" {
   initialization {
     ip_config {
       ipv4 {
-        # ИСПРАВЛЕНО: Используем 'var.vm_ip_address' (из variables.tf)
         address = "${var.vm_ip_address}/${var.ip_prefix_length}"
         gateway = var.gateway
       }
     }
-    # ИСПРАВЛЕНО: Убираем [count.index]
     user_data_file_id = proxmox_virtual_environment_file.proxy_user_data.id
   }
 

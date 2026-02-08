@@ -1,8 +1,8 @@
 # config/roles/bom_install/defaults/main.yml
 # /config/roles/bom_install/defaults/main.yml
 ---
-# Версия из bom.yml
+# Version from bom.yml
 bom_version: "0.7.1"
 
-# Неймспейс для установки
+# Namespace for installation
 bom_namespace: "bom-system"

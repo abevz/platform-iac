@@ -1,5 +1,5 @@
 # infra/dev/jenkins/variables.tf
-# --- ПЕРЕМЕННЫЕ ДЛЯ ПРОВАЙДЕРА (ИЗ SOPS) ---
+# --- PROVIDER VARIABLES (FROM SOPS) ---
 variable "proxmox_api_url" {
   type      = string
   sensitive = true
@@ -45,21 +45,21 @@ variable "proxmox_snippet_storage" {
   default = "local"
 }
 
-# --- Переменные для Ansible ---
+# --- Ansible Variables ---
 variable "vm_user" {
   type    = string
   default = ""
 }
 variable "ssh_public_key" {
   type    = string
-  default = "ssh-rsa AAAA..." # (Вставьте Ваш ключ)
+  default = "ssh-rsa AAAA..."
 }
 
-# --- Спецификации VM ---
+# --- VM Specifications ---
 variable "vm_id" {
-  description = "VMID"
+  description = "VM ID"
   type        = number
-  default     = 109 # 👈 НОВЫЙ ID
+  default     = 109
 }
 variable "cp_cores" {
   type    = number
@@ -73,10 +73,10 @@ variable "cp_disk_size" {
   type    = number
   default = 60 # 60G
 }
-variable "control_plane_ips" { # (Используем это имя для совместимости)
-  description = "Статический IP для Jenkins"
+variable "control_plane_ips" {
+  description = "Static IP for Jenkins"
   type        = list(string)
-  default     = ["192.0.2.109"] # 👈 НОВЫЙ IP
+  default     = ["192.0.2.109"]
 }
 variable "gateway" {
   type    = string

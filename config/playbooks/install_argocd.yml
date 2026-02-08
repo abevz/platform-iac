@@ -5,14 +5,14 @@
   become: yes
 
   vars:
-    # --- НАЧАЛО ИСПРАВЛЕНИЯ ---
-    # По умолчанию, мы устанавливаем.
-    # Это можно переопределить в командной строке:
+    # --- START FIX ---
+    # Defaults to install.
+    # Can be overridden via command line:
     # -e "addon_state=absent"
     addon_state: "present"
-    # --- КОНЕЦ ИСПРАВЛЕНИЯ ---
+    # --- END FIX ---
 
-    # Переменная для переопределения версии
+    # Variable to override version
     requested_version: ""
 
   roles:

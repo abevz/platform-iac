@@ -1,8 +1,8 @@
 terraform {
   backend "s3" {
-    # 'key' и 'bucket' будут переданы динамически
+    # 'key' and 'bucket' will be passed dynamically
 
-    # Укажите эндпоинт Вашего MinIO
+    # Specify your MinIO endpoint
     endpoint = "https://s3.minio.example.com"
 
     region                      = "us-east-1"

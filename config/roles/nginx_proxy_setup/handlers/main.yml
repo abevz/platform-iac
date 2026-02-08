@@ -1,6 +1,6 @@
-# СТАЛО
+# AFTER
 - name: Restart nginx-proxy
-  community.docker.docker_compose_v2: # 1. Используем v2
+  community.docker.docker_compose_v2: # 1. Using v2
     project_src: "{{ nginx_proxy_root_dir }}"
-    state: restarted # 2. 'state: restarted' заменяет 'restarted: yes'
+    state: restarted # 2. 'state: restarted' replaces 'restarted: yes'
   become: yes

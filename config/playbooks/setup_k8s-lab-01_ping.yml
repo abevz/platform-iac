@@ -1,6 +1,6 @@
 ---
 - name: (Debug) Verify Ansible Connection to k8s-lab-01
-  hosts: k8s_master:k8s_worker # (Группа из Вашего Tofu outputs.tf)
+  hosts: k8s_master:k8s_worker # (Group from Tofu outputs.tf)
   become: true
 
   tasks:

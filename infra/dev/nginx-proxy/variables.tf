@@ -1,6 +1,6 @@
 # /infra/dev/nginx-proxy/variables.tf
 
-# --- ПЕРЕМЕННЫЕ ДЛЯ ПРОВАЙДЕРА (ИЗ SOPS) ---
+# --- PROVIDER VARIABLES (FROM SOPS) ---
 variable "proxmox_api_url" {
   type      = string
   sensitive = true
@@ -22,48 +22,48 @@ variable "proxmox_ssh_private_key" {
   sensitive = true
 }
 variable "proxmox_node_name" {
-  description = "Нода Proxmox"
+  description = "Proxmox node name"
   type        = string
   default     = "homelab"
 }
 variable "proxmox_ssh_address" {
-  description = "FQDN или IP для SSH-подключения к ноде Proxmox"
+  description = "FQDN or IP for SSH connection to Proxmox node"
   type        = string
   default     = "homelab.example.com"
 }
 variable "vm_template_id" {
-  description = "Имя 'Золотого Образа' (Cloud-Init)"
+  description = "VM template ID (Cloud-Init golden image)"
   type        = number
-  default     = 9420 # (ID Вашего шаблона)
+  default     = 9420
 }
 variable "vm_bridge" {
-  description = "Сетевой мост (напр. vmbr0)"
+  description = "Network bridge (e.g. vmbr0)"
   type        = string
   default     = "vmbr0"
 }
 variable "proxmox_snippet_storage" {
-  description = "Хранилище для Cloud-Init Snippets"
+  description = "Storage for Cloud-Init snippets"
   type        = string
   default     = "local"
 }
 
-# --- Переменные для Ansible ---
+# --- Ansible Variables ---
 variable "vm_user" {
-  description = "Имя пользователя для Ansible"
+  description = "Ansible SSH username"
   type        = string
   default     = ""
 }
 variable "ssh_public_key" {
-  description = "Содержимое <ssh-private-key>.pub"
+  description = "SSH public key content"
   type        = string
-  default     = "ssh-rsa AAAA..." # (Вставьте Ваш ключ)
+  default     = "ssh-rsa AAAA..."
 }
 
-# --- ИСПРАВЛЕНО: Спецификации для ОДНОЙ VM ---
+# --- Single VM Specifications ---
 variable "vm_id" {
-  description = "VMID, который Вы хотите назначить (напр., 102)"
+  description = "VM ID to assign"
   type        = number
-  default     = 105 # 👈 Укажите нужный ID
+  default     = 105
 }
 variable "cp_cores" {
   type    = number
@@ -78,31 +78,31 @@ variable "cp_disk_size" {
   default = 32
 }
 variable "vm_ip_address" {
-  description = "Статический IP для nginx-proxy"
+  description = "Static IP for nginx-proxy"
   type        = string
-  default     = "192.0.2.105" # 👈 Укажите IP (без /24)
+  default     = "192.0.2.105"
 }
 variable "gateway" {
-  description = "Сетевой шлюз"
+  description = "Network gateway"
   type        = string
   default     = "192.0.2.1"
 }
 variable "ip_prefix_length" {
-  description = "CIDR префикс (напр., 24 для /24)"
+  description = "CIDR prefix length (e.g. 24 for /24)"
   type        = number
   default     = 24
 }
 variable "vm_started" {
-  description = "VM должна быть запущена"
+  description = "Whether VM should be running"
   type        = bool
   default     = true
 }
 variable "vm_dns_server" {
-  description = "IP-адрес DNS-сервера (Pi-hole)"
+  description = "DNS server IP address (Pi-hole)"
   type        = string
   default     = "192.0.2.100"
 }
 variable "proxmox_ssh_port" {
-  description = "Порт SSH для подключения Tofu к ноде Proxmox (передается iac-wrapper)"
+  description = "SSH port for Tofu connection to Proxmox node (passed via iac-wrapper)"
   type        = number
 }

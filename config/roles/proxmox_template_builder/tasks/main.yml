@@ -1,25 +1,24 @@
 # config/roles/proxmox_template_builder/tasks/main.yml
 ---
-- name: Проверить, существует ли уже шаблон (ID {{ template_vmid }})
+- name: Check if template already exists (ID {{ template_vmid }})
   ansible.builtin.command: "qm status {{ template_vmid }}"
   register: vm_status
   failed_when: false
   changed_when: false
 
-- name: Удалить старый шаблон, если force_recreate=true
+- name: Remove old template if force_recreate=true
   ansible.builtin.command: "qm destroy {{ template_vmid }} --purge"
   when: vm_status.rc == 0 and force_recreate | bool
   register: vm_destroyed
 
-- name: Скачать Cloud Image ({{ template_image_filename }})
+- name: Download Cloud Image ({{ template_image_filename }})
   ansible.builtin.get_url:
     url: "{{ template_image_url }}"
     dest: "/tmp/{{ template_image_filename }}"
     mode: "0644"
-    # Можно добавить checksum, если url фиксированный
   when: vm_status.rc != 0 or force_recreate | bool
 
-- name: Создать базовую VM
+- name: Create base VM
   ansible.builtin.command: >
     qm create {{ template_vmid }}
     --name "{{ template_name }}"
@@ -28,41 +27,41 @@
     --net0 virtio,bridge={{ template_bridge }}
   when: vm_status.rc != 0 or force_recreate | bool
 
-- name: Импортировать диск в хранилище ({{ template_storage }})
+- name: Import disk to storage ({{ template_storage }})
   ansible.builtin.command: >
     qm importdisk {{ template_vmid }} /tmp/{{ template_image_filename }} {{ template_storage }}
   register: import_disk
   when: vm_status.rc != 0 or force_recreate | bool
 
-- name: Настроить диск и контроллер (VirtIO SCSI)
+- name: Configure disk and controller (VirtIO SCSI)
   ansible.builtin.command: >
     qm set {{ template_vmid }}
     --scsihw virtio-scsi-pci
     --scsi0 {{ template_storage }}:vm-{{ template_vmid }}-disk-0
   when: import_disk.changed
 
-- name: Настроить Cloud-Init (CD-ROM)
+- name: Configure Cloud-Init (CD-ROM)
   ansible.builtin.command: >
     qm set {{ template_vmid }}
     --ide2 {{ template_storage }}:cloudinit
   when: vm_status.rc != 0 or force_recreate | bool
 
-- name: Настроить порядок загрузки и Serial Console (обязательно для Cloud Image)
+- name: Configure boot order and Serial Console (required for Cloud Image)
   ansible.builtin.command: >
     qm set {{ template_vmid }}
     --boot c --bootdisk scsi0
     --serial0 socket --vga serial0
   when: vm_status.rc != 0 or force_recreate | bool
 
-- name: Увеличить размер диска (по умолчанию он очень маленький)
+- name: Resize disk (default is too small)
   ansible.builtin.command: "qm resize {{ template_vmid }} scsi0 +20G"
   when: vm_status.rc != 0 or force_recreate | bool
 
-- name: Конвертировать в шаблон
+- name: Convert to template
   ansible.builtin.command: "qm template {{ template_vmid }}"
   when: vm_status.rc != 0 or force_recreate | bool
 
-- name: Очистить временный файл
+- name: Clean up temporary file
   ansible.builtin.file:
     path: "/tmp/{{ template_image_filename }}"
     state: absent

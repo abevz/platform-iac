@@ -20,16 +20,16 @@ write_files:
       ff02::2 ip6-allrouters
     append: false
 
-  # Добавляем sudoers и пользователя abevz
+  # Add sudoers and user
   - path: /etc/sudoers.d/90-cloud-init-users
     permissions: '0440'
     content: |
       ${vm_user} ALL=(ALL) NOPASSWD:ALL
 
-# <<< НАЧАЛО: ДОБАВЛЕН БЛОК ДЛЯ DNS RESOLVER >>>
-# Создаем drop-in файл для systemd-resolved.
-# Этот файл устанавливает DNS, отключает DNSSEC (для SERVFAIL)
-# и включает разрешение однокомпонентных имен (для 'k8s-lab-01-wn-1').
+# <<< START: ADDED DNS RESOLVER BLOCK >>>
+# Create drop-in file for systemd-resolved.
+# This file sets DNS, disables DNSSEC (for SERVFAIL)
+# and enables single-label name resolution (for k8s-lab-01-wn-1).
   - path: /etc/systemd/resolved.conf.d/99-lab-dns.conf
     permissions: '0644'
     content: |
@@ -37,7 +37,7 @@ write_files:
       DNS=${vm_dns}
       DNSSEC=no
       ResolveUnicastSingleLabel=yes
-# <<< КОНЕЦ: ДОБАВЛЕН БЛОК ДЛЯ DNS RESOLVER >>>
+# <<< END: ADDED DNS RESOLVER BLOCK >>>
 
 users:
   - name: ${vm_user}
@@ -102,7 +102,7 @@ runcmd:
     fi
     echo "Machine-ID setup completed at $(date)" >> /var/log/machine-id-setup.log
 
-  # Установка QEMU Agent и Python
+  # Install QEMU Agent and Python
   - apt-get update
   - apt-get install -y qemu-guest-agent python3
   - systemctl enable --now qemu-guest-agent.service

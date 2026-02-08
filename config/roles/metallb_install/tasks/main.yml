@@ -1,23 +1,23 @@
 # config/roles/metallb_install/tasks/main.yml
 # /config/roles/metallb_install/tasks/main.yml
 ---
-- name: Установить целевую версию MetalLB
+- name: Set target MetalLB version
   ansible.builtin.set_fact:
     metallb_target_version: >-
       {{ requested_version | default(metallb_version) }}
 
-- name: Применить/Удалить манифест MetalLB (native)
+- name: Apply/Remove MetalLB manifest (native)
   kubernetes.core.k8s:
     state: "{{ addon_state }}"
     src: "{{ metallb_install_url | replace('{{ metallb_target_version }}', metallb_target_version) }}"
   register: metallb_apply_result
 
-- name: Ожидать готовности подов MetalLB
+- name: Wait for MetalLB pods readiness
   ansible.builtin.shell: kubectl wait --for=condition=ready pod -l app=metallb -n {{ metallb_namespace }} --timeout=300s
   changed_when: false
   when: addon_state == 'present' and metallb_apply_result.changed
 
-- name: Установить/Удалить конфигурацию IPAddressPool
+- name: Install/Remove IPAddressPool configuration
   kubernetes.core.k8s:
     state: "{{ addon_state }}"
     definition: |
@@ -39,6 +39,6 @@
         ipAddressPools:
         - default-pool
 
-- name: Показать результат
+- name: Display result
   ansible.builtin.debug:
     msg: "MetalLB ({{ addon_state }}) complete. IP Range: {{ metallb_ip_range }}"

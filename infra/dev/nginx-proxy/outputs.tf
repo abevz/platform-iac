@@ -1,7 +1,7 @@
 # /infra/dev/nginx-proxy/outputs.tf
 
 locals {
-  # (Упрощаем, так как 'count' больше нет)
+  # (Simplified, as 'count' is no longer used)
   vm        = proxmox_virtual_environment_vm.proxy_vm
   host_ip   = try(local.vm.ipv4_addresses[1][0], "unknown")
   host_name = local.vm.name

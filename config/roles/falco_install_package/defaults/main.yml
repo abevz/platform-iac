@@ -1,4 +1,4 @@
 ---
-# Версия Falco для установки.
-# Оставьте пустой, чтобы установить последнюю.
+# Falco version to install.
+# Leave empty to install the latest.
 falco_package_version: ""

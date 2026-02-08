@@ -22,7 +22,7 @@
   template:
     src: mailserver.env.j2
     dest: /opt/mailserver/mailserver.env
-    mode: '0600'  # Содержит sensitive данные
+    mode: '0600'  # Contains sensitive data
 
 - name: Start mailserver container
   community.docker.docker_compose_v2:

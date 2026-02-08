@@ -1,29 +1,29 @@
 ---
-# --- СЕКЦИЯ 0: ПЕРЕМЕННЫЕ ПУТЕЙ ---
-- name: "Vars: Определение путей к Dotfiles"
+# --- SECTION 0: PATH VARIABLES ---
+- name: "Vars: Define Dotfiles paths"
   ansible.builtin.set_fact:
-    # Источники (Source of Truth)
+    # Sources (Source of Truth)
     dotfiles_niri_src: "/home/{{ ansible_user_id }}/github/dotfiles/files/niri"
     dotfiles_scripts_src: "/home/{{ ansible_user_id }}/github/dotfiles/personal-scripts/.local/bin"
     dotfiles_systemd_src: "/home/{{ ansible_user_id }}/github/dotfiles/files/systemd"
 
-    # Целевые пути
+    # Target paths
     niri_config_dir: "/home/{{ ansible_user_id }}/.config/niri"
     local_bin: "/home/{{ ansible_user_id }}/.local/bin"
   tags: always
 
-# --- СЕКЦИЯ 1: ОЧИСТКА И ДРАЙВЕРЫ ---
-- name: "NVIDIA: Принудительное удаление конфликтующих пакетов (KMS Cleanup)"
+# --- SECTION 1: CLEANUP AND DRIVERS ---
+- name: "NVIDIA: Force removal of conflicting packages (KMS Cleanup)"
   ansible.builtin.command: "pacman -Rdd --noconfirm nvidia-dkms nvidia-open-dkms nvidia-utils lib32-nvidia-utils egl-x11"
   failed_when: false
   become: yes
 
-- name: "System: Удаление стандартной версии Waybar (для waybar-git)"
+- name: "System: Remove standard Waybar version (for waybar-git)"
   ansible.builtin.command: "pacman -Rns waybar --noconfirm"
   failed_when: false
   become: yes
 
-- name: "System: Установка зависимостей Niri и инструментов"
+- name: "System: Install Niri dependencies and tools"
   ansible.builtin.package:
     name:
       - base-devel
@@ -35,12 +35,12 @@
       - kanshi
       - xorg-xwayland
       - egl-x11
-      - jq # Для скрипта раскладок
-      - libnotify # Для уведомлений
+      - jq # For layout script
+      - libnotify # For notifications
     state: present
   become: yes
 
-- name: "AUR: Установка драйверов 580xx и Waybar-git"
+- name: "AUR: Install 580xx drivers and Waybar-git"
   ansible.builtin.shell: |
     yay -S --noconfirm --needed \
     nvidia-580xx-dkms \
@@ -51,8 +51,8 @@
   register: aur_install
   changed_when: "'Installing' in aur_install.stdout"
 
-# --- СЕКЦИЯ 2: НАСТРОЙКА ЯДРА ---
-- name: "NVIDIA: Конфигурация модулей ядра для Wayland"
+# --- SECTION 2: KERNEL CONFIGURATION ---
+- name: "NVIDIA: Configure kernel modules for Wayland"
   ansible.builtin.copy:
     dest: "/etc/modprobe.d/nvidia.conf"
     content: |
@@ -63,27 +63,27 @@
     mode: "0644"
   become: yes
 
-- name: "NVIDIA: Пересборка initramfs (mkinitcpio)"
+- name: "NVIDIA: Rebuild initramfs (mkinitcpio)"
   ansible.builtin.command: "mkinitcpio -P"
   when: aur_install.changed
   become: yes
 
-# --- СЕКЦИЯ 3: СКРИПТЫ (Layouts) ---
-- name: "Layout: Размещение скрипта niri-layout в personal-scripts"
+# --- SECTION 3: SCRIPTS (Layouts) ---
+- name: "Layout: Place niri-layout script in personal-scripts"
   ansible.builtin.copy:
     src: "niri-layout"
     dest: "{{ dotfiles_scripts_src }}/niri-layout"
     mode: "0755"
 
-- name: "System: Симлинк скрипта в ~/.local/bin"
+- name: "System: Symlink script to ~/.local/bin"
   ansible.builtin.file:
     src: "{{ dotfiles_scripts_src }}/niri-layout"
     dest: "{{ local_bin }}/niri-layout"
     state: link
     force: yes
 
-# --- СЕКЦИЯ 4: КОНФИГУРАЦИЯ И СИМЛИНКИ ---
-- name: "Config: Создание структуры директорий"
+# --- SECTION 4: CONFIGURATION AND SYMLINKS ---
+- name: "Config: Create directory structure"
   ansible.builtin.file:
     path: "{{ ansible_user_dir }}/.config/{{ item }}"
     state: directory
@@ -95,7 +95,7 @@
     - kanshi
     - systemd/user
 
-- name: "Config: Прокладка симлинков (Niri)"
+- name: "Config: Create symlinks (Niri)"
   ansible.builtin.file:
     src: "{{ dotfiles_niri_src }}/{{ item }}"
     dest: "{{ niri_config_dir }}/{{ item }}"
@@ -104,10 +104,10 @@
   loop:
     - config.kdl
     - keybindings.kdl
-    # help.txt УДАЛЕН
+    # help.txt REMOVED
   notify: Reload Niri
 
-- name: "Config: Прокладка остальных симлинков (Waybar, Kanshi, Mako)"
+- name: "Config: Create remaining symlinks (Waybar, Kanshi, Mako)"
   ansible.builtin.file:
     src: "{{ ansible_user_dir }}/github/dotfiles/files/{{ item.src }}"
     dest: "{{ ansible_user_dir }}/.config/{{ item.dest }}"
@@ -119,8 +119,8 @@
     - { src: "kanshi/config", dest: "kanshi/config" }
     - { src: "mako/config", dest: "mako/config" }
 
-# --- СЕКЦИЯ 5: СЕРВИСЫ SYSTEMD ---
-- name: "Systemd: Развертывание пользовательских юнитов"
+# --- SECTION 5: SYSTEMD SERVICES ---
+- name: "Systemd: Deploy user units"
   ansible.builtin.copy:
     src: "{{ dotfiles_systemd_src }}/{{ item }}"
     dest: "{{ ansible_user_dir }}/.config/systemd/user/{{ item }}"
@@ -129,7 +129,7 @@
     - waybar.service
     - mako.service
 
-- name: "Systemd: Активация и перезапуск сервисов"
+- name: "Systemd: Activate and restart services"
   ansible.builtin.systemd:
     daemon_reload: yes
     scope: user

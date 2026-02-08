@@ -1,4 +1,4 @@
 ---
 cilium_helm_repo_url: https://helm.cilium.io/
-cilium_chart_version: "1.18.3" # (Пример: Используйте актуальную CKS-совместимую версию)
+cilium_chart_version: "1.18.3" # (Example: Use current CKS-compatible version)
 cilium_namespace: kube-system

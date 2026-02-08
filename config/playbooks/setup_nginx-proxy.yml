@@ -2,15 +2,15 @@
 # /config/playbooks/setup_nginx-proxy.yml
 ---
 - name: Setup Nginx Proxy
-  hosts: nginx_proxies # (Имя группы из Tofu outputs.tf)
+  hosts: nginx_proxies # (Group name from Tofu outputs.tf)
   become: yes
 
   vars:
     addon_state: "present"
 
   roles:
-    # 1. Устанавливаем Certbot (роль из предыдущего шага)
+    # 1. Install Certbot (role from previous step)
     - role: certbot_setup
 
-    # 2. Устанавливаем Nginx (роль, которую мы только что создали)
+    # 2. Install Nginx (role we just created)
     - role: nginx_proxy_setup

@@ -1,7 +1,7 @@
 ---
 # /config/roles/harbor_setup/tasks/main.yml
 
-# --- Блок ожидания APT (ИСПРАВЛЕННЫЙ) ---
+# --- Wait for APT block ---
 - name: Wait for apt locks to be released
   ansible.builtin.shell:
     cmd: "while fuser /var/lib/dpkg/lock-frontend >/dev/null 2>&1; do echo 'Waiting for dpkg lock...' && sleep 10; done; while fuser /var/lib/apt/lists/lock >/dev/null 2>&1; do echo 'Waiting for apt lists lock...' && sleep 10; done;"
@@ -11,19 +11,19 @@
   changed_when: false
   register: wait_for_lock
   until: wait_for_lock.rc == 0
-  retries: 18 # Ждать максимум 3 минуты
+  retries: 18 # Wait up to 3 minutes
   delay: 10
   become: yes
-# --- Конец блока ожидания ---
+# --- End wait block ---
 
-- name: Установить необходимые пакеты для Docker
+- name: Install Docker prerequisites
   ansible.builtin.apt:
     name: ["ca-certificates", "curl", "gnupg"]
     state: present
     update_cache: yes
   become: yes
 
-- name: Добавить GPG-ключ Docker
+- name: Add Docker GPG key
   ansible.builtin.get_url:
     url: "https://download.docker.com/linux/{{ ansible_distribution | lower }}/gpg"
     dest: /etc/apt/keyrings/docker.asc
@@ -31,29 +31,29 @@
     force: true
   become: yes
 
-- name: Добавить репозиторий Docker
+- name: Add Docker repository
   ansible.builtin.apt_repository:
     repo: "deb [arch={{ ansible_architecture if ansible_architecture == 'aarch64' else 'amd64' }} signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/{{ ansible_distribution | lower }} {{ ansible_distribution_release }} stable"
     state: present
     filename: docker
   become: yes
 
-- name: Убедиться, что Docker и Docker Compose установлены
+- name: Ensure Docker and Docker Compose are installed
   ansible.builtin.apt:
     name: ["docker-ce", "docker-compose-plugin"]
     state: present
     update_cache: yes
   become: yes
 
-# --- Установка Harbor ---
-- name: Убедиться, что каталог установки существует
+# --- Harbor Installation ---
+- name: Ensure installation directory exists
   ansible.builtin.file:
     path: "{{ harbor_install_dir }}"
     state: directory
     mode: "0755"
   become: yes
 
-- name: Загрузить Harbor Offline Installer
+- name: Download Harbor Offline Installer
   ansible.builtin.unarchive:
     src: "https://github.com/goharbor/harbor/releases/download/{{ harbor_version }}/harbor-offline-installer-{{ harbor_version }}.tgz"
     dest: "{{ harbor_install_dir }}"
@@ -63,7 +63,7 @@
   become: yes
   register: installer_downloaded
 
-- name: Скопировать кастомный harbor.yml
+- name: Copy custom harbor.yml
   ansible.builtin.template:
     src: harbor.yml.j2
     dest: "{{ harbor_install_dir }}/harbor.yml"
@@ -71,33 +71,32 @@
   become: yes
   register: harbor_config_file
 
-# --- ИСПРАВЛЕННАЯ ЛОГИКА ЗАПУСКА ---
+# --- Launch logic ---
 
-- name: Остановить Harbor (если запущен, перед 'prepare')
+- name: Stop Harbor (if running, before 'prepare')
   ansible.builtin.command:
     cmd: docker compose down -v
     chdir: "{{ harbor_install_dir }}"
   become: yes
   ignore_errors: yes
-  when: harbor_config_file.changed # Запускать только если конфиг поменялся
+  when: harbor_config_file.changed
 
-- name: Запустить 'prepare' (если конфиг или инсталлер изменились)
+- name: Run 'prepare' (if config or installer changed)
   ansible.builtin.command:
     cmd: ./prepare
     chdir: "{{ harbor_install_dir }}"
   become: yes
-  # Запускаем, если конфиг или инсталлер изменились, ИЛИ если docker compose не запущен
   when: harbor_config_file.changed or installer_downloaded.changed
-  changed_when: true # 'prepare' всегда считается изменением
+  changed_when: true
 
-- name: Запустить скрипт установки Harbor (Гарантирует запуск)
+- name: Run Harbor installation script
   ansible.builtin.command:
     cmd: ./install.sh --with-trivy
     chdir: "{{ harbor_install_dir }}"
   become: yes
-  changed_when: true # 'install' всегда считается изменением
+  changed_when: true
 
-- name: Скопировать systemd unit-файл для Harbor
+- name: Copy systemd unit file for Harbor
   ansible.builtin.template:
     src: harbor.service.j2
     dest: /etc/systemd/system/harbor.service
@@ -105,9 +104,9 @@
   become: yes
   notify: Reload systemd
 
-- name: Включить сервис Harbor (для автозапуска при загрузке)
+- name: Enable Harbor service (autostart on boot)
   ansible.builtin.systemd:
     name: harbor
     enabled: yes
-    state: started # (Также запускаем его немедленно)
+    state: started
   become: yes

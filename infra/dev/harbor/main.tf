@@ -1,6 +1,6 @@
 # /infra/dev/harbor/main.tf
 
-# ЭТАП 1: Создание Cloud-Init Snippets
+# STEP 1: Create Cloud-Init Snippets
 resource "proxmox_virtual_environment_file" "harbor_user_data" {
   datastore_id = var.proxmox_snippet_storage
   node_name    = var.proxmox_node_name
@@ -8,16 +8,16 @@ resource "proxmox_virtual_environment_file" "harbor_user_data" {
 
   source_raw {
     data = templatefile("${path.module}/cp-userdata.tftpl", {
-      hostname       = "harbor-server" # 👈 Статичное имя
+      hostname       = "harbor-server"
       vm_user        = var.vm_user
       ssh_public_key = var.ssh_public_key
       vm_dns         = var.vm_dns_server
     })
-    file_name = "harbor-server-userdata.yaml" # 👈 Статичное имя
+    file_name = "harbor-server-userdata.yaml"
   }
 }
 
-# ЭТАП 2: Создание VM
+# STEP 2: Create VM
 resource "proxmox_virtual_environment_vm" "harbor_vm" {
   vm_id = var.vm_id
   name  = "harbor-server"
@@ -44,7 +44,7 @@ resource "proxmox_virtual_environment_vm" "harbor_vm" {
 
   provisioner "local-exec" {
     when    = create
-    command = "echo 'VM ${self.name} создана, ожидание 60 секунд для запуска QEMU Agent...' && sleep 60"
+    command = "echo 'VM ${self.name} created, waiting 60s for QEMU Agent...' && sleep 60"
   }
 
   network_device {
@@ -55,12 +55,11 @@ resource "proxmox_virtual_environment_vm" "harbor_vm" {
   initialization {
     ip_config {
       ipv4 {
-        # Используем первый (и единственный) IP из списка
+        # Use first (and only) IP from the list
         address = "${var.control_plane_ips[0]}/${var.ip_prefix_length}"
         gateway = var.gateway
       }
     }
-    # Прямая ссылка на ID, без [count.index]
     user_data_file_id = proxmox_virtual_environment_file.harbor_user_data.id
   }
 

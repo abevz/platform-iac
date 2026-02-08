@@ -1,22 +1,22 @@
 # /config/roles/calico_install_manifest/tasks/main.yml
 ---
-- name: Установить/Удалить Calico Operator (via Manifest)
+- name: Install/Remove Calico Operator (via Manifest)
   kubernetes.core.k8s:
-    state: "{{ addon_state | default('present') }}" # <-- ИСПОЛЬЗУЕМ ПЕРЕМЕННУЮ
+    state: "{{ addon_state | default('present') }}" # <-- USING VARIABLE
     src: "{{ calico_operator_manifest_url }}"
     wait: yes
     timeout: 5m
   register: calico_operator_install
 
-- name: Установить/Удалить Calico Custom Resources (via Manifest)
+- name: Install/Remove Calico Custom Resources (via Manifest)
   kubernetes.core.k8s:
-    state: "{{ addon_state | default('present') }}" # <-- ИСПОЛЬЗУЕМ ПЕРЕМЕННУЮ
+    state: "{{ addon_state | default('present') }}" # <-- USING VARIABLE
     src: "{{ calico_cr_manifest_url }}"
     wait: yes
     timeout: 5m
   register: calico_cr_install
 
-- name: Ожидать готовности Calico (только при установке)
+- name: Wait for Calico readiness (install only)
   when: addon_state == "present"
   block:
     - name: Wait for Calico Deployments to be available
@@ -29,6 +29,6 @@
       changed_when: true
       when: calico_operator_install.changed or calico_cr_install.changed
 
-- name: Показать результат
+- name: Display result
   ansible.builtin.debug:
     msg: "Calico Manifests ({{ addon_state | default('present') }}) complete."

@@ -1,31 +1,31 @@
 # /config/roles/cilium_install_helm/tasks/main.yml
 ---
-- name: Установить зависимости для Helm (curl, gpg)
+- name: Install Helm dependencies (curl, gpg)
   ansible.builtin.apt:
     name: ["apt-transport-https", "gpg", "curl"]
     state: present
     update_cache: yes
 
-- name: Добавить GPG-ключ Helm (Buildkite)
+- name: Add Helm GPG key (Buildkite)
   ansible.builtin.shell:
     cmd: curl -fsSL https://packages.buildkite.com/helm-linux/helm-debian/gpgkey | gpg --dearmor -o /usr/share/keyrings/helm-buildkite.gpg
     creates: /usr/share/keyrings/helm-buildkite.gpg
   changed_when: false
 
-- name: Добавить репозиторий Helm (Buildkite)
+- name: Add Helm repository (Buildkite)
   ansible.builtin.apt_repository:
     repo: "deb [signed-by=/usr/share/keyrings/helm-buildkite.gpg] https://packages.buildkite.com/helm-linux/helm-debian/any/ any main"
     state: present
     filename: helm-stable-debian
 
-- name: Установить Helm
+- name: Install Helm
   ansible.builtin.apt:
     name: helm
     state: present
     update_cache: yes
 
-# --- НАЧАЛО: БЛОК ИЗ cilium.yml ---
-- name: Установить/Удалить Cilium CLI
+# --- START: BLOCK FROM cilium.yml ---
+- name: Install/Remove Cilium CLI
   ansible.builtin.shell: |
     if [ ! -f "/usr/local/bin/cilium" ]; then
       CILIUM_CLI_VERSION=$(curl -s https://raw.githubusercontent.com/cilium/cilium-cli/main/stable.txt)
@@ -34,7 +34,7 @@
       curl -L --fail --remote-name-all https://github.com/cilium/cilium-cli/releases/download/${CILIUM_CLI_VERSION}/cilium-linux-${CLI_ARCH}.tar.gz{,.sha256sum}
       sha256sum --check cilium-linux-${CLI_ARCH}.tar.gz.sha256sum
       tar xzvfC cilium-linux-${CLI_ARCH}.tar.gz /usr/local/bin
-      # v--- ИСПРАВЛЕНО: Явно удаляем оба файла ---v
+      # v--- FIXED: Explicitly remove both files ---v
       rm cilium-linux-${CLI_ARCH}.tar.gz cilium-linux-${CLI_ARCH}.tar.gz.sha256sum
     fi
   args:
@@ -43,7 +43,7 @@
   changed_when: false
   when: addon_state == "present"
 
-- name: Установить/Удалить Hubble CLI
+- name: Install/Remove Hubble CLI
   ansible.builtin.shell: |
     if [ ! -f "/usr/local/bin/hubble" ]; then
       HUBBLE_VERSION=$(curl -s https://raw.githubusercontent.com/cilium/hubble/master/stable.txt)
@@ -52,7 +52,7 @@
       curl -L --fail --remote-name-all https://github.com/cilium/hubble/releases/download/$HUBBLE_VERSION/hubble-linux-${HUBBLE_ARCH}.tar.gz{,.sha256sum}
       sha256sum --check hubble-linux-${HUBBLE_ARCH}.tar.gz.sha256sum
       tar xzvfC hubble-linux-${HUBBLE_ARCH}.tar.gz /usr/local/bin
-      # v--- ИСПРАВЛЕНО: Явно удаляем оба файла ---v
+      # v--- FIXED: Explicitly remove both files ---v
       rm hubble-linux-${HUBBLE_ARCH}.tar.gz hubble-linux-${HUBBLE_ARCH}.tar.gz.sha256sum
     fi
   args:
@@ -61,7 +61,7 @@
   changed_when: false
   when: addon_state == "present"
 
-- name: Удалить Cilium и Hubble CLI
+- name: Remove Cilium and Hubble CLI
   ansible.builtin.file:
     path: "{{ item }}"
     state: absent
@@ -69,22 +69,22 @@
     - /usr/local/bin/cilium
     - /usr/local/bin/hubble
   when: addon_state == "absent"
-# --- КОНЕЦ: БЛОК ИЗ cilium.yml ---
+      # --- END: BLOCK FROM cilium.yml ---
 
-- name: Добавить репозиторий Cilium Helm
+- name: Add Cilium Helm repository
   kubernetes.core.helm_repository:
     name: cilium
     repo_url: "{{ cilium_helm_repo_url }}"
     state: present
 
-- name: Установить/Удалить Cilium CNI (Helm)
+- name: Install/Remove Cilium CNI (Helm)
   kubernetes.core.helm:
     name: cilium
     chart_ref: cilium/cilium
     chart_version: "{{ cilium_chart_version }}"
     release_namespace: "{{ cilium_namespace }}"
     create_namespace: false
-    state: "{{ addon_state }}" # <-- ИСПОЛЬЗУЕМ ПЕРЕМЕННУЮ
+    state: "{{ addon_state }}" # <-- USING VARIABLE
     wait: yes
     timeout: 10m
     values:
@@ -95,7 +95,7 @@
         masquerade: true
       securityContext:
         privileged: true
-      # --- НАЧАЛО: БЛОК ИЗ cilium.yml ---
+      # --- START: BLOCK FROM cilium.yml ---
       operator:
         replicas: 1
       hostFirewall:
@@ -126,4 +126,4 @@
         enabled: true
       operator.prometheus:
         enabled: true
-      # --- КОНЕЦ: БЛОК ИЗ cilium.yml ---
+# --- END: BLOCK FROM cilium.yml ---

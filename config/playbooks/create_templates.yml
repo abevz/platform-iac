@@ -2,13 +2,13 @@
 ---
 - name: Build Proxmox Cloud-Init Templates
   hosts: proxmox_nodes
-  become: yes # Нужен root на Proxmox для qm команд
+  become: yes # Root on Proxmox required for qm commands
   gather_facts: no
 
   roles:
     - role: proxmox_template_builder
       vars:
-        # Можно переопределить переменные здесь для разных дистрибутивов
+        # Variables can be overridden here for different distributions
         template_vmid: 9013
         template_name: "debian-13-generic-template"
         force_recreate: false

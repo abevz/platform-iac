@@ -1,34 +1,33 @@
 #!/bin/bash
 
-# Функция для входа в сетевой неймспейс контейнера (CRI-O/Containerd)
-# Использование: source knet.sh; knet <имя_пода>
+# Function to enter container network namespace (CRI-O/Containerd)
+# Usage: source knet.sh; knet <pod_name>
 
 function knet() {
     if [ -z "$1" ]; then
-        echo "Использование: knet <частичное_имя_пода>"
+        echo "Usage: knet <partial_pod_name>"
         return 1
     fi
 
-    # Находим ID (2>/dev/null убирает мусор от crictl)
+    # Find container ID (2>/dev/null suppresses crictl noise)
     local container_id=$(sudo crictl ps --name "$1" --state Running -q 2>/dev/null | head -n 1)
 
     if [ -z "$container_id" ]; then
-        echo "❌ Контейнер с именем '$1' не найден."
+        echo "Container with name '$1' not found."
         return 1
     fi
 
     local pid=$(sudo crictl inspect --output go-template --template '{{.info.pid}}' "$container_id" 2>/dev/null)
 
     if [ -z "$pid" ]; then
-        echo "❌ Не удалось получить PID."
+        echo "Failed to get PID."
         return 1
     fi
 
-    echo "✅ Входим в сеть контейнера: $1 (PID: $pid)"
-    echo "⚠️  Файловая система осталась от ХОСТА. Доступны утилиты хоста."
+    echo "Entering container network: $1 (PID: $pid)"
+    echo "Filesystem remains from HOST. Host utilities are available."
 
-    # МАГИЯ ЗДЕСЬ:
-    # Мы передаем команду bash-у: "Настрой красный промпт и останься в оболочке"
-    # --norc нужен, чтобы ваш .bashrc не перезаписал наш красивый промпт обратно
+    # Pass bash command: "Set red prompt and stay in shell"
+    # --norc prevents .bashrc from overwriting our custom prompt
     sudo nsenter -t "$pid" -n /bin/bash --norc -c "export PS1='\[\e[1;31m\](CONTAINER-NET)\[\e[0m\] \u@\h:\w\$ '; exec /bin/bash --norc"
 }

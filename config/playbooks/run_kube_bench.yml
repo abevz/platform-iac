@@ -6,7 +6,7 @@
   become: yes
 
   vars:
-    # (Job'ы обычно имеют 'present', удаление - это 'kubectl delete job...')
+    # (Jobs usually use 'present', deletion is done via 'kubectl delete job...')
     addon_state: "present"
     requested_version: ""
 
