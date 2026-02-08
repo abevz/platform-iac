@@ -181,6 +181,14 @@ load_tofu_secrets_to_temp_file() {
     exit 1
   fi
 
+  # Load MinIO endpoint for backend configuration
+  export MINIO_ENDPOINT=$(sops -d "$MINIO_SECRETS_FILE" | yq -r '.MINIO_ENDPOINT // "https://s3.minio.example.com"')
+  if [ -z "$MINIO_ENDPOINT" ] || [ "$MINIO_ENDPOINT" = "null" ]; then
+    log "WARN: MINIO_ENDPOINT not found in secrets. Using default."
+    export MINIO_ENDPOINT="https://s3.minio.example.com"
+  fi
+  log "Using MinIO endpoint: $MINIO_ENDPOINT"
+
   TEMP_TFVARS_FILE=$(mktemp /tmp/iac_tfvars_XXXXXX.json)
   echo "$PROXMOX_JSON" >"$TEMP_TFVARS_FILE"
 
@@ -196,7 +204,7 @@ tofu_cache_outputs() {
 
   if [ ! -f .terraform/terraform.tfstate ]; then
     log "WARN: State not found locally. Executing 'tofu init'."
-    tofu init -reconfigure -backend-config="bucket=${TF_STATE_BUCKET}" -backend-config="key=${TF_STATE_KEY}" >/dev/null
+    tofu init -reconfigure -backend-config="bucket=${TF_STATE_BUCKET}" -backend-config="key=${TF_STATE_KEY}" -backend-config="endpoint=${MINIO_ENDPOINT}" >/dev/null
   fi
 
   mkdir -p "$TOFU_CACHE_DIR"
@@ -252,7 +260,10 @@ deploy)
 
   log "Starting Tofu Deploy (Infrastructure Only) for '$COMPONENT'..."
   cd "$TERRAFORM_DIR"
-  tofu init -reconfigure -backend-config="bucket=${TF_STATE_BUCKET}" -backend-config="key=${TF_STATE_KEY}"
+  tofu init -reconfigure \
+    -backend-config="bucket=${TF_STATE_BUCKET}" \
+    -backend-config="key=${TF_STATE_KEY}" \
+    -backend-config="endpoint=${MINIO_ENDPOINT}"
 
   tofu apply -auto-approve "$TOFU_VARS_ARG"
 
@@ -296,7 +307,7 @@ apply)
     tofu init
   else
     log "Starting 'tofu init' with S3 backend..."
-    tofu init -reconfigure -backend-config="bucket=${TF_STATE_BUCKET}" -backend-config="key=${TF_STATE_KEY}"
+    tofu init -reconfigure -backend-config="bucket=${TF_STATE_BUCKET}" -backend-config="key=${TF_STATE_KEY}" -backend-config="endpoint=${MINIO_ENDPOINT}"
   fi
 
   tofu apply -auto-approve "$TOFU_VARS_ARG"
@@ -560,7 +571,7 @@ plan | destroy)
     tofu init
   else
     log "Starting 'tofu init' with S3 backend..."
-    tofu init -reconfigure -backend-config="bucket=${TF_STATE_BUCKET}" -backend-config="key=${TF_STATE_KEY}"
+    tofu init -reconfigure -backend-config="bucket=${TF_STATE_BUCKET}" -backend-config="key=${TF_STATE_KEY}" -backend-config="endpoint=${MINIO_ENDPOINT}"
   fi
 
   if [ "$ACTION" == "plan" ]; then
@@ -620,7 +631,7 @@ start)
     tofu init
   else
     log "Starting 'tofu init' with S3 backend..."
-    tofu init -reconfigure -backend-config="bucket=${TF_STATE_BUCKET}" -backend-config="key=${TF_STATE_KEY}"
+    tofu init -reconfigure -backend-config="bucket=${TF_STATE_BUCKET}" -backend-config="key=${TF_STATE_KEY}" -backend-config="endpoint=${MINIO_ENDPOINT}"
   fi
 
   tofu apply -var="vm_started=true" -auto-approve "$TOFU_VARS_ARG"
@@ -650,7 +661,7 @@ stop)
     tofu init
   else
     log "Starting 'tofu init' with S3 backend..."
-    tofu init -reconfigure -backend-config="bucket=${TF_STATE_BUCKET}" -backend-config="key=${TF_STATE_KEY}"
+    tofu init -reconfigure -backend-config="bucket=${TF_STATE_BUCKET}" -backend-config="key=${TF_STATE_KEY}" -backend-config="endpoint=${MINIO_ENDPOINT}"
   fi
 
   tofu apply -var="vm_started=false" -auto-approve "$TOFU_VARS_ARG"

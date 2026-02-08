@@ -43,9 +43,16 @@ iac_inventory_*.ini
 # Cached kubeadm join command file (fetch)
 /tmp/kubeadm_join_command.sh
 
-# --- SOPS (Decrypted Files) ---
-# IMPORTANT: Git should store ONLY encrypted files (*.sops.yml)
-# You must explicitly ignore paths to *decrypted* versions.
+# --- SOPS Secrets ---
+# IMPORTANT: Git stores ONLY example files (*.sops.yml.example)
+# Real encrypted secrets (*.sops.yml) are local-only and ignored
+# Copy *.sops.yml.example to *.sops.yml and fill with your values
+config/secrets/*/*.sops.yml
+config/secrets/*/*.sops.yaml
+# Allow only example files in git
+!config/secrets/*/*.sops.yml.example
+!config/secrets/*/*.sops.yaml.example
+# Legacy decrypted file
 config/secrets/certbot/dns-multi.ini
 
 # --- General ---
