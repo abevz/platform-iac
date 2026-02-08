@@ -5,12 +5,14 @@
 > [!WARNING]
 > **Example Configuration**
 > This repository contains example IP addresses (`10.10.10.x`) and domain names (`bevz.net`) for demonstration purposes.
-> Please update `config/platform.conf` with your own infrastructure details before deployment.
-> See `config/platform.conf.example` for reference.
+> **Before deployment:**
+> 1. Copy `config/platform.conf.example` to `config/platform.conf`.
+> 2. Update `config/platform.conf` with your specific infrastructure details (IPs, domains, SSH ports).
+> 3. Ensure your SSH keys are placed in `keys/` directory (or update the path in config).
 
 ## Overview
 
-`platform-iac` is a comprehensive **Infrastructure as Code (IaC)** and **Configuration Management (CM)** solution for managing **all virtual infrastructure** on **Proxmox VE**. This includes Kubernetes clusters, database servers (Percona XtraDB, PostgreSQL), GitLab instances, application servers, and any other VM-based workloads.
+`platform-iac` is a comprehensive **Infrastructure as Code (IaC)** and **Configuration Management (CM)** solution for managing **all virtual infrastructure** on **Proxmox VE**. This includes Kubernetes clusters, database servers (Percona XtraDB, PostgreSQL), GitLab instances, mail servers, application servers, and any other VM-based workloads.
 
 This project uses a hybrid approach:
 
@@ -45,7 +47,12 @@ The entire process is orchestrated by a master wrapper script (`tools/iac-wrappe
 ### Universal Infrastructure Management
 
 - **Multi-Environment Support:** Separate environments (dev, staging, production, interview-prep)
-- **Flexible VM Types:** Support for any workload - Kubernetes clusters, databases, CI/CD, applications
+- **Flexible VM Types:** Support for any workload:
+  - Kubernetes clusters (k8s-lab)
+  - Databases (PostgreSQL, Percona)
+  - Mail servers (Docker Mailserver)
+  - CI/CD (GitLab, Jenkins)
+  - Web servers (Nginx, Traefik)
 - **Infrastructure as Code:** Fully automated VM provisioning on Proxmox VE using OpenTofu/Terraform
 - **Dynamic Inventory:** Tofu automatically generates Ansible inventory, eliminating manual management
 - **Modular Design:** Reusable Terraform modules and Ansible roles for different infrastructure types
@@ -135,6 +142,17 @@ platform-iac/
 
 ## Configuration
 
+### Global Configuration (`config/platform.conf`)
+
+Core infrastructure settings (IPs, domains, SSH paths) are managed in `config/platform.conf`. This file is git-ignored for security.
+
+```bash
+cp config/platform.conf.example config/platform.conf
+vim config/platform.conf
+```
+
+### Secrets Management (`sops`)
+
 All secrets are managed by `sops` and stored in `config/secrets/`. The `iac-wrapper.sh` script automatically decrypts them in-memory for Tofu and Ansible.
 
 - `config/secrets/proxmox/provider.sops.yml`: Holds Proxmox API and SSH credentials for Tofu.
@@ -184,6 +202,21 @@ This command will first run the `add_pihole_dns.py` script in `unregister-dns` m
 - **`./tools/iac-wrapper.sh plan dev k8s-lab-01`**: Runs `tofu plan` to see infrastructure changes.
 - **`./tools/iac-wrapper.sh run-playbook dev k8s-lab-01 <playbook_name.yml> <limit>`**: Runs an ad-hoc playbook (e.g., `setup_dns.yml`) against the dynamic inventory.
 - **`./tools/iac-wrapper.sh get-inventory dev k8s-lab-01`**: Caches and prints the dynamic JSON inventory.
+
+## Testing & Validation
+
+The project includes several layers of testing to ensure code quality and security:
+
+### Static Analysis (Pre-commit)
+Running automatically on commit or via `pre-commit run -a`:
+- **Terraform:** `terraform fmt`, `tflint`, `tfsec` (Trivy)
+- **Ansible:** `ansible-lint`
+- **Shell:** `shellcheck`
+- **Secrets:** `detect-secrets`
+
+### Infrastructure Tests
+- **Terraform Tests:** Native `terraform test` framework (coming soon)
+- **Ansible Molecule:** Role testing in isolation (coming soon)
 
 ---
 

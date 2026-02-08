@@ -1,0 +1,39 @@
+# Shared destroy playbook for delegated driver
+# Destroys VM via OpenTofu (optional - can keep for debugging)
+---
+- name: Destroy test infrastructure
+  hosts: localhost
+  connection: local
+  gather_facts: false
+
+  vars:
+    molecule_scenario: "{{ lookup('env', 'MOLECULE_SCENARIO_NAME') }}"
+    tofu_dir: "{{ playbook_dir }}/../../../infra/dev/{{ molecule_scenario }}"
+    molecule_keep_vm: "{{ lookup('env', 'MOLECULE_KEEP_VM') | default('false', true) | bool }}"
+
+  tasks:
+    - name: Check if tofu directory exists
+      ansible.builtin.stat:
+        path: "{{ tofu_dir }}"
+      register: tofu_dir_stat
+
+    - name: Skip destroy if MOLECULE_KEEP_VM is set
+      ansible.builtin.debug:
+        msg: "Skipping VM destruction (MOLECULE_KEEP_VM={{ molecule_keep_vm }})"
+      when: molecule_keep_vm
+
+    - name: Destroy OpenTofu infrastructure
+      ansible.builtin.command:
+        cmd: tofu destroy -auto-approve -input=false
+        chdir: "{{ tofu_dir }}"
+      when:
+        - tofu_dir_stat.stat.exists
+        - not molecule_keep_vm
+      register: tofu_destroy
+      changed_when: true
+      failed_when: false  # Don't fail if already destroyed
+
+    - name: Clean up instance config
+      ansible.builtin.file:
+        path: "{{ lookup('env', 'MOLECULE_INSTANCE_CONFIG') }}"
+        state: absent

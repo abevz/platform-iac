@@ -1,0 +1,63 @@
+# Molecule configuration for mailserver scenario
+# Uses delegated driver to test on real Proxmox VM
+---
+dependency:
+  name: galaxy
+  options:
+    requirements-file: ../../.ansible/collections/requirements.yml
+
+driver:
+  name: delegated
+  options:
+    managed: true  # Molecule manages VM lifecycle via create/destroy playbooks
+
+platforms:
+  - name: mailserver-test
+    groups:
+      - mailservers
+
+provisioner:
+  name: ansible
+  playbooks:
+    create: ../shared/create.yml
+    destroy: ../shared/destroy.yml
+    converge: converge.yml
+  config_options:
+    defaults:
+      roles_path: ../../roles
+      collections_path: ../../.ansible/collections
+      host_key_checking: false
+      stdout_callback: yaml
+    ssh_connection:
+      pipelining: true
+  inventory:
+    host_vars:
+      mailserver-test:
+        ansible_user: "{{ lookup('env', 'MOLECULE_SSH_USER') | default('ubuntu', true) }}"
+        ansible_ssh_private_key_file: "{{ lookup('env', 'MOLECULE_SSH_KEY') | default('~/.ssh/id_ed25519', true) }}"
+  env:
+    ANSIBLE_ROLES_PATH: ../../roles
+    ANSIBLE_COLLECTIONS_PATH: ../../.ansible/collections
+
+verifier:
+  name: testinfra
+  directory: tests/
+  options:
+    v: true
+    sudo: true
+
+scenario:
+  name: mailserver
+  create_sequence:
+    - create
+  converge_sequence:
+    - converge
+  destroy_sequence:
+    - destroy
+  test_sequence:
+    - dependency
+    - create
+    - converge
+    - idempotence
+    - verify
+    - destroy
