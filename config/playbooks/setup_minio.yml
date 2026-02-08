@@ -2,15 +2,15 @@
 ---
 # /config/playbooks/setup_minio.yml
 - name: Setup MinIO Server
-  hosts: minio_servers # (Имя группы из Tofu outputs.tf)
+  hosts: minio_servers # (Group name from Tofu outputs.tf)
   become: yes
 
   vars:
     addon_state: "present"
 
   roles:
-    # 1. Устанавливаем часовой пояс
+    # 1. Set timezone
     - role: set_timezone
 
-    # 2. Устанавливаем MinIO
+    # 2. Install MinIO
     - role: minio_setup

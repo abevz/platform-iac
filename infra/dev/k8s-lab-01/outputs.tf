@@ -1,24 +1,24 @@
-## outputs.tf (Универсальная версия v11.0 - Агрегация через flatten)
+## outputs.tf (Universal version v11.0 - Aggregation via flatten)
 
-# Шаг 1: Универсальная Агрегация всех VM в одну Map.
+# Step 1: Universal aggregation of all VMs into a single Map.
 locals {
-  # 1. Объединяем ВСЕ списки ресурсов VM в один плоский список.
-  # Этот блок требует обновления ТОЛЬКО при добавлении нового имени ресурса в main.tf.
+  # 1. Combine ALL VM resource lists into a single flat list.
+  # This block only needs updating when adding a new resource name in main.tf.
   all_vm_resources_list = flatten([
     proxmox_virtual_environment_vm.control_plane,
     proxmox_virtual_environment_vm.workers,
   ])
 
-  # 2. Создаем Map 'all_vms' из этого списка. Этот for-выражение УНИВЕРСАЛЬНО.
+  # 2. Create 'all_vms' Map from this list. This for-expression is UNIVERSAL.
   all_vms = {
     for vm in local.all_vm_resources_list :
     vm.name => {
       name = vm.name
-      # Используем проверенный путь [1][0] для IP
+      # Using verified path [1][0] for IP
       ipv4_address         = try(vm.ipv4_addresses[1][0], "unknown")
       private_ipv4_address = try(vm.ipv4_addresses[1][0], "unknown")
       vm_id                = vm.id
-      # Логика определения роли остается здесь
+      # Role determination logic stays here
       node_role = can(regex("cp", vm.name)) ? "master" : "worker"
     }
   }
@@ -26,9 +26,9 @@ locals {
 
 output "ansible_inventory_data" {
   value = jsonencode({
-    # --- Метаданные Хостов (hostvars) ---
+    # --- Host Metadata (hostvars) ---
     _meta = {
-      # Перебираем универсальный Map 'all_vms'. Эта секция УНИВЕРСАЛЬНА.
+      # Iterate over universal 'all_vms' Map. This section is UNIVERSAL.
       hostvars = {
         for name, vm in local.all_vms :
         name => {
@@ -38,14 +38,14 @@ output "ansible_inventory_data" {
           ansible_port = 22
           vm_name      = vm.name
           vm_id        = vm.vm_id
-          # Роль берется из универсального Map
+          # Role taken from universal Map
           node_role = vm.node_role
         }
       }
     },
 
-    # --- Группы Ansible ---
-    # ВНИМАНИЕ: Эта секция НЕ универсальна, она зависит от имени ресурса в main.tf.
+    # --- Ansible Groups ---
+    # NOTE: This section is NOT universal, it depends on resource names in main.tf.
     all = {
       children = ["k8s_master", "k8s_worker"],
       vars = {

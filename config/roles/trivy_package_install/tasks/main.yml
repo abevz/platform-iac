@@ -3,7 +3,7 @@
   tags: [trivy_pkg, debian]
   when: ansible_os_family == "Debian"
   block:
-    # --- НАЧАЛО ИСПРАВЛЕНИЯ (по Вашей ручной проверке) ---
+    # --- FIX START (based on your manual check) ---
     - name: Ensure prerequisites for Trivy are installed (wget, gnupg)
       ansible.builtin.apt:
         name:
@@ -14,7 +14,7 @@
 
     - name: Add Trivy GPG key (Debian)
       ansible.builtin.shell:
-        # 1. Точная команда, которую Вы использовали (wget | gpg --dearmor)
+        # 1. Exact command you used (wget | gpg --dearmor)
         cmd: wget -qO - https://aquasecurity.github.io/trivy-repo/deb/public.key | gpg --dearmor -o /usr/share/keyrings/trivy.gpg
         creates: /usr/share/keyrings/trivy.gpg
       changed_when: false
@@ -22,15 +22,15 @@
     - name: Add Trivy apt repository (Debian)
       ansible.builtin.lineinfile:
         path: /etc/apt/sources.list.d/trivy.list
-        # 2. Точная строка репозитория, которую Вы использовали (с 'generic')
+        # 2. Exact repository line you used (with 'generic')
         line: "deb [signed-by=/usr/share/keyrings/trivy.gpg] https://aquasecurity.github.io/trivy-repo/deb generic main"
         create: yes
         mode: '0644'
       register: trivy_repo_file
-    # --- КОНЕЦ ИСПРАВЛЕНИЯ ---
+    # --- FIX END ---
 
     - name: Update apt cache after adding Trivy repo
-      # 3. 'apt-get update' (запускается только если repo изменился)
+      # 3. 'apt-get update' (runs only if repo changed)
       ansible.builtin.apt:
         update_cache: yes
       when: trivy_repo_file.changed
@@ -40,7 +40,7 @@
         # 4. 'apt-get install trivy'
         name: "trivy={{ trivy_pkg_version_debian }}"
         state: present
-        update_cache: false # 'update_cache' уже был выполнен выше
+        update_cache: false # 'update_cache' already done above
 
 - name: Install Trivy (Rocky/RedHat)
   tags: [trivy_pkg, redhat]

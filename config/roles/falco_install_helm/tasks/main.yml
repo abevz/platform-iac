@@ -1,12 +1,12 @@
 # /config/roles/falco_install_helm/tasks/main.yml
 ---
-- name: Добавить репозиторий Falco Helm
+- name: Add Falco Helm repository
   kubernetes.core.helm_repository:
     name: falcosecurity
     repo_url: "{{ falco_helm_repo_url }}"
     state: present
 
-- name: Установить/Удалить Falco (Helm)
+- name: Install/Remove Falco (Helm)
   kubernetes.core.helm:
     name: "{{ falco_helm_release_name }}"
     chart_ref: "falcosecurity/{{ falco_helm_chart_name }}"
@@ -17,7 +17,7 @@
     wait: yes
     timeout: 5m
 
-- name: Установить/Удалить кастомные правила Falco
+- name: Install/Remove Falco custom rules
   kubernetes.core.k8s:
     state: "{{ addon_state }}"
     definition: |
@@ -60,6 +60,6 @@
               container=%container.name)
             priority: WARNING
 
-- name: Показать результат
+- name: Display result
   ansible.builtin.debug:
     msg: "Falco ({{ addon_state }}) complete."

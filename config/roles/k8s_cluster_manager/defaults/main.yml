@@ -1,13 +1,13 @@
 # config/roles/k8s_cluster_manager/defaults/main.yml
 ---
-# Удалить, если планируете переопределять в group_vars.
-# Если оставляете, то только как fallback.
+# Remove if planning to override in group_vars.
+# If keeping, use only as fallback.
 pod_cidr: "192.168.0.0/16"
 
-# Оставить, если k8s_short_version передается извне
+# Keep if k8s_short_version is passed from outside
 kubernetes_version: "{{ k8s_short_version | default('1.33.0') }}"
-# Примечание: Установите дефолт в полный формат vX.Y.Z, чтобы избежать ошибки.
+# Note: Set default to full format vX.Y.Z to avoid errors.
 
-# Остальные переменные, которые могут быть специфичны для окружения, также должны быть перенесены.
-# Например, harbor_hostname, harbor_robot_username
+# Other variables that may be environment-specific should also be moved.
+# For example, harbor_hostname, harbor_robot_username
 # harbor_hostname: "harbor.bevz.net"

@@ -25,7 +25,7 @@
       - cilium
   args:
     creates: "{{ cilium_cli_bin_path }}/cilium"
-  become: yes # 'become: yes' здесь, так как /usr/local/bin требует sudo
+  become: yes # 'become: yes' here because /usr/local/bin requires sudo
 
 - name: Install Cilium CNI using the CLI
   ansible.builtin.command: "{{ cilium_cli_bin_path }}/cilium install --version {{ cilium_cli_version_resolved }}"

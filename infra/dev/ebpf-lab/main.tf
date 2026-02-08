@@ -24,7 +24,7 @@ resource "proxmox_virtual_environment_vm" "ebpf_lab" {
 
   depends_on = [proxmox_virtual_environment_file.user_data]
 
-  # Клонируем из Вашего нового шаблона (ID 9000)
+  # Clone from template
   clone {
     vm_id = var.vm_template_id
     full  = true
@@ -32,10 +32,10 @@ resource "proxmox_virtual_environment_vm" "ebpf_lab" {
 
   agent { enabled = true }
 
-  # Ресурсы: eBPF компиляция (BCC/bpftrace) любит CPU и RAM
+  # Resources: eBPF compilation (BCC/bpftrace) needs CPU and RAM
   cpu {
     cores = 4
-    type  = "host" # Важно: пробрасывает флаги процессора хоста
+    type  = "host" # Important: passes host CPU flags
   }
 
   memory {
@@ -45,26 +45,26 @@ resource "proxmox_virtual_environment_vm" "ebpf_lab" {
   disk {
     datastore_id = "DataPool"
     interface    = "scsi0"
-    size         = 30 # Увеличиваем до 30ГБ (тулинг весит немало)
+    size         = 30 # 30GB for tooling
     ssd          = true
     discard      = "on"
   }
 
   provisioner "local-exec" {
     when    = create
-    command = "echo 'VM ${self.name} создана. Ждем 90с пока Cloud-Init установит QEMU Agent...' && sleep 90"
+    command = "echo 'VM ${self.name} created. Waiting 90s for Cloud-Init to install QEMU Agent...' && sleep 90"
   }
 
   network_device {
     bridge = var.vm_bridge
-    model  = "virtio" # Важно для XDP (eXpress Data Path)
+    model  = "virtio" # Important for XDP (eXpress Data Path)
   }
 
   # Cloud-Init
   initialization {
     ip_config {
       ipv4 {
-        address = "dhcp" # Для лабы DHCP ок, или укажите статику
+        address = "dhcp" # DHCP is fine for lab, or specify static
       }
     }
     user_data_file_id = proxmox_virtual_environment_file.user_data.id

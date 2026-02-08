@@ -1,15 +1,15 @@
 # config/roles/certbot_setup/defaults/main.yml
 # /config/roles/certbot_setup/defaults/main.yml
 ---
-# Путь к venv
+# Path to venv
 certbot_venv_path: "/opt/certbot"
-# Путь к файлу с учетными данными
+# Path to credentials file
 certbot_credentials_path: "/etc/letsencrypt/dns-multi.ini"
 
-# Email для Let's Encrypt
+# Email for Let's Encrypt
 certbot_email: "aleksey.bevz@gmail.com"
 
-# Список доменов для сертификатов (из Вашего скрипта)
+# List of domains for certificates (from your script)
 certbot_domains_to_create:
   - name: "bevz-net-wildcard"
     domains:

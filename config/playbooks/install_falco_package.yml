@@ -1,7 +1,7 @@
 ---
 - name: Install Falco as a system package
   hosts: all
-  become: yes # Установка пакетов требует 'sudo'
+  become: yes # Package installation requires 'sudo'
 
   roles:
     - falco_install_package

@@ -1,24 +1,24 @@
 ---
-- name: Добавить GPG-ключ Falco (Debian)
-  # Мы используем 'shell' для точного воспроизведения официальной
-  # инструкции, которую Вы предоставили.
+- name: Add Falco GPG key (Debian)
+  # We use 'shell' to exactly reproduce the official
+  # instructions you provided.
   ansible.builtin.shell: >
     curl -fsSL https://falco.org/repo/falcosecurity-packages.asc |
     gpg --dearmor -o /usr/share/keyrings/falco-archive-keyring.gpg
   args:
-    # Эта строка делает задачу идемпотентной:
-    # Команда не будет запущена, если файл-результат уже существует.
+    # This line makes the task idempotent:
+    # The command will not run if the result file already exists.
     creates: /usr/share/keyrings/falco-archive-keyring.gpg
 
-- name: Добавить репозиторий Falco (Debian)
-  # Мы используем 'apt_repository', так как он идемпотентен
-  # и соответствует официальной инструкции
+- name: Add Falco repository (Debian)
+  # We use 'apt_repository' because it is idempotent
+  # and follows the official instructions
   ansible.builtin.apt_repository:
     repo: "deb [signed-by=/usr/share/keyrings/falco-archive-keyring.gpg] https://download.falco.org/packages/deb stable main"
     state: present
     filename: falcosecurity
 
-- name: Установить Falco (Debian)
+- name: Install Falco (Debian)
   ansible.builtin.apt:
     name: "{{ 'falco=' ~ falco_package_version if falco_package_version else 'falco' }}"
     state: present

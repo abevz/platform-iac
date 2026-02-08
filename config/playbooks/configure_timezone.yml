@@ -2,7 +2,7 @@
 # playbooks/configure_timezone.yml
 
 - name: Configure system timezone on all nodes
-  hosts: all # 👈 Укажи, на каких хостах (all, kube_nodes, и т.д.)
+  hosts: all # 👈 Specify hosts (all, kube_nodes, etc.)
   become: yes
   roles:
     - set_timezone

@@ -4,7 +4,7 @@
 - name: Set the system timezone
   ansible.builtin.timezone:
     name: "{{ system_timezone }}"
-  become: yes # Нужны права root
+  become: yes
 
 - name: Ensure time synchronization service (systemd-timesyncd) is active
   ansible.builtin.service:
@@ -12,4 +12,4 @@
     state: started
     enabled: yes
   become: yes
-  when: ansible_service_mgr == "systemd" # Выполнять только на systemd-системах
+  when: ansible_service_mgr == "systemd"

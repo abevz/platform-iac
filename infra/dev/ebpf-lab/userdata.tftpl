@@ -20,40 +20,40 @@ write_files:
       ff02::2 ip6-allrouters
     append: false
 
-  # Добавляем sudoers и пользователя
+  # Add sudoers and user
   - path: /etc/sudoers.d/90-cloud-init-users
     permissions: '0440'
     content: |
-      ${vm_user} ALL=(ALL) NOPASSWD:ALL
+      $${vm_user} ALL=(ALL) NOPASSWD:ALL
 
-# <<< НАЧАЛО: БЛОК ДЛЯ DNS RESOLVER (ВАШ КОД) >>>
+# <<< START: ADDED DNS RESOLVER BLOCK >>>
   - path: /etc/systemd/resolved.conf.d/99-lab-dns.conf
     permissions: '0644'
     content: |
       [Resolve]
-      DNS=${vm_dns}
+      DNS=$${vm_dns}
       DNSSEC=no
       ResolveUnicastSingleLabel=yes
-# <<< КОНЕЦ >>>
+# <<< END >>>
 
 users:
-  - name: ${vm_user}
+  - name: $${vm_user}
     groups: [sudo]
     shell: /bin/bash
     ssh_authorized_keys:
     %{ for key in split("\n", ssh_public_key) ~}
-     - ${key}
+     - $${key}
     %{ endfor ~}
 
 runcmd:
-  # 1. Machine-ID Fix (ВАШ КОД)
+  # 1. Machine-ID Fix
   - |
-    echo "Generating unique machine-id for ${hostname}..." > /var/log/machine-id-setup.log
+    echo "Generating unique machine-id for $${hostname}..." > /var/log/machine-id-setup.log
     SHELL_HOSTNAME=$(hostname)
-    MAC_ADDRESS=$(cat /sys/class/net/$(ip route show default | awk "/default/ {print \\$5}")/address 2>/dev/null || echo "unknown")
+    MAC_ADDRESS=$(cat /sys/class/net/$(ip route show default | awk "/default/ {print \$$5}")/address 2>/dev/null || echo "unknown")
     RANDOM_DATA=$(dd if=/dev/urandom bs=512 count=1 2>/dev/null | md5sum)
     TIMESTAMP=$(date +%s%N)
-    UNIQUE_ID="${hostname}-$SHELL_HOSTNAME-$MAC_ADDRESS-$RANDOM_DATA-$TIMESTAMP-$(uuidgen)"
+    UNIQUE_ID="$${hostname}-$SHELL_HOSTNAME-$MAC_ADDRESS-$RANDOM_DATA-$TIMESTAMP-$(uuidgen)"
     MACHINE_ID=$(echo $UNIQUE_ID | md5sum | cut -c1-32)
 
     if [ -f /etc/machine-id ]; then
@@ -72,10 +72,10 @@ runcmd:
 
     echo "New machine-id: $MACHINE_ID" >> /var/log/machine-id-setup.log
 
-  # 2. Hostname & Network Fixes (ВАШ КОД)
-  - hostnamectl set-hostname ${hostname}
-  - echo "${hostname}" > /etc/hostname
-  - hostname ${hostname}
+  # 2. Hostname & Network Fixes
+  - hostnamectl set-hostname $${hostname}
+  - echo "$${hostname}" > /etc/hostname
+  - hostname $${hostname}
 
   - 'echo "network:" > /etc/cloud/cloud.cfg.d/99-disable-network-config.cfg'
   - 'echo "  config: disabled" >> /etc/cloud/cloud.cfg.d/99-disable-network-config.cfg'
@@ -91,17 +91,17 @@ runcmd:
     if command -v netplan >/dev/null 2>&1; then
       netplan apply || true
     fi
-    echo "Machine-ID setup completed at $(date)" >> /var/log/machine-id-setup.log
+    echo "Machine-ID setup completed at $$(date)" >> /var/log/machine-id-setup.log
 
-  # 3. Установка базовых пакетов и QEMU Agent (ВАШ КОД + eBPF)
-  # Мы ставим их здесь, потому что сеть к этому моменту точно работает (после рестарта выше)
+  # 3. Base packages and QEMU Agent installation
+  # We install them here because network is definitely working at this point
   - apt-get update
   - apt-get install -y qemu-guest-agent python3
 
   # 4. --- eBPF Tooling Setup ---
-  # Ставим заголовки ядра и инструменты
+  # Install kernel headers and tools
   - apt-get install -y build-essential linux-headers-generic bpfcc-tools bpftrace clang llvm libbpf-dev git curl
 
-  # 5. Финальный запуск агента и проверка BTF
+  # 5. Final agent start and BTF check
   - systemctl enable --now qemu-guest-agent.service
   - [ sh, -c, "ls -l /sys/kernel/btf/vmlinux > /var/log/btf-check.log 2>&1 || echo 'BTF NOT FOUND' >> /var/log/btf-check.log" ]

@@ -2,7 +2,7 @@
 ---
 # /config/playbooks/setup_harbor.yml
 - name: Setup Harbor Server
-  hosts: harbor_servers # (Имя группы из Tofu outputs.tf)
+  hosts: harbor_servers # (Group name from Tofu outputs.tf)
   become: yes
 
   roles:

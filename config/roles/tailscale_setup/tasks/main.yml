@@ -6,7 +6,7 @@
     mode: "0644"
   become: yes
 
-# --- ИСПРАВЛЕНИЕ: Скачиваем официальный list-файл вместо ручного создания ---
+# --- Download official list file instead of manual creation ---
 - name: Add Tailscale repository list file
   ansible.builtin.get_url:
     url: https://pkgs.tailscale.com/stable/debian/bookworm.tailscale-keyring.list

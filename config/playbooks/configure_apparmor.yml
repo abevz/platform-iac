@@ -6,7 +6,7 @@
   become: yes
 
   vars:
-    # По умолчанию 'present'. Переопределить через -e "addon_state=absent"
+    # Defaults to 'present'. Override via -e "addon_state=absent"
     addon_state: "present"
 
   roles:

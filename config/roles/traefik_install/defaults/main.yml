@@ -1,11 +1,11 @@
 # config/roles/traefik_install/defaults/main.yml
 # /config/roles/traefik_install/defaults/main.yml
 ---
-# Версии из traefik.yml
+# Versions from traefik.yml
 traefik_gateway_version: "37.0.0"
 gateway_api_version: "v1.1.0"
 
-# URL'ы для CRD Gateway API (из traefik.yml)
+# URLs for Gateway API CRDs (from traefik.yml)
 gateway_api_crd_urls:
   - "https://raw.githubusercontent.com/kubernetes-sigs/gateway-api/690f754646e8326128fd686e3e46117ac479cfdf/config/crd/standard/gateway.networking.k8s.io_gatewayclasses.yaml"
   - "https://raw.githubusercontent.com/kubernetes-sigs/gateway-api/690f754646e8326128fd686e3e46117ac479cfdf/config/crd/standard/gateway.networking.k8s.io_gateways.yaml"

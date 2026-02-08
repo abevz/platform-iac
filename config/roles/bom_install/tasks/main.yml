@@ -1,12 +1,12 @@
 # config/roles/bom_install/tasks/main.yml
 # /config/roles/bom_install/tasks/main.yml
 ---
-- name: Установить целевую версию BOM
+- name: Set target BOM version
   ansible.builtin.set_fact:
     bom_target_version: >-
       {{ requested_version | default(bom_version, true) }}
 
-- name: Скачать и установить BOM CLI (если нужен)
+- name: Download and install BOM CLI (if needed)
   ansible.builtin.shell: |
     ARCH=$(uname -m)
     case $ARCH in
@@ -17,20 +17,20 @@
 
     BINARY_NAME="bom-${ARCH}-linux"
 
-    # 1. Скачиваем бинарник
+    # 1. Download binary
     curl -L "https://github.com/kubernetes-sigs/bom/releases/download/v{{ bom_target_version }}/${BINARY_NAME}" -o "/tmp/${BINARY_NAME}"
 
-    # 2. Скачиваем общий файл checksums.txt
+    # 2. Download common checksums.txt file
     curl -L "https://github.com/kubernetes-sigs/bom/releases/download/v{{ bom_target_version }}/checksums.txt" -o /tmp/bom_checksums.txt
 
-    # 3. Извлекаем ожидаемый хеш для нашего файла из checksums.txt
-    # Ищем строку, которая содержит имя нашего файла
+    # 3. Extract expected hash for our file from checksums.txt
+    # Find line containing our filename
     EXPECTED_HASH=$(grep "${BINARY_NAME}$" /tmp/bom_checksums.txt | awk '{print $1}')
 
-    # 4. Вычисляем реальный хеш скачанного файла
+    # 4. Calculate actual hash of downloaded file
     ACTUAL_HASH=$(sha256sum "/tmp/${BINARY_NAME}" | awk '{print $1}')
 
-    # 5. Сравниваем
+    # 5. Compare
     if [ -z "$EXPECTED_HASH" ]; then
         echo "ERROR: Could not find hash for ${BINARY_NAME} in checksums.txt"
         exit 1
@@ -45,7 +45,7 @@
     fi
     echo "Checksum OK: $ACTUAL_HASH"
 
-    # 6. Установка
+    # 6. Install
     mv "/tmp/${BINARY_NAME}" /usr/local/bin/bom
     chmod +x /usr/local/bin/bom
     rm -f /tmp/bom_checksums.txt
@@ -54,20 +54,20 @@
   when: addon_state == "present"
   changed_when: true
 
-- name: Удалить BOM CLI
+- name: Remove BOM CLI
   ansible.builtin.file:
     path: /usr/local/bin/bom
     state: absent
   when: addon_state == "absent"
 
-- name: Создать/Удалить неймспейс bom-system
+- name: Create/Remove bom-system namespace
   kubernetes.core.k8s:
     name: "{{ bom_namespace }}"
     api_version: v1
     kind: Namespace
     state: "{{ addon_state }}"
 
-- name: Установить/Удалить RBAC для bom-scanner
+- name: Install/Remove RBAC for bom-scanner
   kubernetes.core.k8s:
     state: "{{ addon_state }}"
     definition: |
@@ -105,33 +105,33 @@
         name: bom-scanner
         namespace: "{{ bom_namespace }}"
 
-- name: Создать шаблон Job'а из файла
+- name: Create Job template from file
   ansible.builtin.template:
     src: bom-scan-job.yaml.j2
     dest: /tmp/bom-scan-job.yaml
     mode: "0644"
   when: addon_state == "present"
 
-- name: Удалить шаблон Job'а
+- name: Remove Job template
   ansible.builtin.file:
     path: /tmp/bom-scan-job.yaml
     state: absent
   when: addon_state == "absent"
 
-- name: Создать скрипт k8s-bom-scan из шаблона
+- name: Create k8s-bom-scan script from template
   ansible.builtin.template:
     src: k8s-bom-scan.sh.j2
     dest: /usr/local/bin/k8s-bom-scan
     mode: "0755"
   when: addon_state == "present"
 
-- name: Удалить скрипт k8s-bom-scan
+- name: Remove k8s-bom-scan script
   ansible.builtin.file:
     path: /usr/local/bin/k8s-bom-scan
     state: absent
   when: addon_state == "absent"
 
-- name: Показать результат (только при установке)
+- name: Display result (install only)
   ansible.builtin.debug:
     msg:
       - "BOM (Bill of Materials) scanner ({{ addon_state }}) completed"

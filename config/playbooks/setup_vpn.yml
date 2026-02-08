@@ -5,7 +5,7 @@
   become: yes
 
   vars:
-    # Переменные из SOPS
+    # Variables from SOPS
     wg_public_ip: "{{ wireguard.public_ip }}"
     wg_ui_password_hash: "{{ wireguard.ui_password_hash }}"
     wg_port: "51820"
@@ -13,4 +13,4 @@
 
   roles:
     - role: set_timezone
-    - role: wireguard_setup # Эта роль должна ставить Docker и WoL
+    - role: wireguard_setup # This role should install Docker and WoL

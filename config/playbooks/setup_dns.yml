@@ -1,13 +1,13 @@
 ---
 # ==============================================================================
-# ФАЗА 0: DNS SETUP (Pi-hole)
+# PHASE 0: DNS SETUP (Pi-hole)
 # ==============================================================================
 - name: 0. Add K8s Nodes to Pi-hole Local DNS
-  # Явно нацелен только на localhost
+  # Explicitly targeting only localhost
   hosts: localhost
   connection: local
   become: no
-  tags: [dns_setup] # Тег можно оставить или убрать
+  tags: [dns_setup]
 
   vars:
     pihole_url: "http://10.10.10.100"
@@ -25,7 +25,7 @@
 
     - name: Ensure Pi-hole API Key is set
       ansible.builtin.fail:
-        msg: "Не определена переменная 'pihole.web_password' в secrets/ansible/extra_vars.sops.yml"
+        msg: "Variable 'pihole.web_password' is not defined in secrets/ansible/extra_vars.sops.yml"
       when: pihole_web_password is not defined or pihole_web_password | length == 0
 
     - name: Create / Update A-Records in Pi-hole

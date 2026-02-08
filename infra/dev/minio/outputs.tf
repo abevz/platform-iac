@@ -18,16 +18,16 @@ output "ansible_inventory_data" {
           ansible_port = 22
           vm_name      = local.host_name
           vm_id        = local.vm.id
-          node_role    = "minio" # <-- ИЗМЕНЕНО
+          node_role    = "minio"
         }
       }
     },
 
     all = {
-      children = ["minio_servers"] # <-- ИЗМЕНЕНО
+      children = ["minio_servers"]
     },
 
-    minio_servers = { # <-- ИЗМЕНЕНО
+    minio_servers = {
       hosts = [local.host_name]
     },
     proxmox_vms = {

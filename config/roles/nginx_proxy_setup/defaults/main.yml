@@ -1,22 +1,22 @@
 # /config/roles/nginx_proxy_setup/defaults/main.yml
 ---
-# Корневая директория, как в Вашем примере
+# Root directory, as in your example
 nginx_proxy_root_dir: "/srv/nginx-proxy"
 
-# IP-адреса upstream-сервисов (ИСПРАВЛЕННАЯ ВЕРСИЯ)
+# Upstream service IP addresses (CORRECTED VERSION)
 nginx_proxy_upstreams:
-  # Используются в 'stream', префикс не нужен
+  # Used in 'stream', prefix not needed
   k8s_ingress: "10.10.10.200:443"
   gitlab_ssh: "10.10.10.104:22"
   proxmox_ssh: "10.10.10.101:22"
 
-  # Используются в 'http', префикс нужен в переменной
+  # Used in 'http', prefix required in variable
   wiki_http: "http://10.10.10.5:3000"
   plantuml_http: "http://10.10.10.5:18080"
   minio_s3_api: "http://minio-server:9000"
   minio_console: "http://minio-server:9001"
   proxmox_https: "https://10.10.10.101:8006"
 
-  # Используются в 'http', НО префикс 'http://' уже есть в шаблоне .j2
-  gitlab_http: "10.10.10.104:80" # <-- ИСПРАВЛЕНО
+  # Used in 'http', BUT 'http://' prefix is already in the .j2 template
+  gitlab_http: "10.10.10.104:80" # <-- CORRECTED
   harbor_http: "10.10.10.103:80"

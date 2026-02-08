@@ -1,4 +1,4 @@
-# Минимум переменных, нужны только для провайдера (чтобы tofu init не упал)
+# Minimal variables needed for provider (to allow tofu init)
 variable "proxmox_api_url" {
   type      = string
   sensitive = true
@@ -32,12 +32,12 @@ variable "proxmox_ssh_port" {
   sensitive = true
 }
 
-# Данные существующей Raspberry Pi
+# Existing Raspberry Pi settings
 variable "pi_ip" {
   type    = string
   default = "10.10.10.100"
 }
 variable "pi_user" {
   type    = string
-  default = "" # Или root, смотря как настроено
+  default = ""
 }

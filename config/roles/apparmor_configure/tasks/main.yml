@@ -1,12 +1,12 @@
 # config/roles/apparmor_configure/tasks/main.yml
 # /config/roles/apparmor_configure/tasks/main.yml
 ---
-- name: Проверить, доступен ли AppArmor
+- name: Check if AppArmor is available
   ansible.builtin.stat:
     path: /sys/kernel/security/apparmor
   register: apparmor_check
 
-- name: Установить полный набор утилит AppArmor
+- name: Install full AppArmor utilities package
   ansible.builtin.package:
     name:
       - apparmor
@@ -16,21 +16,21 @@
     state: "{{ addon_state | default('present') }}"
   when: apparmor_check.stat.exists
 
-- name: Включить и запустить службу AppArmor
+- name: Enable and start AppArmor service
   ansible.builtin.systemd:
     name: apparmor
     enabled: yes
     state: "{{ 'started' if addon_state == 'present' else 'stopped' }}"
   when: apparmor_check.stat.exists
 
-- name: Управлять директорией профилей Kubernetes
+- name: Manage Kubernetes profiles directory
   ansible.builtin.file:
     path: /etc/apparmor.d/kubernetes
     state: "{{ 'directory' if addon_state == 'present' else 'absent' }}"
     mode: '0755'
   when: apparmor_check.stat.exists
 
-- name: Управлять 'k8s-strict' профилем
+- name: Manage 'k8s-strict' profile
   ansible.builtin.copy:
     content: |
       #include <tunables/global>
@@ -57,7 +57,7 @@
   when: apparmor_check.stat.exists
   notify: reload_apparmor_profiles
 
-- name: Управлять 'k8s-permissive' профилем
+- name: Manage 'k8s-permissive' profile
   ansible.builtin.copy:
     content: |
       #include <tunables/global>
@@ -73,8 +73,8 @@
   when: apparmor_check.stat.exists
   notify: reload_apparmor_profiles
 
-- name: Управлять профилем k8s-nginx-default
-  # (Переносим этот профиль из k8s_bootstrap_node сюда)
+- name: Manage k8s-nginx-default profile
+  # (Move this profile from k8s_bootstrap_node here)
   ansible.builtin.copy:
     src: k8s-nginx-default
     dest: /etc/apparmor.d/kubernetes/k8s-nginx-default
@@ -83,12 +83,12 @@
   when: apparmor_check.stat.exists
   notify: reload_apparmor_profiles
 
-- name: Показать результат
+- name: Display result
   ansible.builtin.debug:
     msg: "AppArmor ({{ addon_state | default('present') }}) complete."
   when: apparmor_check.stat.exists
 
-- name: Показать сообщение о недоступности AppArmor
+- name: Show AppArmor unavailable message
   ansible.builtin.debug:
     msg: "AppArmor is not available on this system (Kernel module missing)"
   when: not apparmor_check.stat.exists

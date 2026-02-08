@@ -1,5 +1,5 @@
 # infra/dev/harbor/variables.tf
-# --- ПЕРЕМЕННЫЕ ДЛЯ ПРОВАЙДЕРА (ИЗ SOPS) ---
+# --- PROVIDER VARIABLES (FROM SOPS) ---
 variable "proxmox_api_url" {
   type      = string
   sensitive = true
@@ -45,28 +45,28 @@ variable "proxmox_snippet_storage" {
   default = "local"
 }
 
-# --- Переменные для Ansible ---
+# --- Ansible Variables ---
 variable "vm_user" {
   type    = string
   default = ""
 }
 variable "ssh_public_key" {
   type    = string
-  default = "ssh-rsa AAAA..." # (Вставьте Ваш ключ)
+  default = "ssh-rsa AAAA..."
 }
 
-# --- Счетчики (Только 1 VM) ---
+# --- Counters (Only 1 VM) ---
 variable "control_plane_count" {
-  description = "Количество Harbor VM"
+  description = "Number of Harbor VMs"
   type        = number
   default     = 1
 }
 
-# --- Спецификации VM ---
+# --- VM Specifications ---
 variable "vm_id" {
-  description = "VMID, который Вы хотите назначить"
+  description = "VMID you want to assign"
   type        = number
-  default     = 150 # 👈 *** ВАШ VMID ***
+  default     = 150 # 👈 *** YOUR VMID ***
 }
 variable "cp_cores" {
   type    = number
@@ -78,12 +78,12 @@ variable "cp_memory" {
 }
 variable "cp_disk_size" {
   type    = number
-  default = 100 # (100G для кэша)
+  default = 100 # (100G for cache)
 }
 variable "control_plane_ips" {
-  description = "Список статических IP для Harbor VM"
+  description = "List of static IPs for Harbor VM"
   type        = list(string)
-  default     = ["10.10.10.103"] # 👈 *** ВАШ IP-АДРЕС ***
+  default     = ["10.10.10.103"] # 👈 *** YOUR IP ADDRESS ***
 }
 variable "gateway" {
   type    = string

@@ -1,13 +1,13 @@
 # config/playbooks/install_cilium.yml
 ---
 - name: Install or Uninstall Cilium CNI (Helm)
-  # Helm запускается только на мастере, так как он общается с Kubernetes API
+  # Helm runs only on master as it communicates with Kubernetes API
   hosts: k8s_master
   become: yes
 
   vars:
-    # По умолчанию 'present'.
-    # Для удаления можно передать: -e "addon_state=absent"
+    # Defaults to 'present'.
+    # To uninstall pass: -e "addon_state=absent"
     addon_state: "present"
 
   roles:

@@ -1,49 +1,49 @@
 # /config/roles/argocd_install/tasks/main.yml
 ---
-- name: Установить целевую версию ArgoCD
+- name: Set target ArgoCD version
   ansible.builtin.set_fact:
     argocd_target_version: >-
       {{ requested_version | default(argocd_version) }}
 
-- name: Создать или Удалить неймспейс ArgoCD
+- name: Create or Remove ArgoCD namespace
   kubernetes.core.k8s:
     name: "{{ argocd_namespace }}"
     api_version: v1
     kind: Namespace
-    state: "{{ addon_state }}" # <-- ИСПОЛЬЗУЕМ ПЕРЕМЕННУЮ
+    state: "{{ addon_state }}" # <-- USING VARIABLE
 
-- name: Применить или Удалить манифест ArgoCD
+- name: Apply or Remove ArgoCD manifest
   kubernetes.core.k8s:
-    state: "{{ addon_state }}" # <-- ИСПОЛЬЗУЕМ ПЕРЕМЕННУЮ
+    state: "{{ addon_state }}" # <-- USING VARIABLE
     src: "{{ argocd_install_url }}"
     namespace: "{{ argocd_namespace }}"
   register: argocd_apply_result
 
-# (Остальные задачи, такие как 'wait' и 'get password',
-# должны запускаться только при установке)
+# (Other tasks like 'wait' and 'get password'
+# should only run during installation)
 
-- name: Ожидать готовности ArgoCD Server
+- name: Wait for ArgoCD Server readiness
   ansible.builtin.shell: >
     kubectl wait --for=condition=ready pod
     -l app.kubernetes.io/name=argocd-server -n {{ argocd_namespace }} --timeout=600s
   changed_when: false
-  when: addon_state == "present" # <-- ЗАПУСКАТЬ ТОЛЬКО ПРИ УСТАНОВКЕ
+  when: addon_state == "present" # <-- RUN ONLY DURING INSTALLATION
 
-- name: Получить первоначальный пароль администратора ArgoCD
+- name: Get ArgoCD admin initial password
   ansible.builtin.shell:
     cmd: "kubectl -n {{ argocd_namespace }} get secret argocd-initial-admin-secret -o jsonpath='{.data.password}' | base64 -d"
   register: argocd_admin_password
   changed_when: false
   ignore_errors: true
-  when: addon_state == "present" # <-- ЗАПУСКАТЬ ТОЛЬКО ПРИ УСТАНОВКЕ
+  when: addon_state == "present" # <-- RUN ONLY DURING INSTALLATION
 
-- name: Проверить запущенные поды в {{ argocd_namespace }}
+- name: Check running pods in {{ argocd_namespace }}
   ansible.builtin.shell: "kubectl get pods -n {{ argocd_namespace }} --no-headers | grep -c 'Running'"
   register: argocd_final_check
   changed_when: false
-  when: addon_state == "present" # <-- ЗАПУСКАТЬ ТОЛЬКО ПРИ УСТАНОВКЕ
+  when: addon_state == "present" # <-- RUN ONLY DURING INSTALLATION
 
-- name: Показать результат
+- name: Display result
   ansible.builtin.debug:
     msg:
       - "ArgoCD GitOps {{ addon_state }} completed"

@@ -7,7 +7,7 @@
     update_cache: yes
   become: yes
 
-# --- Установка Docker (если нет) ---
+# --- Install Docker (if not present) ---
 - name: Install Docker dependencies
   ansible.builtin.apt:
     name: [ca-certificates, curl, gnupg]

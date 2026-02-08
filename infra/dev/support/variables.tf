@@ -60,7 +60,7 @@ variable "vm_user" {
 
 variable "ssh_public_key" {
   type    = string
-  default = "ssh-rsa AAAA..." # Вставьте ваш ключ
+  default = "ssh-rsa AAAA..."
 }
 
 variable "gateway" {
@@ -83,15 +83,15 @@ variable "vm_dns_server" {
   default = "10.10.10.100"
 }
 
-# --- Настройки Support VM ---
+# --- Support VM Settings ---
 variable "vm_id" {
-  description = "VMID для Support сервера"
+  description = "VM ID for Support server"
   type        = number
   default     = 106
 }
 
 variable "vm_ip" {
-  description = "Статический IP для Support"
+  description = "Static IP for Support server"
   type        = string
   default     = "10.10.10.106"
 }

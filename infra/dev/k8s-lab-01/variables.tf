@@ -1,19 +1,19 @@
-# --- ПЕРЕМЕННЫЕ ДЛЯ ПРОВАЙДЕРА (ИЗ SOPS) ---
+# --- PROVIDER VARIABLES (FROM SOPS) ---
 variable "proxmox_api_url" {
   type      = string
   sensitive = true
 }
 
-# --- ИСПРАВЛЕНИЕ ЗДЕСЬ ---
-variable "proxmox_api_username" { # (Был proxmox_api_token_id)
+# --- FIX ---
+variable "proxmox_api_username" {
   type      = string
   sensitive = true
 }
-variable "proxmox_api_password" { # (Был proxmox_api_token_secret)
+variable "proxmox_api_password" {
   type      = string
   sensitive = true
 }
-# -------------------------
+# -----------
 
 variable "proxmox_ssh_user" {
   type      = string
@@ -25,39 +25,38 @@ variable "proxmox_ssh_private_key" {
 }
 
 variable "proxmox_node_name" {
-  description = "Нода Proxmox, на которой будут созданы VM"
+  description = "Proxmox node where VMs will be created"
   type        = string
-  default     = "homelab" # Укажите Вашу целевую ноду
+  default     = "homelab"
 }
 
 variable "proxmox_ssh_address" {
-  description = "FQDN или IP для SSH-подключения к ноде Proxmox"
+  description = "FQDN or IP for SSH connection to Proxmox node"
   type        = string
-  # Ваш nginx-proxy
-  default = "homelab.bevz.net"
+  default     = "homelab.bevz.net"
 }
 
 variable "vm_template_id" {
-  description = "Имя 'Золотого Образа' (Cloud-Init)"
+  description = "VM template ID (Cloud-Init golden image)"
   type        = number
-  default     = "9420" # Ваш шаблон
+  default     = "9420"
 }
 
 variable "vm_bridge" {
-  description = "Сетевой мост (напр. vmbr0)"
+  description = "Network bridge (e.g. vmbr0)"
   type        = string
   default     = "vmbr0"
 }
 
 variable "proxmox_snippet_storage" {
-  description = "Хранилище для Cloud-Init Snippets (напр. 'local')"
+  description = "Storage for Cloud-Init snippets"
   type        = string
-  default     = "local" # Хранилище, где лежат сниппеты
+  default     = "local"
 }
 
-# --- Переменные для Ansible ---
+# --- Ansible Variables ---
 variable "vm_user" {
-  description = "Имя пользователя для Ansible"
+  description = "Ansible SSH username"
   type        = string
   default     = ""
 }
@@ -65,30 +64,29 @@ variable "vm_user" {
 variable "ssh_port" {
   description = "Proxmox ssh port for the VM template"
   type        = number
-  default     = "22006" # Ваш шаблон
+  default     = "22006" # Your template
 }
 
 variable "ssh_public_key" {
-  description = "Содержимое cpc_deployment_key.pub"
+  description = "SSH public key content"
   type        = string
-  # Вставьте сюда содержимое Вашего cpc_deployment_key.pub
-  default = "ssh-rsa AAAA..."
+  default     = "ssh-rsa AAAA..."
 }
 
-# --- Счетчики ---
+# --- Node Counts ---
 variable "control_plane_count" {
-  description = "Количество Control Plane нод"
+  description = "Number of control plane nodes"
   type        = number
   default     = 1
 }
 
 variable "worker_count" {
-  description = "Количество Worker нод"
+  description = "Number of worker nodes"
   type        = number
   default     = 2
 }
 
-# --- Спецификации VM ---
+# --- VM Specifications ---
 variable "cp_cores" {
   type    = number
   default = 2
@@ -115,27 +113,25 @@ variable "worker_disk_size" {
 }
 
 variable "control_plane_ips" {
-  description = "Список статических IP для control plane нод"
+  description = "Static IPs for control plane nodes"
   type        = list(string)
-  # Укажите IP, который Вы хотите для CP
-  default = ["10.10.10.200"]
+  default     = ["10.10.10.200"]
 }
 
 variable "worker_ips" {
-  description = "Список статических IP для worker нод"
+  description = "Static IPs for worker nodes"
   type        = list(string)
-  # Укажите IP, которые Вы хотите для WN
-  default = ["10.10.10.201", "10.10.10.202"]
+  default     = ["10.10.10.201", "10.10.10.202"]
 }
 
 variable "gateway" {
-  description = "Сетевой шлюз"
+  description = "Network gateway"
   type        = string
-  default     = "10.10.10.1" # Укажите Ваш шлюз
+  default     = "10.10.10.1"
 }
 
 variable "ip_prefix_length" {
-  description = "CIDR префикс (напр., 24 для /24)"
+  description = "CIDR prefix length (e.g. 24 for /24)"
   type        = number
   default     = 24
 }
@@ -143,11 +139,11 @@ variable "ip_prefix_length" {
 variable "vm_started" {
   description = "Controls if the VMs should be running (true) or stopped (false)."
   type        = bool
-  default     = true # По умолчанию, VM всегда должны быть запущены
+  default     = true
 }
 
 variable "vm_dns_server" {
-  description = "IP-адрес DNS-сервера, который будет использоваться VM (напр., Pi-hole)"
+  description = "DNS server IP for VMs (e.g. Pi-hole)"
   type        = string
-  default     = "10.10.10.100" # Ваш Pi-hole
+  default     = "10.10.10.100"
 }

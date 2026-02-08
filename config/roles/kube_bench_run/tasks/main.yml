@@ -1,19 +1,19 @@
 # config/roles/kube_bench_run/tasks/main.yml
 # /config/roles/kube_bench_run/tasks/main.yml
 ---
-- name: Установить целевую версию kube-bench
+- name: Set target kube-bench version
   ansible.builtin.set_fact:
     kube_bench_target_version: >-
       {{ requested_version | default(kube_bench_version) }}
 
-- name: Создать/Удалить неймспейс kube-bench
+- name: Create/Remove kube-bench namespace
   kubernetes.core.k8s:
     name: "{{ kube_bench_namespace }}"
     api_version: v1
     kind: Namespace
     state: "{{ addon_state }}"
 
-- name: Создать/Удалить Kube-bench Job
+- name: Create/Remove Kube-bench Job
   kubernetes.core.k8s:
     state: "{{ addon_state }}"
     definition:
@@ -66,20 +66,20 @@
             - { name: etc-cni-netd, hostPath: { path: "/etc/cni/net.d/" } }
             - { name: opt-cni-bin, hostPath: { path: "/opt/cni/bin/" } }
   register: kube_bench_job_result
-  when: addon_state == "present" # Job'ы обычно не удаляют, а создают
+  when: addon_state == "present" # Jobs are usually created, not deleted
 
-- name: Ожидать завершения kube-bench job
+- name: Wait for kube-bench job completion
   ansible.builtin.shell: kubectl wait --for=condition=complete job/kube-bench -n {{ kube_bench_namespace }} --timeout=300s
   changed_when: false
   when: kube_bench_job_result.changed
 
-- name: Показать результаты Kube-bench
+- name: Display Kube-bench results
   ansible.builtin.shell: kubectl logs job/kube-bench -n {{ kube_bench_namespace }}
   register: kube_bench_logs
   changed_when: false
   when: kube_bench_job_result.changed
 
-- name: Показать лог Kube-bench
+- name: Display Kube-bench log
   ansible.builtin.debug:
     msg: "{{ kube_bench_logs.stdout_lines }}"
   when: kube_bench_job_result.changed

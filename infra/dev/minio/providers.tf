@@ -8,26 +8,26 @@ terraform {
   }
 }
 
-# HCL ТЕПЕРЬ ОЖИДАЕТ ПЕРЕМЕННЫЕ
+# HCL NOW EXPECTS VARIABLES
 provider "proxmox" {
-  # API Аутентификация
+  # API Authentication
   endpoint = var.proxmox_api_url
-  username = var.proxmox_api_username # Используем 'username'
-  password = var.proxmox_api_password # Используем 'password'
+  username = var.proxmox_api_username # Use 'username'
+  password = var.proxmox_api_password # Use 'password'
   insecure = true
 
-  # SSH Аутентификация (для операций с файлами/сниппетами)
+  # SSH Authentication (for file/snippet operations)
   ssh {
     username    = var.proxmox_ssh_user
     private_key = var.proxmox_ssh_private_key
     node {
-      name = var.proxmox_node_name # (т.е. "homelab")
+      name = var.proxmox_node_name # (e.g. "homelab")
 
-      # Это FQDN, который Вы используете в ~/.ssh/config
-      address = var.proxmox_ssh_address # (т.е. "homelab.bevz.net")
+      # This is the FQDN you use in ~/.ssh/config
+      address = var.proxmox_ssh_address # (e.g. "homelab.bevz.net")
 
-      # Это порт из Вашего ~/.ssh/config
-      port = var.proxmox_ssh_port # <-- ИСПОЛЬЗУЕМ ПЕРЕМЕННУЮ
+      # This is the port from your ~/.ssh/config
+      port = var.proxmox_ssh_port # <-- USING VARIABLE
     }
   }
 }

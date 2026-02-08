@@ -8,7 +8,7 @@
   vars:
     addon_state: "present"
     requested_version: ""
-    # ПРИМЕЧАНИЕ: Эти vars автоматически загрузятся из sops
+    # NOTE: These vars will automatically load from SOPS
     # cloudflare_api_token: "{{ cloudflare.api_token | default('') }}"
     # cloudflare_email: "{{ cloudflare.email | default('') }}"
 

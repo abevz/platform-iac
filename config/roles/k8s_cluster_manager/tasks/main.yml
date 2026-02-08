@@ -1,6 +1,6 @@
 ---
 # =================================================================
-# ТАСК 1: ИНИЦИАЛИЗАЦИЯ CONTROL PLANE
+# TASK 1: INITIALIZE CONTROL PLANE
 # =================================================================
 - name: 1. Initialize Kubernetes Cluster (Control Plane)
   tags: [kubeadm_init]
@@ -19,7 +19,7 @@
     - name: Create kubeadm configuration file with DNS hostname support
       ansible.builtin.template:
         dest: /tmp/kubeadm-config.yaml
-        src: kubeadm-config.yaml.j2 # ПРИМЕЧАНИЕ: Я преобразовал 'content' в шаблон
+        src: kubeadm-config.yaml.j2
         mode: '0644'
       when: not kubeconfig_exists.stat.exists
 
@@ -85,7 +85,7 @@
       when: kubeadm_init_result.changed
 
 # =================================================================
-# ТАСК 3: ПРИСОЕДИНЕНИЕ WORKER НОД
+# TASK 3: JOIN WORKER NODES
 # =================================================================
 - name: 3. Join Worker Nodes to Cluster
   tags: [kubeadm_join]
@@ -98,7 +98,7 @@
 
     - name: Copy join command to worker nodes
       ansible.builtin.copy:
-        src: /tmp/kubeadm_join_command.sh # Взято с локальной машины Ansible
+        src: /tmp/kubeadm_join_command.sh
         dest: /tmp/kubeadm_join_command.sh
         mode: '0755'
       when: not kubelet_conf_exists.stat.exists
@@ -110,10 +110,10 @@
       changed_when: true
 
 # =================================================================
-# ТАСК 4: ВЕРИФИКАЦИЯ КЛАСТЕРА И CSR
+# TASK 4: CLUSTER VERIFICATION AND CSR
 # =================================================================
 #- name: 4. Verify Cluster Status and Approve CSRs (Control Plane)
-#  tags: [verify, kubeadm_init, kubeadm_join] # Запускается после init или join
+#  tags: [verify, kubeadm_init, kubeadm_join]
 #  when: inventory_hostname in groups['k8s_master']
 #  block:
 #    - name: Wait for all nodes to report Ready status
@@ -146,7 +146,7 @@
 #          {{ final_cluster_status.stdout }}
 
 # =================================================================
-# ТАСК 5: СЕКРЕТЫ HARBOR
+# TASK 5: HARBOR SECRETS
 # =================================================================
 - name: 5. Configure Harbor Integration (Secrets)
   tags: [harbor_secret]
