@@ -1,62 +1,62 @@
-# platform-iac .gitignore (Финальный)
+# platform-iac .gitignore (Final)
 
 # --- OpenTofu / Terraform ---
-# Игнорируем локальные файлы состояния
+# Ignore local state files
 *.tfstate
 *.tfstate.backup
 
-# Игнорируем tfvars с личными данными (используйте .tfvars.example как шаблон)
+# Ignore tfvars with personal data (use .tfvars.example as template)
 *.tfvars
 !*.tfvars.example
 
-# Игнорируем плагины и кэш провайдеров
+# Ignore provider plugins and cache
 .terraform/
 .terraform.lock.hcl
 
-# --- КЭШ И АРТЕФАКТЫ ВЫПОЛНЕНИЯ (НОВОЕ) ---
-# Каталог кэша, используемый iac-wrapper.sh
+# --- EXECUTION CACHE AND ARTIFACTS ---
+# Cache directory used by iac-wrapper.sh
 .cache/
 
 # --- Ansible ---
-# Игнорируем виртуальное окружение Python
+# Ignore Python virtual environment
 .venv/
 
-# Игнорируем локальный inventory (используйте static.ini.example как шаблон)
+# Ignore local inventory (use static.ini.example as template)
 config/inventory/static.ini
 
-# Игнорируем файлы повторов Ansible
+# Ignore Ansible retry files
 *.retry
 
-# Игнорируем кэш инвентаря Ansible
+# Ignore Ansible inventory cache
 .ansible_inventory_cache.json
-# Временный JSON-инвентарь, если он не был очищен
+# Temporary JSON inventory if not cleaned up
 iac_inventory_*.json
 
-# Игнорируем временные инвентари от iac-wrapper.sh (устаревшее .ini)
+# Ignore temporary inventories from iac-wrapper.sh (legacy .ini)
 iac_inventory_*.ini
 
-# Игнорируем временные файлы SOPS, созданные оберткой (КРИТИЧНО!)
+# Ignore temporary SOPS files created by wrapper (CRITICAL!)
 /tmp/iac_vars_*.json
 /tmp/iac_tfvars_*.json
 
 # --- Kubernetes / Kubeadm ---
-# Кэшированный файл команды kubeadm join (fetch)
+# Cached kubeadm join command file (fetch)
 /tmp/kubeadm_join_command.sh
 
-# --- SOPS (Расшифрованные файлы) ---
-# ВАЖНО: Git должен хранить *только* зашифрованные файлы (*.sops.yml)
-# Вы должны явно игнорировать пути к *расшифрованным* версиям.
+# --- SOPS (Decrypted Files) ---
+# IMPORTANT: Git should store ONLY encrypted files (*.sops.yml)
+# You must explicitly ignore paths to *decrypted* versions.
 config/secrets/certbot/dns-multi.ini
 
-# --- Общие ---
-# Временные файлы редакторов и бэкапы
+# --- General ---
+# Editor temp files and backups
 *.bak
 *.tmp
 *.temp
 *.swp
 *~
 
-# Временный каталог
+# Temp directory
 tmp/
 keys/
 config/platform.conf
