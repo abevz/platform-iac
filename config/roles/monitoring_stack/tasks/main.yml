@@ -88,6 +88,7 @@
     - { path: "{{ monitoring_install_dir }}/grafana/provisioning/dashboards", mode: "0755" }
     - { path: "{{ monitoring_install_dir }}/grafana/dashboards", mode: "0755" }
     - { path: "{{ monitoring_install_dir }}/pve-exporter", mode: "0750" }
+    - { path: "{{ monitoring_install_dir }}/blackbox", mode: "0755" }
   become: true
 
 - name: Render Prometheus config
@@ -118,6 +119,14 @@
   ansible.builtin.template:
     src: pve.yml.j2
     dest: "{{ monitoring_install_dir }}/pve-exporter/pve.yml"
+    mode: "0644"
+  notify: Restart monitoring stack
+  become: true
+
+- name: Render blackbox exporter config
+  ansible.builtin.template:
+    src: blackbox.yml.j2
+    dest: "{{ monitoring_install_dir }}/blackbox/blackbox.yml"
     mode: "0644"
   notify: Restart monitoring stack
   become: true

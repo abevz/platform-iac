@@ -38,3 +38,21 @@ groups:
         annotations:
           summary: Disk usage critical
           description: Disk usage is above {{ monitoring_alert_thresholds.disk_crit_pct }}%.
+
+      - alert: CertificateExpiringSoon
+        expr: min((probe_ssl_earliest_cert_expiry - time()) / 86400) < 21
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: TLS certificate expires soon
+          description: Certificate for one of monitored endpoints expires in less than 21 days.
+
+      - alert: CertificateExpiringCritical
+        expr: min((probe_ssl_earliest_cert_expiry - time()) / 86400) < 7
+        for: 15m
+        labels:
+          severity: critical
+        annotations:
+          summary: TLS certificate expires very soon
+          description: Certificate for one of monitored endpoints expires in less than 7 days.

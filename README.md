@@ -68,6 +68,26 @@ The entire process is orchestrated by a master wrapper script (`tools/iac-wrappe
   - Handles APT locks and unattended-upgrades gracefully
   - Idempotent Ansible playbooks for reliable re-runs
 
+### Monitoring Stack
+
+- **Observability:** Dedicated monitoring VM with Prometheus, Grafana, Alertmanager, Proxmox exporter, Node Exporter, and Blackbox Exporter
+- **Reverse Proxy:** `grafana.<your-domain>` is published through the existing `nginx-proxy` TLS termination point
+- **Alerting:** Telegram notifications, failed systemd unit alerts, disk usage alerts, exporter health alerts, and certificate expiry alerts
+- **Dashboard:** `Homelab Pulse` dashboard with host health, VM metrics, thermal/fan telemetry, and operator signal panels
+
+Quick commands:
+
+```bash
+# Deploy monitoring VM infrastructure
+./tools/iac-wrapper.sh deploy dev monitoring
+
+# Configure monitoring stack on the monitoring VM
+./tools/iac-wrapper.sh configure dev monitoring monitoring_servers
+
+# Reconfigure nginx-proxy after monitoring endpoint changes
+./tools/iac-wrapper.sh run-static setup_nginx-proxy.yml nginx_proxies
+```
+
 ---
 
 ## Prerequisites

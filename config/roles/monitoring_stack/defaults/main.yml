@@ -7,6 +7,7 @@ monitoring_grafana_image: grafana/grafana:11.2.0
 monitoring_alertmanager_image: prom/alertmanager:v0.27.0
 monitoring_node_exporter_image: prom/node-exporter:v1.8.2
 monitoring_pve_exporter_image: prompve/prometheus-pve-exporter:latest
+monitoring_blackbox_exporter_image: prom/blackbox-exporter:v0.25.0
 
 monitoring_prometheus_retention: 30d
 monitoring_grafana_admin_user: admin
@@ -16,6 +17,12 @@ monitoring_proxmox_verify_ssl: false
 monitoring_proxmox_api_url: https://10.10.10.101:8006/api2/json
 monitoring_proxmox_node_name: homelab
 monitoring_proxmox_target: 10.10.10.101
+monitoring_node_exporter_targets:
+  - node-exporter:9100
+  - 10.10.10.101:9100
+monitoring_blackbox_targets:
+  - https://grafana.bevz.net/login
+  - https://homelab.bevz.net
 monitoring_proxmox_token_id: ""
 monitoring_proxmox_token_name: ""
 monitoring_proxmox_token_secret: ""

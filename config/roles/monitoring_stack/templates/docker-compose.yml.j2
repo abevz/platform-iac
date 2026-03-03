@@ -83,6 +83,19 @@ services:
     networks:
       - monitoring
 
+  blackbox-exporter:
+    image: {{ monitoring_blackbox_exporter_image }}
+    container_name: monitoring-blackbox-exporter
+    restart: unless-stopped
+    command:
+      - --config.file=/etc/blackbox_exporter/config.yml
+    ports:
+      - "9115:9115"
+    volumes:
+      - ./blackbox/blackbox.yml:/etc/blackbox_exporter/config.yml:ro
+    networks:
+      - monitoring
+
 volumes:
   prometheus-data:
   alertmanager-data:
