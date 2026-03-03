@@ -56,7 +56,7 @@
       "gridPos": { "h": 4, "w": 3, "x": 6, "y": 0 },
       "id": 3,
       "options": { "colorMode": "background", "graphMode": "none", "justifyMode": "center", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false } },
-      "targets": [{ "expr": "sum(node_systemd_unit_state{instance=\"10.10.10.101:9100\",state=\"failed\"}) or vector(0)", "refId": "A" }],
+      "targets": [{ "expr": "sum(node_systemd_unit_state{instance=\"10.10.10.101:9100\",state=\"failed\"} > 0) or vector(0)", "refId": "A" }],
       "title": "Failed Units",
       "type": "stat"
     },
@@ -225,7 +225,7 @@
       "gridPos": { "h": 8, "w": 12, "x": 0, "y": 36 },
       "id": 13,
       "targets": [
-        { "expr": "sum(node_systemd_unit_state{instance=\"10.10.10.101:9100\",state=\"failed\"}) or vector(0)", "legendFormat": "failed units", "refId": "A" },
+        { "expr": "sum(node_systemd_unit_state{instance=\"10.10.10.101:9100\",state=\"failed\"} > 0) or vector(0)", "legendFormat": "failed units", "refId": "A" },
         { "expr": "max(up{job=\"pve-exporter\"})", "legendFormat": "pve target", "refId": "B" }
       ],
       "title": "Operator Signals",
@@ -252,7 +252,10 @@
       "gridPos": { "h": 8, "w": 8, "x": 8, "y": 20 },
       "id": 15,
       "targets": [
-        { "expr": "avg by(chip, sensor) ((node_hwmon_fan_rpm{instance=\"10.10.10.101:9100\"} > 0) and (node_hwmon_fan_rpm{instance=\"10.10.10.101:9100\"} < 10000))", "legendFormat": "{% raw %}{{chip}}{% endraw %} / fan {% raw %}{{sensor}}{% endraw %}", "refId": "A" }
+        { "expr": "node_hwmon_fan_rpm{instance=\"10.10.10.101:9100\",chip=\"platform_asus_ec_sensors\",sensor=\"fan1\"}", "legendFormat": "VRM HS fan", "refId": "A" },
+        { "expr": "node_hwmon_fan_rpm{instance=\"10.10.10.101:9100\",chip=\"platform_asus_ec_sensors\",sensor=\"fan2\"}", "legendFormat": "Chipset fan", "refId": "B" },
+        { "expr": "node_hwmon_fan_rpm{instance=\"10.10.10.101:9100\",chip=\"platform_nct6775_656\",sensor=\"fan1\"}", "legendFormat": "NCT fan1", "refId": "C" },
+        { "expr": "node_hwmon_fan_rpm{instance=\"10.10.10.101:9100\",chip=\"platform_nct6775_656\",sensor=\"fan2\"}", "legendFormat": "NCT fan2", "refId": "D" }
       ],
       "title": "Fan RPM",
       "type": "timeseries"
@@ -272,7 +275,7 @@
       },
       "targets": [
         {
-          "expr": "node_systemd_unit_state{instance=\"10.10.10.101:9100\",state=\"failed\"}",
+          "expr": "node_systemd_unit_state{instance=\"10.10.10.101:9100\",state=\"failed\"} > 0",
           "format": "table",
           "instant": true,
           "refId": "A"
@@ -313,6 +316,56 @@
       ],
       "title": "Proxmox VM RAM %",
       "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 44 },
+      "id": 20,
+      "targets": [
+        {
+          "expr": "node_hwmon_temp_celsius{instance=\"10.10.10.101:9100\",chip=\"platform_asus_ec_sensors\",sensor=\"temp1\"}",
+          "legendFormat": "Chipset temp (C)",
+          "refId": "A"
+        },
+        {
+          "expr": "node_hwmon_fan_rpm{instance=\"10.10.10.101:9100\",chip=\"platform_asus_ec_sensors\",sensor=\"fan2\"}",
+          "legendFormat": "Chipset fan RPM",
+          "refId": "B"
+        }
+      ],
+      "title": "Noise / Thermal (Chipset)",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "percent" }, "overrides": [] },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 44 },
+      "id": 21,
+      "targets": [
+        {
+          "expr": "100 * (pve_disk_usage_bytes{instance=\"10.10.10.101\",id=~\"(qemu|lxc)/.*\"} / pve_disk_size_bytes{instance=\"10.10.10.101\",id=~\"(qemu|lxc)/.*\"}) * on(instance,id) group_left(name,type) pve_guest_info{instance=\"10.10.10.101\"}",
+          "legendFormat": "{% raw %}{{name}}{% endraw %}",
+          "refId": "A"
+        }
+      ],
+      "title": "Proxmox VM Disk %",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "percent" }, "overrides": [] },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 52 },
+      "id": 22,
+      "targets": [
+        {
+          "expr": "topk(5, 100 * (pve_disk_usage_bytes{instance=\"10.10.10.101\",id=~\"(qemu|lxc)/.*\"} / pve_disk_size_bytes{instance=\"10.10.10.101\",id=~\"(qemu|lxc)/.*\"}) * on(instance,id) group_left(name,type) pve_guest_info{instance=\"10.10.10.101\"})",
+          "legendFormat": "{% raw %}{{name}}{% endraw %}",
+          "refId": "A"
+        }
+      ],
+      "title": "Top 5 VM Disk %",
+      "type": "timeseries"
     }
   ],
   "refresh": "30s",
@@ -323,5 +376,5 @@
   "time": { "from": "now-6h", "to": "now" },
   "title": "Homelab Pulse",
   "uid": "homelab-overview",
-  "version": 6
+  "version": 11
 }
