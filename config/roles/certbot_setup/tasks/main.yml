@@ -31,6 +31,21 @@
     state: "{{ 'link' if addon_state == 'present' else 'absent' }}"
   become: yes
 
+- name: Create certbot renew deploy hook script
+  ansible.builtin.template:
+    src: certbot-renew-hook.sh.j2
+    dest: "{{ certbot_renew_hook_path }}"
+    mode: "0750"
+  become: yes
+  when: addon_state == "present"
+
+- name: Remove certbot renew deploy hook script
+  ansible.builtin.file:
+    path: "{{ certbot_renew_hook_path }}"
+    state: absent
+  become: yes
+  when: addon_state == "absent"
+
 - name: Create/Remove /etc/letsencrypt directory
   ansible.builtin.file:
     path: /etc/letsencrypt
@@ -71,5 +86,61 @@
       --cert-name {{ item.name }}
     creates: "/etc/letsencrypt/live/{{ item.name }}/fullchain.pem"
   become: yes
-  loop: "{{ certbot_domains_to_create }}"
+  loop: "{{ certbot_domains_to_create | default([]) }}"
+  when:
+    - addon_state == "present"
+    - certbot_domains_to_create is defined
+    - certbot_domains_to_create | length > 0
+    - certbot_email is defined
+    - certbot_email | length > 0
+
+- name: Create certbot renew systemd service unit
+  ansible.builtin.template:
+    src: certbot-renew.service.j2
+    dest: "/etc/systemd/system/{{ certbot_renew_systemd_service }}"
+    mode: "0644"
+  become: yes
+  when: addon_state == "present"
+
+- name: Create certbot renew systemd timer unit
+  ansible.builtin.template:
+    src: certbot-renew.timer.j2
+    dest: "/etc/systemd/system/{{ certbot_renew_systemd_timer }}"
+    mode: "0644"
+  become: yes
+  when: addon_state == "present"
+
+- name: Stop and disable certbot renew timer/service
+  ansible.builtin.systemd:
+    name: "{{ item }}"
+    enabled: false
+    state: stopped
+  become: yes
+  loop:
+    - "{{ certbot_renew_systemd_timer }}"
+    - "{{ certbot_renew_systemd_service }}"
+  failed_when: false
+  when: addon_state == "absent"
+
+- name: Remove certbot renew systemd units
+  ansible.builtin.file:
+    path: "/etc/systemd/system/{{ item }}"
+    state: absent
+  become: yes
+  loop:
+    - "{{ certbot_renew_systemd_service }}"
+    - "{{ certbot_renew_systemd_timer }}"
+  when: addon_state == "absent"
+
+- name: Reload systemd daemon
+  ansible.builtin.systemd:
+    daemon_reload: true
+  become: yes
+
+- name: Enable and start certbot renew timer
+  ansible.builtin.systemd:
+    name: "{{ certbot_renew_systemd_timer }}"
+    enabled: true
+    state: started
+  become: yes
   when: addon_state == "present"

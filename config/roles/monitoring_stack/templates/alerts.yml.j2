@@ -1,0 +1,40 @@
+groups:
+  - name: homelab-base
+    rules:
+      - alert: MonitoringNodeExporterDown
+        expr: up{job="node-exporter"} == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: Node exporter is down
+          description: monitoring-node-exporter is not reachable for 2 minutes.
+
+      - alert: MonitoringPveExporterDown
+        expr: up{job="pve-exporter"} == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: PVE exporter is down
+          description: monitoring-pve-exporter is not reachable for 2 minutes.
+
+      - alert: DiskUsageHigh
+        expr: |
+          100 * (1 - (node_filesystem_avail_bytes{fstype!~"tmpfs|overlay",mountpoint!~"/run.*|/var/lib/docker.*"} / node_filesystem_size_bytes{fstype!~"tmpfs|overlay",mountpoint!~"/run.*|/var/lib/docker.*"})) > {{ monitoring_alert_thresholds.disk_warn_pct }}
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: Disk usage warning
+          description: Disk usage is above {{ monitoring_alert_thresholds.disk_warn_pct }}%.
+
+      - alert: DiskUsageCritical
+        expr: |
+          100 * (1 - (node_filesystem_avail_bytes{fstype!~"tmpfs|overlay",mountpoint!~"/run.*|/var/lib/docker.*"} / node_filesystem_size_bytes{fstype!~"tmpfs|overlay",mountpoint!~"/run.*|/var/lib/docker.*"})) > {{ monitoring_alert_thresholds.disk_crit_pct }}
+        for: 10m
+        labels:
+          severity: critical
+        annotations:
+          summary: Disk usage critical
+          description: Disk usage is above {{ monitoring_alert_thresholds.disk_crit_pct }}%.

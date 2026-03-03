@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+if command -v docker >/dev/null 2>&1; then
+  if docker ps --format '{{"{{"}}.Names{{"}}"}}' | grep -qx 'reverseproxy'; then
+    docker exec reverseproxy nginx -s reload
+  fi
+fi
