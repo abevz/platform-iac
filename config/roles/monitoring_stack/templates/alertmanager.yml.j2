@@ -1,0 +1,25 @@
+global:
+  resolve_timeout: 5m
+
+route:
+{% if monitoring_telegram_bot_token_resolved | length > 0 and monitoring_telegram_chat_id_resolved | length > 0 %}
+  receiver: telegram
+{% else %}
+  receiver: default
+{% endif %}
+  group_by: ["alertname", "severity"]
+  group_wait: 30s
+  group_interval: 5m
+  repeat_interval: 3h
+
+receivers:
+  - name: default
+{% if monitoring_telegram_bot_token_resolved | length > 0 and monitoring_telegram_chat_id_resolved | length > 0 %}
+  - name: telegram
+    telegram_configs:
+      - api_url: {{ monitoring_alertmanager_telegram_api_url }}
+        bot_token: {{ monitoring_telegram_bot_token_resolved }}
+        chat_id: {{ monitoring_telegram_chat_id_resolved }}
+        parse_mode: HTML
+        send_resolved: true
+{% endif %}

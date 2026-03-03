@@ -130,6 +130,17 @@ docs/                       # Documentation
 - Run `ansible-lint` before playbook changes
 - Use `changed_when: false` for read-only shell commands
 
+## Homelab Monitoring Conventions
+
+- Deploy monitoring as a dedicated VM component (`infra/dev/monitoring`) managed via `tools/iac-wrapper.sh`
+- Keep VM ID and IP last octet aligned when possible (e.g., `108` <-> `10.10.10.108`)
+- Default stack is Docker Compose in role `config/roles/monitoring_stack`
+- Public endpoint policy: expose only `grafana.<domain>` via `nginx_proxy_setup`; keep Prometheus/Alertmanager internal
+- Alerting channel default is Telegram; tokens and chat IDs must come from SOPS-encrypted vars
+- Proxmox API access for exporters must use token auth with least privilege (read-only/auditor scope)
+- Treat known noisy AUX sensors as excluded from alert thresholds to avoid false positives
+- Certbot renew must be automated via systemd timer and reload reverse proxy on successful renewal
+
 ## Dependencies
 
 Required tools: `tofu`, `ansible-playbook`, `sops`, `yq`, `jq`, `nc`, `python3`, `pre-commit`

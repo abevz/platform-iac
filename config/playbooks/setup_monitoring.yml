@@ -1,0 +1,9 @@
+---
+- name: Configure monitoring stack
+  hosts: monitoring_servers
+  become: true
+  vars:
+    addon_state: present
+  roles:
+    - role: set_timezone
+    - role: monitoring_stack

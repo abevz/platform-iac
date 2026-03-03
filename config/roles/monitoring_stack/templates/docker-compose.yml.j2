@@ -1,0 +1,93 @@
+services:
+  prometheus:
+    image: {{ monitoring_prometheus_image }}
+    container_name: monitoring-prometheus
+    restart: unless-stopped
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+      - --storage.tsdb.retention.time={{ monitoring_prometheus_retention }}
+      - --web.enable-lifecycle
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./prometheus/alerts.yml:/etc/prometheus/alerts.yml:ro
+      - prometheus-data:/prometheus
+    networks:
+      - monitoring
+
+  alertmanager:
+    image: {{ monitoring_alertmanager_image }}
+    container_name: monitoring-alertmanager
+    restart: unless-stopped
+    command:
+      - --config.file=/etc/alertmanager/alertmanager.yml
+      - --storage.path=/alertmanager
+    ports:
+      - "9093:9093"
+    volumes:
+      - ./alertmanager/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
+      - alertmanager-data:/alertmanager
+    networks:
+      - monitoring
+
+  grafana:
+    image: {{ monitoring_grafana_image }}
+    container_name: monitoring-grafana
+    restart: unless-stopped
+    environment:
+      - GF_SECURITY_ADMIN_USER={{ monitoring_grafana_admin_user }}
+      - GF_SECURITY_ADMIN_PASSWORD={{ monitoring_grafana_admin_password }}
+      - GF_SERVER_ROOT_URL=https://grafana.{{ monitoring_mailserver_domain_resolved }}
+      - GF_SERVER_DOMAIN=grafana.{{ monitoring_mailserver_domain_resolved }}
+      - GF_SERVER_SERVE_FROM_SUB_PATH=false
+      - GF_USERS_ALLOW_SIGN_UP=false
+    ports:
+      - "3000:3000"
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
+    depends_on:
+      - prometheus
+    networks:
+      - monitoring
+
+  node-exporter:
+    image: {{ monitoring_node_exporter_image }}
+    container_name: monitoring-node-exporter
+    restart: unless-stopped
+    command:
+      - --path.rootfs=/host
+      - --collector.systemd
+      - --collector.textfile.directory=/var/lib/node_exporter/textfile_collector
+    ports:
+      - "9100:9100"
+    volumes:
+      - /:/host:ro,rslave
+    pid: host
+    networks:
+      - monitoring
+
+  pve-exporter:
+    image: {{ monitoring_pve_exporter_image }}
+    container_name: monitoring-pve-exporter
+    restart: unless-stopped
+    command:
+      - --config.file=/etc/pve-exporter/pve.yml
+    ports:
+      - "9221:9221"
+    volumes:
+      - ./pve-exporter/pve.yml:/etc/pve-exporter/pve.yml:ro
+    networks:
+      - monitoring
+
+volumes:
+  prometheus-data:
+  alertmanager-data:
+  grafana-data:
+
+networks:
+  monitoring:
+    name: monitoring-net
