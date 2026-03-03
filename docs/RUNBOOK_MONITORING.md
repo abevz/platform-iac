@@ -123,3 +123,11 @@ Main dashboard: `Homelab Pulse` (`uid: homelab-overview`)
 - Lower: temperatures, fan RPM, Proxmox VM CPU/RAM, failed unit details, alert timeline
 
 If dashboard looks stale, hard refresh browser (`Ctrl+Shift+R`).
+
+## Next Week Backlog
+
+- Implement VM/LXC log aggregation into Grafana (Loki + Promtail or Promtail-compatible agent).
+- Add log labels for `vm_name`, `service`, `severity`, and `environment` to support filtering.
+- Create Grafana log dashboards with links from `Homelab Pulse` panels to related logs.
+- Add alert-to-log correlation workflow (from alert labels to pre-filtered log queries).
+- Define retention policy for logs (hot window, archive strategy, and storage budget).
