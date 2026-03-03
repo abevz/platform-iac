@@ -24,6 +24,7 @@ Complete documentation for the Platform Infrastructure as Code project - a unive
 - **[IAC Wrapper Guide](./IAC_WRAPPER.md)** ⭐ - Complete iac-wrapper.sh reference and command guide
 - [IAC Wrapper Script](../tools/iac-wrapper.sh) - The orchestration script itself
 - [Pi-hole DNS Integration](../tools/add_pihole_dns.py) - Automatic DNS record management
+- [Monitoring Runbook](./RUNBOOK_MONITORING.md) - Operations guide for dashboards and alerts
 
 ## 🏗️ Infrastructure Types
 
