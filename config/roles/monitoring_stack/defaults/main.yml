@@ -1,0 +1,35 @@
+---
+monitoring_install_dir: /srv/monitoring
+monitoring_compose_project_name: monitoring
+
+monitoring_prometheus_image: prom/prometheus:v2.55.0
+monitoring_grafana_image: grafana/grafana:11.2.0
+monitoring_alertmanager_image: prom/alertmanager:v0.27.0
+monitoring_node_exporter_image: prom/node-exporter:v1.8.2
+monitoring_pve_exporter_image: prompve/prometheus-pve-exporter:latest
+
+monitoring_prometheus_retention: 30d
+monitoring_grafana_admin_user: admin
+monitoring_grafana_admin_password: changeme
+
+monitoring_proxmox_verify_ssl: false
+monitoring_proxmox_api_url: https://10.10.10.101:8006/api2/json
+monitoring_proxmox_node_name: homelab
+monitoring_proxmox_target: 10.10.10.101
+monitoring_proxmox_token_id: ""
+monitoring_proxmox_token_name: ""
+monitoring_proxmox_token_secret: ""
+
+monitoring_alertmanager_telegram_api_url: https://api.telegram.org
+monitoring_telegram_bot_token: ""
+monitoring_telegram_chat_id: ""
+
+monitoring_alert_thresholds:
+  disk_warn_pct: 85
+  disk_crit_pct: 92
+  cpu_temp_warn_c: 75
+  cpu_temp_crit_c: 85
+  nvme_temp_warn_c: 70
+  nvme_temp_crit_c: 78
+
+monitoring_false_sensor_regex: '.*(AUXTIN|temp[0-9]+).*'

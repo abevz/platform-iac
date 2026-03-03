@@ -5,6 +5,11 @@
 certbot_venv_path: "/opt/certbot"
 # Path to credentials file
 certbot_credentials_path: "/etc/letsencrypt/dns-multi.ini"
+certbot_renew_hook_path: "/usr/local/bin/certbot-renew-hook.sh"
+certbot_renew_systemd_service: "certbot-renew.service"
+certbot_renew_systemd_timer: "certbot-renew.timer"
+certbot_renew_on_calendar: "*-*-* 03,15:00:00"
+certbot_renew_randomized_delay_sec: "15m"
 
 # REQUIRED VARIABLES (must be defined in config/secrets/ansible/extra_vars.sops.yml):
 # certbot_email: "admin@example.com"

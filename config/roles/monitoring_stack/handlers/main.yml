@@ -1,0 +1,8 @@
+---
+- name: Restart monitoring stack
+  community.docker.docker_compose_v2:
+    project_src: "{{ monitoring_install_dir }}"
+    project_name: "{{ monitoring_compose_project_name }}"
+    state: restarted
+    pull: never
+  become: true
