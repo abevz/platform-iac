@@ -75,3 +75,6 @@ config/group_vars/k8s_master.yml
 # --- Playground ---
 # Local experimentation directory - not for production use
 playground/
+
+# security checks
+.gemini_security/
