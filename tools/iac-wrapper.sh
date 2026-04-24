@@ -91,7 +91,7 @@ load_tofu_secrets_to_temp_file() {
   local COMPONENT="$1"
 
   # --- START: CHICKEN AND EGG FIX (API, SSH Addr, SSH Port) ---
-  # Values loaded from config/platform.conf (with fallback defaults)
+  # Values loaded from SOPS secrets (with fallback defaults for bootstrap)
   local _PROXMOX_DIRECT_IP="${PROXMOX_DIRECT_IP:-<PROXMOX-HOST-IP>}"
   local _PROXMOX_DIRECT_API_URL="${PROXMOX_DIRECT_API_URL:-https://${_PROXMOX_DIRECT_IP}:8006}"
   local _PROXMOX_DIRECT_SSH_PORT="${PROXMOX_DIRECT_SSH_PORT:-22}"
