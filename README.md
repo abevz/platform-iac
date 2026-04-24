@@ -156,7 +156,7 @@ platform-iac/
 
 ### Global Configuration (`config/platform.conf`)
 
-Core infrastructure settings (IPs, domains, SSH paths) are managed in `config/platform.conf`. This file is git-ignored for security.
+Core infrastructure settings (SSH paths, Terraform/Tofu State Backend ) are managed in `config/platform.conf`. This file is git-ignored for security.
 
 ```bash
 cp config/platform.conf.example config/platform.conf
