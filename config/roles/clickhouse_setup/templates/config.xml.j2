@@ -9,12 +9,7 @@
     Node 1 (ch-2): primary shard 2, secondary shard 1  (replicas: s2-r1, s1-r2)
     Node 2 (ch-3): primary shard 3, secondary shard 2  (replicas: s3-r1, s2-r2)
 #}
-{% set my_idx = 0 %}
-{% for h in hosts %}
-{% if h == inventory_hostname %}
-{% set my_idx = loop.index0 %}
-{% endif %}
-{% endfor %}
+{% set my_idx = hosts.index(inventory_hostname) %}
 {% set primary_shard = my_idx + 1 %}
 {% set secondary_shard = ((my_idx - 1 + n) % n) + 1 %}
 {% set primary_replica = ansible_hostname + '_s' + primary_shard|string + '_r1' %}
@@ -29,12 +24,10 @@
         {% for r in range(replica_count) %}
         {% set host_idx = ((s - 1) + r) % n %}
         <replica>
-          <host>{{ hostvars[hosts[host_idx]]['ansible_host'] }}</host>
-          <port>{{ clickhouse_tcp_ssl_port }}</port>
-          <secure>1</secure>
+          <host>{{ hosts[host_idx] }}</host>
+          <port>{{ clickhouse_tcp_port }}</port>
           <user>default</user>
           <password></password>
-          <default_database>{{ shard_db_prefix }}{{ '%02d'|format(s) }}</default_database>
         </replica>
         {% endfor %}
       </shard>
@@ -75,4 +68,6 @@
   <https_port>{{ clickhouse_https_port }}</https_port>
   <tcp_port_secure>{{ clickhouse_tcp_ssl_port }}</tcp_port_secure>
   <listen_host>0.0.0.0</listen_host>
+  <interserver_http_host>{{ ansible_host }}</interserver_http_host>
+  <tcp_port>{{ clickhouse_tcp_port }}</tcp_port>
 </clickhouse>
