@@ -1,0 +1,13 @@
+<clickhouse>
+  <users>
+    <{{ clickhouse_admin_user }}>
+      <password_sha256_hex>{{ clickhouse_admin_password | hash('sha256') }}</password_sha256_hex>
+      <networks><ip>::/0</ip></networks>
+      <profile>default</profile>
+      <quota>default</quota>
+      <access_management>1</access_management>
+      <named_collection_control>1</named_collection_control>
+      <show_named_collections>1</show_named_collections>
+    </{{ clickhouse_admin_user }}>
+  </users>
+</clickhouse>

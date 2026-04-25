@@ -5,3 +5,4 @@
 mailserver_domain: '{{ mailserver.domain | default("<your-domain>.com") }}'
 mailserver_hostname: '{{ mailserver.hostname | default("mail.<your-domain>.com") }}'
 dev_domain: '{{ dev_domain_secret | default("<your-dev-domain>.dev") }}'
+server_domain: "bevz.net"

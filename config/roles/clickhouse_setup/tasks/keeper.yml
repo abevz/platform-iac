@@ -1,0 +1,20 @@
+- name: Ensure Keeper storage directories exist
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: clickhouse
+    group: clickhouse
+    mode: "0750"
+  loop:
+    - /var/lib/clickhouse/coordination
+    - /var/lib/clickhouse/coordination/logs
+    - /var/lib/clickhouse/coordination/snapshots
+
+- name: Deploy embedded Keeper config
+  ansible.builtin.template:
+    src: keeper_config.xml.j2
+    dest: /etc/clickhouse-server/config.d/keeper.xml
+    mode: "0640"
+    owner: clickhouse
+    group: clickhouse
+  notify: Restart clickhouse-server

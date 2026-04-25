@@ -1,0 +1,16 @@
+clickhouse_data_dir: "/var/lib/clickhouse"
+clickhouse_log_dir: "/var/log/clickhouse-server"
+clickhouse_http_port: 8123
+clickhouse_https_port: 8443
+clickhouse_tcp_port: 9000
+clickhouse_tcp_ssl_port: 9440
+clickhouse_keeper_port: 9181
+clickhouse_keeper_raft_port: 9234
+clickhouse_cluster_name: "homelab_cluster"
+clickhouse_shard_count: 3
+clickhouse_replica_count: 2
+clickhouse_shard_db_prefix: "{{ clickhouse_cluster_name }}_shard_"
+clickhouse_ssl_cert: "/etc/clickhouse-server/server.crt"
+clickhouse_ssl_key: "/etc/clickhouse-server/server.key"
+clickhouse_admin_user: admin
+clickhouse_admin_password_file: "{{ lookup('env','HOME') }}/.clickhouse_admin_password"

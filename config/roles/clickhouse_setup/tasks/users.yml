@@ -1,0 +1,24 @@
+- name: Load or generate ClickHouse admin password on control node
+  ansible.builtin.set_fact:
+    clickhouse_admin_password: "{{ lookup('password', clickhouse_admin_password_file + ' length=32 chars=ascii_letters,digits') }}"
+  run_once: true
+  delegate_to: localhost
+  become: false
+
+- name: Deploy admin user drop-in
+  ansible.builtin.template:
+    src: users_admin.xml.j2
+    dest: /etc/clickhouse-server/users.d/admin.xml
+    owner: clickhouse
+    group: clickhouse
+    mode: "0640"
+  notify: Restart clickhouse-server
+
+- name: Deploy default-user disable drop-in
+  ansible.builtin.template:
+    src: users_default_disable.xml.j2
+    dest: /etc/clickhouse-server/users.d/default-disable.xml
+    owner: clickhouse
+    group: clickhouse
+    mode: "0640"
+  notify: Restart clickhouse-server
