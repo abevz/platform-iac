@@ -1,0 +1,9 @@
+---
+- name: Configure Clickhouse stack
+  hosts: clickhouse_servers
+  become: true
+  vars:
+    addon_state: present
+  roles:
+    - role: set_timezone
+    - role: clickhouse_setup
