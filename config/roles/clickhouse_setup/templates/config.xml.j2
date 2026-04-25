@@ -1,0 +1,78 @@
+{# Compute node position and dual-shard assignment for cyclic 3×2 topology #}
+{% set hosts = ansible_play_hosts | list %}
+{% set n = hosts | length %}
+{% set shard_count = clickhouse_shard_count | default(3) | int %}
+{% set replica_count = clickhouse_replica_count | default(2) | int %}
+{#
+  3-node cyclic assignment:
+    Node 0 (ch-1): primary shard 1, secondary shard 3  (replicas: s1-r1, s3-r2)
+    Node 1 (ch-2): primary shard 2, secondary shard 1  (replicas: s2-r1, s1-r2)
+    Node 2 (ch-3): primary shard 3, secondary shard 2  (replicas: s3-r1, s2-r2)
+#}
+{% set my_idx = 0 %}
+{% for h in hosts %}
+{% if h == inventory_hostname %}
+{% set my_idx = loop.index0 %}
+{% endif %}
+{% endfor %}
+{% set primary_shard = my_idx + 1 %}
+{% set secondary_shard = ((my_idx - 1 + n) % n) + 1 %}
+{% set primary_replica = ansible_hostname + '_s' + primary_shard|string + '_r1' %}
+{% set secondary_replica = ansible_hostname + '_s' + secondary_shard|string + '_r2' %}
+{% set shard_db_prefix = clickhouse_shard_db_prefix | default(clickhouse_cluster_name + '_shard_') %}
+<clickhouse>
+  <remote_servers>
+    <{{ clickhouse_cluster_name }}>
+      {% for s in range(1, shard_count + 1) %}
+      <shard>
+        <internal_replication>true</internal_replication>
+        {% for r in range(replica_count) %}
+        {% set host_idx = ((s - 1) + r) % n %}
+        <replica>
+          <host>{{ hostvars[hosts[host_idx]]['ansible_host'] }}</host>
+          <port>{{ clickhouse_tcp_ssl_port }}</port>
+          <secure>1</secure>
+          <user>default</user>
+          <password></password>
+          <default_database>{{ shard_db_prefix }}{{ '%02d'|format(s) }}</default_database>
+        </replica>
+        {% endfor %}
+      </shard>
+      {% endfor %}
+    </{{ clickhouse_cluster_name }}>
+  </remote_servers>
+
+  <zookeeper>
+    {% for host in ansible_play_hosts %}
+    <node>
+      <host>{{ hostvars[host]['ansible_host'] }}</host>
+      <port>{{ clickhouse_keeper_port }}</port>
+    </node>
+    {% endfor %}
+  </zookeeper>
+
+  <macros>
+    <cluster>{{ clickhouse_cluster_name }}</cluster>
+    <shard01>s{{ primary_shard }}</shard01>
+    <shard02>s{{ secondary_shard }}</shard02>
+    <replica01>{{ primary_replica }}</replica01>
+    <replica02>{{ secondary_replica }}</replica02>
+  </macros>
+
+  <openSSL>
+    <server>
+      <certificateFile>{{ clickhouse_ssl_cert }}</certificateFile>
+      <privateKeyFile>{{ clickhouse_ssl_key }}</privateKeyFile>
+      <verificationMode>none</verificationMode>
+      <loadDefaultCAFile>false</loadDefaultCAFile>
+    </server>
+    <client>
+      <verificationMode>none</verificationMode>
+      <loadDefaultCAFile>false</loadDefaultCAFile>
+    </client>
+  </openSSL>
+
+  <https_port>{{ clickhouse_https_port }}</https_port>
+  <tcp_port_secure>{{ clickhouse_tcp_ssl_port }}</tcp_port_secure>
+  <listen_host>0.0.0.0</listen_host>
+</clickhouse>

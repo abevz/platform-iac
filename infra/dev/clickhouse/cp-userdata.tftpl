@@ -1,0 +1,31 @@
+#cloud-config
+hostname: ${hostname}
+manage_etc_hosts: true
+fqdn: ${hostname}.local
+
+users:
+  - name: ${vm_user}
+    shell: /bin/bash
+    sudo: ALL=(ALL) NOPASSWD:ALL
+    groups: users, admin
+%{ if ssh_public_key != "" ~}
+    ssh_authorized_keys:
+      - ${ssh_public_key}
+%{ endif ~}
+
+write_files:
+  - path: /etc/systemd/resolved.conf.d/dns.conf
+    content: |
+      [Resolve]
+      DNS=${vm_dns}
+      FallbackDNS=1.1.1.1
+      Domains=~.
+
+runcmd:
+  - systemctl daemon-reload
+  - systemctl restart systemd-resolved
+  - apt update
+  - apt install -y qemu-guest-agent python3
+  - systemctl enable --now qemu-guest-agent
+
+final_message: "cloud-init finished on ${hostname}"

@@ -1,0 +1,14 @@
+- name: Deploy ClickHouse main config (cluster + SSL)
+  ansible.builtin.template:
+    src: config.xml.j2
+    dest: /etc/clickhouse-server/config.d/cluster.xml
+    mode: "0640"
+    owner: clickhouse
+    group: clickhouse
+  notify: Restart clickhouse-server
+
+- name: Enable and start clickhouse-server
+  ansible.builtin.systemd:
+    name: clickhouse-server
+    enabled: true
+    state: started
