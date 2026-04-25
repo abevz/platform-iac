@@ -1,0 +1,26 @@
+- name: Install prerequisites
+  ansible.builtin.apt:
+    name: [apt-transport-https, ca-certificates, curl, gnupg]
+    state: present
+    update_cache: yes
+
+- name: Add ClickHouse GPG key
+  ansible.builtin.get_url:
+    url: "https://packages.clickhouse.com/rpm/lts/repodata/repomd.xml.key"
+    dest: /etc/apt/keyrings/clickhouse.asc
+    mode: "0644"
+
+- name: Add ClickHouse apt repository
+  ansible.builtin.apt_repository:
+    repo: "deb [signed-by=/etc/apt/keyrings/clickhouse.asc] https://packages.clickhouse.com/deb stable main"
+    state: present
+    filename: clickhouse
+
+- name: Install ClickHouse
+  ansible.builtin.apt:
+    name:
+      - clickhouse-server
+      - clickhouse-client
+    state: present
+    update_cache: yes
+  notify: Restart clickhouse-server

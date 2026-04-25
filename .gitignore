@@ -78,3 +78,5 @@ playground/
 
 # security checks
 .gemini_security/
+
+.memsearch/
