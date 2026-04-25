@@ -16,11 +16,20 @@
     state: present
     filename: clickhouse
 
+- name: Wait for unattended-upgrades to release dpkg lock
+  ansible.builtin.shell: |
+    while fuser /var/lib/dpkg/lock-frontend >/dev/null 2>&1; do sleep 5; done
+  changed_when: false
+  timeout: 600
+
 - name: Install ClickHouse
   ansible.builtin.apt:
     name:
       - clickhouse-server
       - clickhouse-client
     state: present
-    update_cache: yes
-  notify: Restart clickhouse-server
+    lock_timeout: 300 # bump from default 60s to 5min
+  retries: 3
+  delay: 30
+  register: ch_install
+  until: ch_install is succeeded
