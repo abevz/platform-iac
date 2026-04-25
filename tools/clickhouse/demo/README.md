@@ -39,17 +39,20 @@ SELECT ← demo.sensor_readings (Distributed over actual)
 - **`demo.sensor_readings_write`** — Distributed over `raw`, WRITE path
 - **`demo.sensor_readings`** — Distributed over `actual`, READ path (fast queries)
 - Empty `''` database uses `default_database` from cluster config
+- Distributed sharding uses `cityHash64(sensor_id)` so all versions of one
+  sensor land on the same shard and can be deduplicated by ReplacingMergeTree
 
 ## Files
 
 | File | Purpose |
 |------|---------|
-| `01_create_shard_databases.sql` | Create per-shard databases on each node |
-| `02_create_local_tables.sql` | Create `raw` + `actual` local tables per shard |
-| `03_create_materialized_views.sql` | Auto-sync raw → actual (within each shard) |
+| `01_create_shard_databases_ch*.sql` | Create per-shard databases for one specific node |
+| `02_create_local_tables_ch*.sql` | Create `raw` + `actual` local tables for one specific node |
+| `03_create_materialized_views_ch*.sql` | Auto-sync raw -> actual for one specific node |
 | `04_create_distributed.sql` | Two Distributed tables: `_write` (over raw) + `_read` (over actual) |
 | `05_insert_test_data.sql` | Insert ~5.2M rows with 3 version levels via `_write` |
 | `06_verify.sql` | Cluster topology, shard distribution, replication, MV sync |
+| `07_benchmark_*.sql` | Insert/select benchmark and query-log report |
 
 ## Key Pattern: Per-Node Table Creation
 
@@ -64,32 +67,124 @@ Because each node serves **two shards**, tables must be created **individually p
 | `{replica01}` | Replica ID for primary shard |
 | `{replica02}` | Replica ID for secondary shard |
 
+The cluster config must also map each logical shard to its shard database via
+`default_database`, so Distributed tables can use an empty database argument:
+
+| Logical shard | `default_database` |
+|---------------|--------------------|
+| `s1` | `homelab_cluster_shard_01` |
+| `s2` | `homelab_cluster_shard_02` |
+| `s3` | `homelab_cluster_shard_03` |
+
+| Node | Local databases | Macro mapping |
+|------|-----------------|---------------|
+| `ch-1` | `homelab_cluster_shard_01`, `homelab_cluster_shard_03` | `{shard01}=s1`, `{shard02}=s3` |
+| `ch-2` | `homelab_cluster_shard_02`, `homelab_cluster_shard_01` | `{shard01}=s2`, `{shard02}=s1` |
+| `ch-3` | `homelab_cluster_shard_03`, `homelab_cluster_shard_02` | `{shard01}=s3`, `{shard02}=s2` |
+
 ## Usage
 
+First apply the ClickHouse Ansible role so `remote_servers` contains the
+per-shard `default_database` mapping. Then recreate the demo objects.
+
 ```bash
+CH_CLIENT=(
+  clickhouse-client
+  --port 9440
+  --secure
+  --user admin
+  --password "$(cat ~/.clickhouse_admin_password)"
+  --accept-invalid-certificate
+)
+
 # 1. Create databases (run on each node individually)
-clickhouse-client --host ch-1 --port 9440 --secure < 01_create_shard_databases.sql
-clickhouse-client --host ch-2 --port 9440 --secure < 01_create_shard_databases.sql
-clickhouse-client --host ch-3 --port 9440 --secure < 01_create_shard_databases.sql
+"${CH_CLIENT[@]}" --host ch-1 < 01_create_shard_databases_ch1.sql
+"${CH_CLIENT[@]}" --host ch-2 < 01_create_shard_databases_ch2.sql
+"${CH_CLIENT[@]}" --host ch-3 < 01_create_shard_databases_ch3.sql
 
 # 2. Create local tables (run on each node)
-clickhouse-client --host ch-1 --port 9440 --secure < 02_create_local_tables.sql
-clickhouse-client --host ch-2 --port 9440 --secure < 02_create_local_tables.sql
-clickhouse-client --host ch-3 --port 9440 --secure < 02_create_local_tables.sql
+"${CH_CLIENT[@]}" --host ch-1 < 02_create_local_tables_ch1.sql
+"${CH_CLIENT[@]}" --host ch-2 < 02_create_local_tables_ch2.sql
+"${CH_CLIENT[@]}" --host ch-3 < 02_create_local_tables_ch3.sql
 
 # 3. Create materialized views (run on each node)
-clickhouse-client --host ch-1 --port 9440 --secure < 03_create_materialized_views.sql
-clickhouse-client --host ch-2 --port 9440 --secure < 03_create_materialized_views.sql
-clickhouse-client --host ch-3 --port 9440 --secure < 03_create_materialized_views.sql
+"${CH_CLIENT[@]}" --host ch-1 < 03_create_materialized_views_ch1.sql
+"${CH_CLIENT[@]}" --host ch-2 < 03_create_materialized_views_ch2.sql
+"${CH_CLIENT[@]}" --host ch-3 < 03_create_materialized_views_ch3.sql
 
-# 4. Create Distributed table (any node, once)
-clickhouse-client --host ch-1 --port 9440 --secure < 04_create_distributed.sql
+# 4. Create Distributed tables (run on each node where you want the demo DB)
+"${CH_CLIENT[@]}" --host ch-1 < 04_create_distributed.sql
+"${CH_CLIENT[@]}" --host ch-2 < 04_create_distributed.sql
+"${CH_CLIENT[@]}" --host ch-3 < 04_create_distributed.sql
 
-# 5. Insert test data (any node, once — writes through raw Distributed)
-clickhouse-client --host ch-1 --port 9440 --secure < 05_insert_test_data.sql
+# 5. Insert test data (any node, once - writes through raw Distributed)
+"${CH_CLIENT[@]}" --host ch-1 < 05_insert_test_data.sql
 
-# 6. Verify
-clickhouse-client --host ch-1 --port 9440 --secure < 06_verify.sql
+# 6. Verify from any node with demo Distributed tables
+"${CH_CLIENT[@]}" --host ch-1 < 06_verify.sql
+```
+
+## Benchmark
+
+SQL benchmark:
+
+```bash
+# Insert 1,000,000 benchmark rows.
+"${CH_CLIENT[@]}" --host ch-1 \
+  --query_id bench_insert_1m \
+  < 07_benchmark_insert_1m.sql
+
+SYSTEM_FLUSH="SYSTEM FLUSH DISTRIBUTED demo.sensor_readings_write"
+"${CH_CLIENT[@]}" --host ch-1 --query "$SYSTEM_FLUSH"
+
+# Select benchmark with visible result.
+"${CH_CLIENT[@]}" --host ch-1 \
+  --query_id bench_select_aggregate \
+  < 07_benchmark_select_aggregate.sql
+
+# Select benchmark with output discarded.
+"${CH_CLIENT[@]}" --host ch-1 \
+  --query_id bench_select_aggregate_null \
+  < 07_benchmark_select_aggregate_null.sql
+
+# Read elapsed time, rows, bytes and memory from system.query_log.
+"${CH_CLIENT[@]}" --host ch-1 < 07_benchmark_report.sql
+```
+
+Latest measured result on this homelab:
+
+| Query | Duration | Rows |
+|-------|----------|------|
+| `bench_insert_1m` | 75 ms | `written_rows=1,000,000` |
+| `bench_select_aggregate` | 21 ms | `read_rows=1,000,000` |
+| `bench_select_aggregate_null` | 31 ms | `read_rows=1,000,000` |
+
+Approximate throughput:
+
+| Operation | Throughput |
+|-----------|------------|
+| Insert | ~13.3M rows/sec |
+| Select aggregate | ~47.6M rows/sec |
+| Select with `FORMAT Null` | ~32.3M rows/sec |
+
+Go parallel benchmark runner:
+
+```bash
+go run main.go \
+  --host ch-1 \
+  --workers 4 \
+  --rows-per-worker 250000
+```
+
+The Go runner inserts benchmark rows in parallel, flushes the Distributed
+queue, runs a simple aggregate read, and prints a query-log report.
+
+Cleanup benchmark rows:
+
+```bash
+"${CH_CLIENT[@]}" --host ch-1 < 07_cleanup_benchmark_data_ch1.sql
+"${CH_CLIENT[@]}" --host ch-2 < 07_cleanup_benchmark_data_ch2.sql
+"${CH_CLIENT[@]}" --host ch-3 < 07_cleanup_benchmark_data_ch3.sql
 ```
 
 ## Key Query Patterns
@@ -122,12 +217,21 @@ GROUP BY day;
 ## Replication Check
 
 ```bash
+CH_CLIENT=(
+  clickhouse-client
+  --port 9440
+  --secure
+  --user admin
+  --password "$(cat ~/.clickhouse_admin_password)"
+  --accept-invalid-certificate
+)
+
 for host in ch-1 ch-2 ch-3; do
   echo "=== $host ==="
-  clickhouse-client --host $host --port 9440 --secure \
-    --query "SELECT database, count() FROM homelab_cluster_shard_01.sensor_readings_raw"
+  "${CH_CLIENT[@]}" --host "$host" \
+    --query "SELECT database, table, zookeeper_path, replica_name, active_replicas, total_replicas FROM system.replicas WHERE table LIKE 'sensor_readings_%' ORDER BY database, table"
 done
-# Expect: shard_01 on ch-1 == shard_01 on ch-2
+# Expect two raw replicas and two actual replicas per hosted shard.
 ```
 
 ## Engine Reference

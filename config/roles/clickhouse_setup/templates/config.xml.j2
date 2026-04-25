@@ -24,10 +24,11 @@
         {% for r in range(replica_count) %}
         {% set host_idx = ((s - 1) + r) % n %}
         <replica>
+          <default_database>{{ shard_db_prefix }}{{ "%02d" | format(s) }}</default_database>
           <host>{{ hosts[host_idx] }}</host>
           <port>{{ clickhouse_tcp_port }}</port>
-          <user>default</user>
-          <password></password>
+          <user>{{ clickhouse_admin_user }}</user>
+          <password>{{ clickhouse_admin_password }}</password>
         </replica>
         {% endfor %}
       </shard>

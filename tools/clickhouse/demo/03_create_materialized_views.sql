@@ -1,31 +1,9 @@
 -- ============================================================
--- Run on EACH node individually
--- Materialized Views: auto-sync raw -> actual within each shard
+-- Use the per-node files instead of this generic index:
+--   ch-1 -> 03_create_materialized_views_ch1.sql
+--   ch-2 -> 03_create_materialized_views_ch2.sql
+--   ch-3 -> 03_create_materialized_views_ch3.sql
+--
+-- Materialized views must exist only for the shard databases
+-- hosted by the target node.
 -- ============================================================
-
--- ---------- Node 1 (ch-1) ----------
-CREATE MATERIALIZED VIEW homelab_cluster_shard_01.sensor_readings_sync
-TO homelab_cluster_shard_01.sensor_readings_actual
-AS SELECT * FROM homelab_cluster_shard_01.sensor_readings_raw;
-
-CREATE MATERIALIZED VIEW homelab_cluster_shard_03.sensor_readings_sync
-TO homelab_cluster_shard_03.sensor_readings_actual
-AS SELECT * FROM homelab_cluster_shard_03.sensor_readings_raw;
-
--- ---------- Node 2 (ch-2) ----------
--- CREATE MATERIALIZED VIEW homelab_cluster_shard_02.sensor_readings_sync
--- TO homelab_cluster_shard_02.sensor_readings_actual
--- AS SELECT * FROM homelab_cluster_shard_02.sensor_readings_raw;
---
--- CREATE MATERIALIZED VIEW homelab_cluster_shard_01.sensor_readings_sync
--- TO homelab_cluster_shard_01.sensor_readings_actual
--- AS SELECT * FROM homelab_cluster_shard_01.sensor_readings_raw;
-
--- ---------- Node 3 (ch-3) ----------
--- CREATE MATERIALIZED VIEW homelab_cluster_shard_03.sensor_readings_sync
--- TO homelab_cluster_shard_03.sensor_readings_actual
--- AS SELECT * FROM homelab_cluster_shard_03.sensor_readings_raw;
---
--- CREATE MATERIALIZED VIEW homelab_cluster_shard_02.sensor_readings_sync
--- TO homelab_cluster_shard_02.sensor_readings_actual
--- AS SELECT * FROM homelab_cluster_shard_02.sensor_readings_raw;
