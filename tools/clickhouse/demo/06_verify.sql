@@ -1,64 +1,72 @@
 -- ============================================================
--- Run on ANY node
+-- Run on ANY node that has demo Distributed tables.
 -- ============================================================
 
--- 1. Cluster topology (expect 3 shards × 2 replicas = 6 entries)
-SELECT cluster, shard_num, replica_num, host_name, port,
-       default_database
+-- 1. Cluster topology and per-shard default databases.
+SELECT
+    cluster,
+    shard_num,
+    replica_num,
+    host_name,
+    port,
+    default_database,
+    is_local
 FROM system.clusters
 WHERE cluster = 'homelab_cluster'
 ORDER BY shard_num, replica_num;
 
--- 2. Total rows via Distributed (read path → actual tables)
-SELECT count() AS total FROM demo.sensor_readings;
+-- 2. Row counts via Distributed read/write paths.
+-- actual_physical_rows can be higher than logical rows until background merges finish.
+SELECT
+    (SELECT count() FROM demo.sensor_readings_write) AS raw_rows,
+    (SELECT count() FROM demo.sensor_readings) AS actual_physical_rows,
+    (SELECT count() FROM demo.sensor_readings FINAL) AS actual_logical_rows;
 
--- 3. Per-shard raw rows (run on EACH node)
--- clickhouse-client --host ch-1 --port 9440 --secure
--- clickhouse-client --host ch-2 --port 9440 --secure
--- clickhouse-client --host ch-3 --port 9440 --secure
-SELECT database, count() AS raw_rows
-FROM homelab_cluster_shard_01.sensor_readings_raw
-GROUP BY database
-UNION ALL
-SELECT database, count() FROM homelab_cluster_shard_03.sensor_readings_raw
-GROUP BY database;
+-- 3. Raw row distribution across shards via Distributed write table.
+SELECT
+    _shard_num AS shard_num,
+    count() AS raw_rows
+FROM demo.sensor_readings_write
+GROUP BY shard_num
+ORDER BY shard_num;
 
--- 4. Version distribution across cluster
+-- 4. Physical version distribution before ReplacingMergeTree background merges.
 SELECT version, count() AS rows, uniq(sensor_id) AS sensors
 FROM demo.sensor_readings
 GROUP BY version
 ORDER BY version;
 
--- 5. Replication health
-SELECT database, table, is_leader, total_replicas, active_replicas
+-- 4b. Logical latest-version distribution.
+SELECT version, count() AS rows, uniq(sensor_id) AS sensors
+FROM demo.sensor_readings FINAL
+GROUP BY version
+ORDER BY version;
+
+-- 5. Replication health on the local node.
+SELECT database, table, zookeeper_path, replica_name, active_replicas, total_replicas
 FROM system.replicas
-WHERE table LIKE '%sensor_readings%'
+WHERE table LIKE 'sensor_readings_%'
 ORDER BY database, table;
 
--- 6. Get latest value via argMax (from raw — confirms all versions stored)
+-- 6. Latest value via raw Distributed table, confirming all versions exist.
 SELECT
-    sensor_id, ts,
+    sensor_id,
+    ts,
     argMax(value, version) AS current_value
-FROM homelab_cluster_shard_01.sensor_readings_raw
+FROM demo.sensor_readings_write
 WHERE sensor_id BETWEEN 1 AND 5
   AND dt = '2025-01-01'
 GROUP BY sensor_id, ts
 ORDER BY sensor_id, ts
 LIMIT 20;
 
--- 7. Fast aggregate via actual table (Distributed read path)
+-- 7. Fast aggregate via actual Distributed table.
+-- Use FINAL when the demo must show logically deduplicated latest values immediately.
 SELECT
     toStartOfDay(ts) AS day,
     avg(value) AS avg_val,
     count() AS readings
-FROM demo.sensor_readings
+FROM demo.sensor_readings FINAL
 WHERE dt BETWEEN '2025-01-01' AND '2025-01-07'
 GROUP BY day
 ORDER BY day;
-
--- 8. Verify MV sync: raw vs actual row count (should be == after merge)
-SELECT
-    (SELECT count() FROM homelab_cluster_shard_01.sensor_readings_raw) AS raw_rows,
-    (SELECT count() FROM homelab_cluster_shard_01.sensor_readings_actual) AS actual_rows,
-    (SELECT count() FROM homelab_cluster_shard_03.sensor_readings_raw) AS raw_rows_s3,
-    (SELECT count() FROM homelab_cluster_shard_03.sensor_readings_actual) AS actual_rows_s3;
