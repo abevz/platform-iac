@@ -1,0 +1,12 @@
+[Unit]
+Description=Create Vault Raft snapshot
+Wants=vault.service
+After=vault.service
+
+[Service]
+Type=oneshot
+User=root
+Group=root
+ExecStart=/usr/local/sbin/vault-snapshot-backup.sh
+Nice=10
+IOSchedulingClass=best-effort

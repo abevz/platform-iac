@@ -1,0 +1,11 @@
+---
+- name: Configure Vault server
+  hosts: vault_servers
+  become: true
+  vars:
+    addon_state: present
+  roles:
+    - role: set_timezone
+      tags: timezone
+    - role: vault_server
+      tags: vault

@@ -1,0 +1,74 @@
+#!/bin/bash
+set -euo pipefail
+
+export VAULT_ADDR="{{ vault_api_addr }}"
+TOKEN_FILE="{{ vault_snapshot_token_file }}"
+SNAPSHOT_DIR="{{ vault_backup_dir }}"
+RETENTION_DAYS="{{ vault_snapshot_local_retention_days }}"
+S3_ENABLED="{{ vault_backup_s3_enabled | ternary('true', 'false') }}"
+RCLONE_ENABLED="{{ vault_backup_rclone_enabled | ternary('true', 'false') }}"
+RCLONE_TARGET="{{ vault_backup_rclone_target }}"
+S3_ENV_FILE="{{ vault_config_dir }}/snapshot-s3.env"
+
+log() {
+  echo "[$(date --iso-8601=seconds)] $*"
+}
+
+if [ ! -r "$TOKEN_FILE" ]; then
+  log "Snapshot token file is missing or unreadable: $TOKEN_FILE"
+  exit 0
+fi
+
+export VAULT_TOKEN
+VAULT_TOKEN=$(tr -d '\n' < "$TOKEN_FILE")
+
+status_json=$(vault status -format=json 2>/dev/null || true)
+if [ -z "$status_json" ]; then
+  log "Vault status is unavailable"
+  exit 0
+fi
+
+initialized=$(echo "$status_json" | jq -r '.initialized')
+sealed=$(echo "$status_json" | jq -r '.sealed')
+
+if [ "$initialized" != "true" ]; then
+  log "Vault is not initialized"
+  exit 0
+fi
+
+if [ "$sealed" = "true" ]; then
+  log "Vault is sealed"
+  exit 0
+fi
+
+timestamp=$(date -u +%Y%m%dT%H%M%SZ)
+snapshot_path="${SNAPSHOT_DIR}/vault-raft-${timestamp}.snap"
+
+install -d -o vault -g vault -m 0750 "$SNAPSHOT_DIR"
+vault operator raft snapshot save "$snapshot_path"
+chown vault:vault "$snapshot_path"
+chmod 0640 "$snapshot_path"
+log "Created local snapshot: $snapshot_path"
+
+find "$SNAPSHOT_DIR" -type f -name "vault-raft-*.snap" -mtime +"$RETENTION_DAYS" -delete
+
+if [ "$S3_ENABLED" = "true" ]; then
+  if [ ! -r "$S3_ENV_FILE" ]; then
+    log "S3 backup is enabled but $S3_ENV_FILE is missing"
+    exit 1
+  fi
+  # shellcheck source=/dev/null
+  source "$S3_ENV_FILE"
+  aws --endpoint-url "$VAULT_BACKUP_S3_ENDPOINT" \
+    s3 cp "$snapshot_path" "s3://${VAULT_BACKUP_S3_BUCKET}/${VAULT_BACKUP_S3_PREFIX}/$(basename "$snapshot_path")"
+  log "Uploaded snapshot to MinIO bucket: ${VAULT_BACKUP_S3_BUCKET}"
+fi
+
+if [ "$RCLONE_ENABLED" = "true" ]; then
+  if [ -z "$RCLONE_TARGET" ]; then
+    log "rclone backup is enabled but no target is configured"
+    exit 1
+  fi
+  rclone copy "$snapshot_path" "$RCLONE_TARGET"
+  log "Copied encrypted snapshot to rclone target: $RCLONE_TARGET"
+fi

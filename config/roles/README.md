@@ -30,6 +30,7 @@ This directory contains Ansible roles for bootstrapping and managing Kubernetes 
 | [trivy_package_install](./trivy_package_install/README.md) | Install Trivy CLI tool | `trivy` |
 | [kube_bench_run](./kube_bench_run/README.md) | Run kube-bench CIS benchmark tests | `kube_bench` |
 | [apparmor_configure](./apparmor_configure/README.md) | Configure AppArmor security profiles | `apparmor` |
+| [vault_server](./vault_server/README.md) | Install Vault with manual unseal and Raft snapshots | `vault` |
 | [set_timezone](./set_timezone/README.md) | Configure system timezone | `timezone` |
 | [bom_install](./bom_install/README.md) | Install Bill of Materials (BOM) tooling | `bom` |
 | [nginx_proxy_setup](./nginx_proxy_setup/README.md) | Configure Nginx reverse proxy with Docker Compose | `nginx_proxy` |
@@ -107,6 +108,7 @@ ansible-playbook -i config/inventory/static.ini config/playbooks/setup_k8s-lab-0
 - **kube_bench_run**: CIS compliance testing
 - **trivy_operator_deploy**: Vulnerability scanning
 - **cert_manager_install**: TLS certificate automation
+- **vault_server**: Vault server with manual unseal and Raft snapshots
 
 ### 🚀 Application Delivery
 - **argocd_install**: GitOps continuous delivery
