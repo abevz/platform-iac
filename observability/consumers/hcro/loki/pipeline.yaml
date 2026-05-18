@@ -1,0 +1,89 @@
+# Promtail pipeline for HCRO logs
+#
+# Source schema: HCRO slog JSON. Mandatory fields per HCRO NFR-002:
+#   workload_namespace, workload_name, decision_id, reconcile_iteration.
+# Optional: trace_id, aws_request_id, level, msg, time.
+#
+# This file is excerpted into the Promtail config that platform-iac
+# applies to the cluster. Labels declared here become Loki labels;
+# cardinality discipline matters — every label adds a stream.
+#
+# See ADR-002 in this repo.
+
+# Stream selector — match HCRO pod stdout
+scrape_configs:
+  - job_name: hcro-controller
+    pipeline_stages:
+      # 1. Parse JSON from stdout. slog.NewJSONHandler emits all fields
+      #    flat at the top level.
+      - json:
+          expressions:
+            level: level
+            msg: msg
+            time: time
+            workload_namespace: workload_namespace
+            workload_name: workload_name
+            decision_id: decision_id
+            reconcile_iteration: reconcile_iteration
+            trace_id: trace_id
+            aws_request_id: aws_request_id
+
+      # 2. Use the slog `time` field as the log timestamp, not Promtail's
+      #    receive time. Format is RFC 3339 per slog default.
+      - timestamp:
+          source: time
+          format: RFC3339Nano
+
+      # 3. Promote bounded-cardinality fields to Loki labels.
+      #    workload_namespace is bounded by the lab; workload_name is
+      #    high-cardinality (potentially hundreds), so we do NOT
+      #    promote it to a label — it stays in the log line for grep.
+      - labels:
+          level:               # info / warn / error / debug — bounded
+          workload_namespace:  # bounded by namespace count
+
+      # 4. Drop debug logs at ingestion to save cost. Override per
+      #    environment if deep debugging is in progress.
+      - match:
+          selector: '{level="debug"}'
+          action: drop
+
+      # 5. Optional: extract metrics from log volume. Useful for "how
+      #    many error logs per minute" tracking that complements
+      #    Prometheus reconcile-error counter.
+      - metrics:
+          hcro_log_lines_total:
+            type: Counter
+            description: HCRO log lines by level, indexed by Promtail
+            source: level
+            config:
+              match_all: true
+              action: inc
+
+    # Stream selector — only consider HCRO pods
+    kubernetes_sd_configs:
+      - role: pod
+    relabel_configs:
+      - source_labels:
+          - __meta_kubernetes_pod_label_app_kubernetes_io_name
+        action: keep
+        regex: hybrid-cloud-optimizer
+      - source_labels:
+          - __meta_kubernetes_namespace
+        action: replace
+        target_label: namespace
+      - source_labels:
+          - __meta_kubernetes_pod_name
+        action: replace
+        target_label: pod
+      - source_labels:
+          - __meta_kubernetes_pod_container_name
+        action: replace
+        target_label: container
+
+# Cardinality notes:
+#   - Stream labels in Loki: namespace × pod × container × level × workload_namespace
+#   - For 1 HCRO Deployment in 1 namespace with 1 pod replica, 4 log levels,
+#     and 5 workload namespaces: 1×1×1×4×5 = 20 streams. Safe.
+#   - DO NOT add workload_name to labels.
+#   - DO NOT add decision_id to labels (UUID — would explode).
