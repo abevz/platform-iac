@@ -258,7 +258,7 @@ operator support, declarative configuration, broad community.
 
 ## Forward References
 
-- [observability/README.md](../observability/README.md) — directory
+- [observability/README.md](../../observability/README.md) — directory
   structure and operations
 - HCRO ADR-006 — consumer boundary (HCRO emits metrics/logs/events; no
   ownership of dashboards or alerting rules)
