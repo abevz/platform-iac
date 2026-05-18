@@ -63,6 +63,8 @@ config/roles/vault_server/
 Wrapper path:
 
 ```bash
+cp infra/dev/vault/terraform.tfvars.example infra/dev/vault/terraform.tfvars
+# Edit vm_id after checking Proxmox allocation.
 ./tools/iac-wrapper.sh plan dev vault
 ./tools/iac-wrapper.sh apply dev vault
 ./tools/iac-wrapper.sh configure dev vault vault_servers
@@ -261,6 +263,7 @@ working.
 
 ## Verification Checklist
 
+- [ ] `infra/dev/vault/terraform.tfvars` contains a checked `vm_id`
 - [ ] `./tools/iac-wrapper.sh plan dev vault` shows only the Vault VM and cloud-init snippet
 - [ ] Vault VM is provisioned by `./tools/iac-wrapper.sh apply dev vault`
 - [ ] Vault initializes with 5 shares / threshold 3
