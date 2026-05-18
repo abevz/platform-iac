@@ -105,9 +105,21 @@ shellcheck tools/*.sh
 
 - **Conventional Commits:** `feat:`, `fix:`, `refactor:`, `docs:`, `test:`, `chore:`
 - **Messages:** English, 1-2 lines, focus on "why"
+- **Main worktree:** Treat `<repo>/main` as read/update/status only
 - **Branches:** Feature branches from `main`, merge via PR
+- **Worktrees:** Make every code or documentation change in a sibling worktree on a non-`main` branch
+- **Task shape:** One task means one branch, one sibling worktree, one PR, and cleanup after merge
+- **Cleanup:** Remove completed worktrees with `git worktree remove`, not raw directory deletion
+- **Merge policy:** Use a normal merge commit by default; do not use squash or rebase merge unless explicitly requested for that PR
 - **Pre-commit:** Must pass before any commit
 - **No force push** to shared branches
+
+## Attribution Rules
+
+- Do not add AI attribution trailers or bot identities to commits, PR bodies, generated files, docs, examples, logs, or release notes
+- Do not add `Co-authored-by` lines for AI tools
+- Do not mention Claude, Codex, ChatGPT, opencode, or other AI agents as authors or participants in repository-visible artifacts unless explicitly requested
+- Keep commits and PRs as normal human project history using the existing Conventional Commits style
 
 ## Common File Patterns
 
