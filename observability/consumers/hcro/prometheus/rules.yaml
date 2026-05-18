@@ -1,0 +1,208 @@
+# PrometheusRule for HCRO — alerts and recording rules
+#
+# Source of truth for alert names and severities: HCRO NFR-006.
+# Source of truth for metric names and labels: HCRO NFR-002.
+# Runbook anchors: HCRO docs/runbook.md
+# See ADR-002 in this repo and HCRO ADR-006 for the boundary.
+#
+# This file is the implementation of NFR-006. It is OWNED by this
+# platform repo; HCRO ships the metrics, this file decides what
+# constitutes an alert.
+
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: hcro-rules
+  namespace: monitoring
+  labels:
+    release: kube-prometheus-stack
+    app.kubernetes.io/name: hybrid-cloud-optimizer
+
+spec:
+  groups:
+    # ---------------- Recording rules: SLI computations ----------------
+    - name: hcro-sli-recording
+      interval: 30s
+      rules:
+        - record: slo:hybridworkload:slo-1:reconcile_latency_p95:5m
+          expr: |
+            histogram_quantile(
+              0.95,
+              sum by (le) (
+                rate(controller_runtime_reconcile_time_seconds_bucket{controller="hybridworkload"}[5m])
+              )
+            )
+
+        - record: slo:hybridworkload:slo-2:reconcile_error_rate:5m
+          expr: |
+            sum(rate(controller_runtime_reconcile_errors_total{controller="hybridworkload"}[5m]))
+            /
+            sum(rate(controller_runtime_reconcile_total{controller="hybridworkload"}[5m]))
+
+        - record: slo:hybridworkload:slo-2:reconcile_error_rate:1h
+          expr: |
+            sum(rate(controller_runtime_reconcile_errors_total{controller="hybridworkload"}[1h]))
+            /
+            sum(rate(controller_runtime_reconcile_total{controller="hybridworkload"}[1h]))
+
+        - record: slo:hybridworkload:slo-4:availability:30d
+          expr: |
+            avg_over_time(leader_election_master_status{name="hybridworkload-controller"}[30d])
+
+    # ---------------- Critical alerts ----------------
+    - name: hcro-alerts-critical
+      rules:
+        - alert: HCROLeaderUnheld
+          expr: leader_election_master_status{name="hybridworkload-controller"} == 0
+          for: 2m
+          labels:
+            severity: critical
+            consumer: hybrid-cloud-optimizer
+          annotations:
+            summary: No HCRO leader for {{ $for }}
+            description: |
+              No pod holds the hybridworkload-controller leader lease.
+              Reconciliation has stopped. Pods may be crashlooping or the
+              leader-election lease may be stuck.
+            runbook_url: https://github.com/abevz/hybrid-cloud-optimizer/blob/main/docs/runbook.md#leader-election
+
+        - alert: HCROReconcileErrorBurst
+          expr: slo:hybridworkload:slo-2:reconcile_error_rate:5m > 0.05
+          for: 10m
+          labels:
+            severity: critical
+            consumer: hybrid-cloud-optimizer
+          annotations:
+            summary: HCRO reconcile error rate above 5% for 10 minutes
+            description: |
+              Reconcile errors are {{ $value | humanizePercentage }} of
+              total reconciliations over the last 5m. Beyond burst noise;
+              investigate typed-error breakdown via Loki query
+              `{app_kubernetes_io_name="hybrid-cloud-optimizer"} | json | level="error"`.
+            runbook_url: https://github.com/abevz/hybrid-cloud-optimizer/blob/main/docs/runbook.md#reconcile-errors
+
+    # ---------------- Warning alerts ----------------
+    - name: hcro-alerts-warning
+      rules:
+        - alert: HCROReconcileLatencyDegraded
+          expr: slo:hybridworkload:slo-1:reconcile_latency_p95:5m > 5
+          for: 10m
+          labels:
+            severity: warning
+            consumer: hybrid-cloud-optimizer
+          annotations:
+            summary: HCRO reconcile p95 latency above 5s
+            description: |
+              p95 reconcile latency is {{ $value }}s, above the 5s warning
+              threshold. SLO target is < 1s. Check external-dependencies
+              dashboard; common cause is AWS Pricing API slowness or VPN
+              probe timeouts.
+            runbook_url: https://github.com/abevz/hybrid-cloud-optimizer/blob/main/docs/runbook.md#latency
+
+        - alert: HCROAWSPricingAPIUnavailable
+          expr: |
+            sum(rate(hcro_aws_pricing_api_calls_total{result="error"}[5m]))
+            /
+            sum(rate(hcro_aws_pricing_api_calls_total[5m]))
+            > 0.5
+          for: 5m
+          labels:
+            severity: warning
+            consumer: hybrid-cloud-optimizer
+          annotations:
+            summary: AWS Pricing API failure rate > 50%
+            description: |
+              More than half of recent calls to AWS Pricing API failed.
+              Cached prices may keep HCRO functional; verify status
+              conditions on HybridWorkloads.
+            runbook_url: https://github.com/abevz/hybrid-cloud-optimizer/blob/main/docs/runbook.md#pricing-api
+
+        - alert: HCROVPNUnhealthy
+          expr: hcro_vpn_probe_state{state="Unhealthy"} == 1
+          for: 5m
+          labels:
+            severity: warning
+            consumer: hybrid-cloud-optimizer
+          annotations:
+            summary: VPN probe has reported Unhealthy for 5+ minutes
+            description: |
+              HCRO will refuse to recommend AWS placement until VPN
+              recovers. High-priority workloads will be marked Pending
+              with VPNUnhealthy reason.
+            runbook_url: https://github.com/abevz/hybrid-cloud-optimizer/blob/main/docs/runbook.md#vpn
+
+        - alert: HCROBudgetBlockingHighPriority
+          expr: |
+            (
+              sum(rate(hcro_placement_total{reason="BudgetExceeded", priority="high"}[30m]))
+              /
+              sum(rate(hcro_placement_total{priority="high"}[30m]))
+            ) > 0.10
+          for: 30m
+          labels:
+            severity: warning
+            consumer: hybrid-cloud-optimizer
+          annotations:
+            summary: ">2 in 20 high-priority placements blocked by budget"
+            description: |
+              More than 10% of high-priority placement attempts are being
+              marked Pending due to BudgetExceeded. Review per-workload
+              maxMonthlyCostCents settings or operator AWS budget.
+            runbook_url: https://github.com/abevz/hybrid-cloud-optimizer/blob/main/docs/runbook.md#budget
+
+    # ---------------- Info-level alerts ----------------
+    - name: hcro-alerts-info
+      rules:
+        - alert: HCROFlapDetected
+          expr: |
+            sum(rate(hcro_recommendation_flips_total[1h])) > 1
+          for: 1h
+          labels:
+            severity: info
+            consumer: hybrid-cloud-optimizer
+          annotations:
+            summary: Recommendation flip rate exceeds 1/hour
+            description: |
+              Hysteresis thresholds may be too narrow, or input metrics
+              (Proxmox utilization) may be unstable. Review hysteresis
+              config (PROXMOX_SCALE_OUT_THRESHOLD,
+              PROXMOX_SCALE_BACK_THRESHOLD).
+            runbook_url: https://github.com/abevz/hybrid-cloud-optimizer/blob/main/docs/runbook.md#flap
+
+    # ---------------- Burn-rate alerts (SLO-2) ----------------
+    # Multi-window multi-burn-rate per Google SRE Workbook chapter 5.
+    # SLO-2: reconcile error rate < 0.1%; error budget = 0.1%.
+    # Burn rate = (actual_error_rate) / (slo_target_error_rate).
+    - name: hcro-slo-burn-rate
+      rules:
+        - alert: HCROErrorBudgetFastBurn
+          expr: |
+            slo:hybridworkload:slo-2:reconcile_error_rate:5m > (14.4 * 0.001)
+            and
+            slo:hybridworkload:slo-2:reconcile_error_rate:1h > (14.4 * 0.001)
+          labels:
+            severity: critical
+            consumer: hybrid-cloud-optimizer
+            slo: slo-2
+          annotations:
+            summary: HCRO SLO-2 error budget burning at 14.4×
+            description: |
+              At this burn rate, 30 days of error budget is exhausted in
+              ~2 days. Page on-call.
+            runbook_url: https://github.com/abevz/hybrid-cloud-optimizer/blob/main/docs/runbook.md#slo-burn
+
+        - alert: HCROErrorBudgetMediumBurn
+          expr: |
+            slo:hybridworkload:slo-2:reconcile_error_rate:5m > (6 * 0.001)
+            and
+            slo:hybridworkload:slo-2:reconcile_error_rate:1h > (6 * 0.001)
+          labels:
+            severity: warning
+            consumer: hybrid-cloud-optimizer
+            slo: slo-2
+          annotations:
+            summary: HCRO SLO-2 error budget burning at 6×
+            description: |
+              At this burn rate, 30 days of error budget is exhausted in
+              ~5 days. Open ticket, investigate during business hours.
+            runbook_url: https://github.com/abevz/hybrid-cloud-optimizer/blob/main/docs/runbook.md#slo-burn
