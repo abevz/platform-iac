@@ -56,6 +56,7 @@ Complete documentation index for the Platform Infrastructure as Code project.
 | kube_bench_run | CIS Kubernetes Benchmark | [README](../config/roles/kube_bench_run/README.md) |
 | apparmor_configure | AppArmor security profiles | - |
 | cert_manager_install | TLS certificate management | - |
+| vault_server | Vault server with manual unseal and Raft snapshots | [README](../config/roles/vault_server/README.md) |
 
 ### Application Delivery
 
