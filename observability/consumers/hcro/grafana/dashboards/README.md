@@ -67,4 +67,4 @@ done
 - HCRO ADR-006: https://github.com/abevz/hybrid-cloud-optimizer/blob/main/docs/specs/001-mvp/decisions/ADR-006-observability-stack-integration.md
 - HCRO NFR-002 (metric catalog): https://github.com/abevz/hybrid-cloud-optimizer/blob/main/docs/specs/001-mvp/requirements.md
 - HCRO B-014 (task spec): https://github.com/abevz/hybrid-cloud-optimizer/blob/main/docs/specs/001-mvp/tasks.md
-- Platform ADR-002: ../../../../../decisions/ADR-002-observability-stack-architecture.md
+- Platform ADR-002: ../../../../../docs/decisions/ADR-002-observability-stack-architecture.md

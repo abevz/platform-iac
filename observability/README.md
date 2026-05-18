@@ -1,7 +1,7 @@
 # Observability — Directory Contract
 
 Centralized observability artifacts for the lab. See
-[ADR-002](../decisions/ADR-002-observability-stack-architecture.md)
+[ADR-002](../docs/decisions/ADR-002-observability-stack-architecture.md)
 for the architectural decision; this README is the operational contract.
 
 The platform has two observability layers:
@@ -147,7 +147,7 @@ For the existing monitoring VM, continue validating through the
 
 ## Phases
 
-Per [ADR-002](../decisions/ADR-002-observability-stack-architecture.md):
+Per [ADR-002](../docs/decisions/ADR-002-observability-stack-architecture.md):
 
 - Phase A — keep monitoring VM as infra baseline; add
   kube-prometheus-stack install playbook
@@ -160,7 +160,7 @@ Per [ADR-002](../decisions/ADR-002-observability-stack-architecture.md):
 
 ## References
 
-- [ADR-002](../decisions/ADR-002-observability-stack-architecture.md)
+- [ADR-002](../docs/decisions/ADR-002-observability-stack-architecture.md)
 - HCRO ADR-006:
   https://github.com/abevz/hybrid-cloud-optimizer/blob/main/docs/specs/001-mvp/decisions/ADR-006-observability-stack-integration.md
 - HCRO NFR-002 + NFR-006:
