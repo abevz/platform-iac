@@ -19,6 +19,8 @@ Complete documentation for the Platform Infrastructure as Code project - a unive
 ### Security & Compliance
 - [CKS Preparation](../kubernetes/cks-prep/README.md) - Certified Kubernetes Security Specialist resources
 - [Security Policies](../kubernetes/policies/README.md) - Network policies, PSS, RBAC examples
+- [Vault/ESO Secrets Architecture](./secrets-architecture.md) - Runtime secrets, manual unseal, backup, and restore
+- [Architecture Decisions](./decisions/) - ADRs for secrets and observability platform choices
 
 ### Tools & Utilities
 - **[IAC Wrapper Guide](./IAC_WRAPPER.md)** ⭐ - Complete iac-wrapper.sh reference and command guide

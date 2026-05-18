@@ -11,6 +11,8 @@ Complete documentation index for the Platform Infrastructure as Code project.
 | [Architecture Guide](./ARCHITECTURE.md) | Visual architecture and component diagrams | Architects, DevOps |
 | **[IAC Wrapper Guide](./IAC_WRAPPER.md)** ⭐ | Complete iac-wrapper.sh command reference | DevOps, Operators |
 | [Monitoring Runbook](./RUNBOOK_MONITORING.md) | Monitoring operations and alert handling | Operators, On-call |
+| [Secrets Architecture](./secrets-architecture.md) | Vault/ESO runtime secrets, manual unseal, backup, and restore | Operators, DevSecOps |
+| [Architecture Decisions](./decisions/) | ADRs for secrets and observability decisions | Architects, Operators |
 | [Cheat Sheet](./CHEATSHEET.md) | Quick command reference | Daily users |
 
 ## 🎭 Role Documentation
