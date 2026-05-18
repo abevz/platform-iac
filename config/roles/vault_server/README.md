@@ -12,6 +12,8 @@ Installs a single-node Vault server for the homelab MVP.
 ## Bootstrap
 
 ```bash
+cp infra/dev/vault/terraform.tfvars.example infra/dev/vault/terraform.tfvars
+# Edit vm_id after checking Proxmox allocation.
 ./tools/iac-wrapper.sh apply dev vault
 ./tools/iac-wrapper.sh configure dev vault vault_servers
 ```

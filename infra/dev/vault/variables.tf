@@ -72,9 +72,8 @@ variable "ssh_public_key" {
 }
 
 variable "vm_id" {
-  description = "Vault VM ID"
+  description = "Vault VM ID. Set explicitly in terraform.tfvars after checking Proxmox allocation."
   type        = number
-  default     = 109
 }
 
 variable "vm_name" {
