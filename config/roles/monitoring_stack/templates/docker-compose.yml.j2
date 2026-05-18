@@ -39,8 +39,8 @@ services:
     environment:
       - GF_SECURITY_ADMIN_USER={{ monitoring_grafana_admin_user }}
       - GF_SECURITY_ADMIN_PASSWORD={{ monitoring_grafana_admin_password }}
-      - GF_SERVER_ROOT_URL=https://grafana.{{ monitoring_mailserver_domain_resolved }}
-      - GF_SERVER_DOMAIN=grafana.{{ monitoring_mailserver_domain_resolved }}
+      - GF_SERVER_ROOT_URL=https://grafana.{{ monitoring_domain_resolved }}
+      - GF_SERVER_DOMAIN=grafana.{{ monitoring_domain_resolved }}
       - GF_SERVER_SERVE_FROM_SUB_PATH=false
       - GF_USERS_ALLOW_SIGN_UP=false
     ports:
