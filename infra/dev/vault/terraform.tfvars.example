@@ -1,4 +1,4 @@
-# Copy to terraform.tfvars and choose a VMID that is free in Proxmox.
+# Copy to terraform.tfvars only when you want to pin a specific VMID.
 # terraform.tfvars is ignored by git.
 
-vm_id = 109
+# vm_id = 109
