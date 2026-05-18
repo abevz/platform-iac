@@ -1,0 +1,10 @@
+[Unit]
+Description=Run Vault Raft snapshot backup every 6 hours
+
+[Timer]
+OnCalendar={{ vault_snapshot_on_calendar }}
+Persistent=true
+RandomizedDelaySec=300
+
+[Install]
+WantedBy=timers.target

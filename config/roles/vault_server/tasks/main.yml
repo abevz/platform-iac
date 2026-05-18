@@ -1,0 +1,149 @@
+---
+- name: Wait for apt locks to be released
+  ansible.builtin.shell:
+    cmd: |
+      while fuser /var/lib/dpkg/lock-frontend >/dev/null 2>&1; do
+        echo 'Waiting for dpkg lock...'
+        sleep 10
+      done
+      while fuser /var/lib/apt/lists/lock >/dev/null 2>&1; do
+        echo 'Waiting for apt lists lock...'
+        sleep 10
+      done
+  args:
+    executable: /bin/bash
+  when: ansible_os_family == "Debian"
+  changed_when: false
+  register: vault_wait_for_lock
+  until: vault_wait_for_lock.rc == 0
+  retries: 18
+  delay: 10
+
+- name: Install Vault prerequisites
+  ansible.builtin.apt:
+    name:
+      - ca-certificates
+      - curl
+      - gnupg
+      - jq
+      - lsb-release
+    state: present
+    update_cache: true
+  when: ansible_os_family == "Debian"
+
+- name: Install optional backup packages
+  ansible.builtin.apt:
+    name: "{{ ['awscli'] + (['rclone'] if vault_backup_rclone_enabled else []) }}"
+    state: present
+    update_cache: true
+  when:
+    - ansible_os_family == "Debian"
+    - vault_backup_s3_enabled or vault_backup_rclone_enabled
+
+- name: Install HashiCorp archive key
+  ansible.builtin.shell:
+    cmd: "curl -fsSL {{ vault_hashicorp_apt_key_url }} | gpg --dearmor -o {{ vault_hashicorp_apt_keyring }}"
+    creates: "{{ vault_hashicorp_apt_keyring }}"
+  args:
+    executable: /bin/bash
+  when: ansible_os_family == "Debian"
+
+- name: Add HashiCorp apt repository
+  ansible.builtin.apt_repository:
+    repo: "{{ vault_hashicorp_apt_repo }}"
+    state: present
+    filename: hashicorp
+  when: ansible_os_family == "Debian"
+
+- name: Install Vault package
+  ansible.builtin.apt:
+    name: "{{ vault_package_name }}"
+    state: present
+    update_cache: true
+  when: ansible_os_family == "Debian"
+
+- name: Ensure Vault directories exist
+  ansible.builtin.file:
+    path: "{{ item.path }}"
+    state: directory
+    owner: "{{ item.owner }}"
+    group: "{{ item.group }}"
+    mode: "{{ item.mode }}"
+  loop:
+    - { path: "{{ vault_config_dir }}", owner: root, group: vault, mode: "0750" }
+    - { path: "{{ vault_data_dir }}", owner: vault, group: vault, mode: "0750" }
+    - { path: "{{ vault_backup_dir }}", owner: vault, group: vault, mode: "0750" }
+
+- name: Render Vault server configuration
+  ansible.builtin.template:
+    src: vault.hcl.j2
+    dest: "{{ vault_config_dir }}/vault.hcl"
+    owner: root
+    group: vault
+    mode: "0640"
+  notify: Restart vault
+
+- name: Render Vault snapshot backup script
+  ansible.builtin.template:
+    src: vault-snapshot-backup.sh.j2
+    dest: /usr/local/sbin/vault-snapshot-backup.sh
+    owner: root
+    group: vault
+    mode: "0750"
+
+- name: Render optional Vault snapshot S3 environment
+  ansible.builtin.template:
+    src: vault-snapshot-s3.env.j2
+    dest: "{{ vault_config_dir }}/snapshot-s3.env"
+    owner: root
+    group: vault
+    mode: "0640"
+  when: vault_backup_s3_enabled
+
+- name: Remove Vault snapshot S3 environment when disabled
+  ansible.builtin.file:
+    path: "{{ vault_config_dir }}/snapshot-s3.env"
+    state: absent
+  when: not vault_backup_s3_enabled
+
+- name: Render Vault snapshot systemd service
+  ansible.builtin.template:
+    src: vault-snapshot.service.j2
+    dest: /etc/systemd/system/vault-snapshot.service
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Reload systemd
+  when: vault_snapshot_enabled
+
+- name: Render Vault snapshot systemd timer
+  ansible.builtin.template:
+    src: vault-snapshot.timer.j2
+    dest: /etc/systemd/system/vault-snapshot.timer
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Reload systemd
+  when: vault_snapshot_enabled
+
+- name: Enable and start Vault service
+  ansible.builtin.systemd:
+    name: vault
+    enabled: true
+    state: started
+
+- name: Enable Vault snapshot timer
+  ansible.builtin.systemd:
+    name: vault-snapshot.timer
+    enabled: true
+    state: started
+    daemon_reload: true
+  when: vault_snapshot_enabled
+
+- name: Disable Vault snapshot timer
+  ansible.builtin.systemd:
+    name: vault-snapshot.timer
+    enabled: false
+    state: stopped
+    daemon_reload: true
+  when: not vault_snapshot_enabled
