@@ -1,8 +1,9 @@
 ---
 - name: Resolve monitoring secrets from flat or nested vars
   ansible.builtin.set_fact:
-    monitoring_mailserver_domain_resolved: >-
-      {{ mailserver_domain | default((mailserver | default({})).get('domain', ''), true) }}
+    monitoring_domain_resolved: >-
+      {{ (platform_domains | default({})).primary
+         | default(primary_domain | default(mailserver_domain | default((mailserver | default({})).get('domain', ''), true), true), true) }}
     monitoring_proxmox_token_id_resolved: >-
       {{ monitoring_proxmox_token_id | default((monitoring | default({})).get('proxmox_token_id', ''), true) }}
     monitoring_proxmox_token_name_resolved: >-
@@ -17,12 +18,12 @@
 - name: Validate required monitoring variables
   ansible.builtin.assert:
     that:
-      - monitoring_mailserver_domain_resolved | length > 0
+      - monitoring_domain_resolved | length > 0
       - monitoring_proxmox_token_id_resolved | length > 0
       - monitoring_proxmox_token_name_resolved | length > 0
       - monitoring_proxmox_token_secret_resolved | length > 0
     fail_msg: >-
-      mailserver domain and monitoring Proxmox token variables must be provided
+      primary domain and monitoring Proxmox token variables must be provided
       via encrypted Ansible vars.
 
 - name: Ensure monitoring apt dependencies are installed

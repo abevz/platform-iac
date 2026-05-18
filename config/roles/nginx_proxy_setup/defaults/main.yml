@@ -14,6 +14,7 @@ nginx_proxy_upstreams:
   wiki_http: '{{ nginx_proxy_ips.wiki_http | default("http://10.10.10.5:3000") }}'
   plantuml_http: '{{ nginx_proxy_ips.plantuml_http | default("http://10.10.10.5:18080") }}'
   grafana_http: '{{ nginx_proxy_ips.grafana_http | default("http://10.10.10.108:3000") }}'
+  vault_http: '{{ nginx_proxy_ips.vault_http | default("http://10.10.10.109:8200") }}'
   minio_s3_api: "http://minio-server:9000"
   minio_console: "http://minio-server:9001"
   proxmox_https: '{{ nginx_proxy_ips.proxmox_https | default("https://10.10.10.101:8006") }}'
