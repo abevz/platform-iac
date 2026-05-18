@@ -8,12 +8,12 @@ Complete documentation index for the Platform Infrastructure as Code project.
 |----------|-------------|----------|
 | [Main README](../README.md) | Project overview and setup instructions | Everyone |
 | [Complete Documentation](./README.md) | Full platform documentation with workflows | Operators, Developers |
-| [Architecture Guide](./ARCHITECTURE.md) | Visual architecture and component diagrams | Architects, DevOps |
-| **[IAC Wrapper Guide](./IAC_WRAPPER.md)** ⭐ | Complete iac-wrapper.sh command reference | DevOps, Operators |
-| [Monitoring Runbook](./RUNBOOK_MONITORING.md) | Monitoring operations and alert handling | Operators, On-call |
+| [Architecture Guide](./architecture.md) | Visual architecture and component diagrams | Architects, DevOps |
+| **[IAC Wrapper Guide](./iac-wrapper.md)** ⭐ | Complete iac-wrapper.sh command reference | DevOps, Operators |
+| [Monitoring Runbook](./runbook-monitoring.md) | Monitoring operations and alert handling | Operators, On-call |
 | [Secrets Architecture](./secrets-architecture.md) | Vault/ESO runtime secrets, manual unseal, backup, and restore | Operators, DevSecOps |
 | [Architecture Decisions](./decisions/) | ADRs for secrets and observability decisions | Architects, Operators |
-| [Cheat Sheet](./CHEATSHEET.md) | Quick command reference | Daily users |
+| [Cheat Sheet](./cheatsheet.md) | Quick command reference | Daily users |
 
 ## 🎭 Role Documentation
 
@@ -92,25 +92,25 @@ Complete documentation index for the Platform Infrastructure as Code project.
 
 ### Quick References
 
-- **[Ansible Tags](./CHEATSHEET.md#ansible-tags)** - All available tags
-- **[kubectl Commands](./CHEATSHEET.md#kubernetes)** - Common kubectl usage
-- **[Debugging](./CHEATSHEET.md#debugging)** - Troubleshooting guide
-- **[Security Operations](./CHEATSHEET.md#security-operations)** - Security commands
+- **[Ansible Tags](./cheatsheet.md#ansible-tags)** - All available tags
+- **[kubectl Commands](./cheatsheet.md#kubernetes)** - Common kubectl usage
+- **[Debugging](./cheatsheet.md#debugging)** - Troubleshooting guide
+- **[Security Operations](./cheatsheet.md#security-operations)** - Security commands
 
 ## 🏗️ Architecture Documentation
 
 ### System Architecture
 
-- **[High-Level Architecture](./ARCHITECTURE.md#high-level-architecture)** - Component overview
-- **[Deployment Workflow](./ARCHITECTURE.md#deployment-workflow)** - Step-by-step flow
-- **[Security Layers](./ARCHITECTURE.md#security-layers)** - Defense in depth
-- **[Network Architecture](./ARCHITECTURE.md#network-architecture)** - Network topology
+- **[High-Level Architecture](./architecture.md#high-level-architecture)** - Component overview
+- **[Deployment Workflow](./architecture.md#deployment-workflow)** - Step-by-step flow
+- **[Security Layers](./architecture.md#security-layers)** - Defense in depth
+- **[Network Architecture](./architecture.md#network-architecture)** - Network topology
 
 ### Component Details
 
-- **[Component Dependencies](./ARCHITECTURE.md#component-dependencies)** - Dependency graph
-- **[Role Execution Flow](./ARCHITECTURE.md#role-execution-flow)** - Ansible execution order
-- **[CKS Exam Coverage](./ARCHITECTURE.md#cks-exam-coverage)** - Security certification mapping
+- **[Component Dependencies](./architecture.md#component-dependencies)** - Dependency graph
+- **[Role Execution Flow](./architecture.md#role-execution-flow)** - Ansible execution order
+- **[CKS Exam Coverage](./architecture.md#cks-exam-coverage)** - Security certification mapping
 
 ## 🔐 Security Documentation
 
@@ -119,8 +119,8 @@ Complete documentation index for the Platform Infrastructure as Code project.
 | Topic | Documentation |
 |-------|---------------|
 | Cluster Security | [README](./README.md#security-best-practices) |
-| RBAC Configuration | [CHEATSHEET](./CHEATSHEET.md#rbac) |
-| Network Policies | [CHEATSHEET](./CHEATSHEET.md#network-policies) |
+| RBAC Configuration | [cheatsheet](./cheatsheet.md#rbac) |
+| Network Policies | [cheatsheet](./cheatsheet.md#network-policies) |
 | Pod Security Standards | [README](./README.md#pod-security-standards) |
 
 ### Security Tools
@@ -134,7 +134,7 @@ Complete documentation index for the Platform Infrastructure as Code project.
 
 ### Compliance
 
-- **[CIS Benchmark](./ARCHITECTURE.md#cks-exam-coverage)** - Compliance status
+- **[CIS Benchmark](./architecture.md#cks-exam-coverage)** - Compliance status
 - **[CKS Preparation](../kubernetes/cks-prep/README.md)** - Exam resources
 - **[Security Policies](../kubernetes/policies/README.md)** - Policy examples
 
@@ -142,27 +142,27 @@ Complete documentation index for the Platform Infrastructure as Code project.
 
 ### Monitoring & Observability
 
-- **[Logs](./CHEATSHEET.md#system-logs)** - Log locations and commands
-- **[Metrics](./CHEATSHEET.md#monitoring)** - Resource monitoring
-- **[Debugging](./CHEATSHEET.md#debugging)** - Troubleshooting procedures
+- **[Logs](./cheatsheet.md#system-logs)** - Log locations and commands
+- **[Metrics](./cheatsheet.md#monitoring)** - Resource monitoring
+- **[Debugging](./cheatsheet.md#debugging)** - Troubleshooting procedures
 
 ### Maintenance
 
-- **[Certificate Management](./CHEATSHEET.md#certificate-management)** - Cert rotation
-- **[Backup & Restore](./CHEATSHEET.md#backup--restore)** - Disaster recovery
-- **[Upgrade Procedures](./CHEATSHEET.md#upgrade)** - Version upgrades
+- **[Certificate Management](./cheatsheet.md#certificate-management)** - Cert rotation
+- **[Backup & Restore](./cheatsheet.md#backup--restore)** - Disaster recovery
+- **[Upgrade Procedures](./cheatsheet.md#upgrade)** - Version upgrades
 
 ### Troubleshooting
 
 - **[Common Issues](./README.md#troubleshooting)** - FAQ and solutions
-- **[Emergency Procedures](./CHEATSHEET.md#emergency-procedures)** - Critical issues
-- **[Debug Commands](./CHEATSHEET.md#debugging)** - Diagnostic tools
+- **[Emergency Procedures](./cheatsheet.md#emergency-procedures)** - Critical issues
+- **[Debug Commands](./cheatsheet.md#debugging)** - Diagnostic tools
 
 ## 🎓 Training & Reference
 
 ### CKS Exam Preparation
 
-- **[CKS Coverage Map](./ARCHITECTURE.md#cks-exam-coverage)** - Exam domain mapping
+- **[CKS Coverage Map](./architecture.md#cks-exam-coverage)** - Exam domain mapping
 - **[Practice Resources](../kubernetes/cks-prep/README.md)** - Hands-on examples
 - **[Security Scenarios](../config/roles/falco_install_helm/README.md#test-falco-detection)** - Real-world tests
 
@@ -237,7 +237,7 @@ Links to other relevant docs
 If you find documentation issues:
 
 1. Check existing docs for updates
-2. Review the [Quick Reference](./CHEATSHEET.md)
+2. Review the [Quick Reference](./cheatsheet.md)
 3. Consult the [Troubleshooting Guide](./README.md#troubleshooting)
 4. Contact the Platform Team
 
@@ -256,8 +256,8 @@ To contribute to documentation:
 | Resource | Purpose | Location |
 |----------|---------|----------|
 | Main README | Project overview | [README.md](../README.md) |
-| Architecture Guide | System design | [ARCHITECTURE.md](./ARCHITECTURE.md) |
-| Cheat Sheet | Quick commands | [CHEATSHEET.md](./CHEATSHEET.md) |
+| Architecture Guide | System design | [architecture.md](./architecture.md) |
+| Cheat Sheet | Quick commands | [cheatsheet.md](./cheatsheet.md) |
 | Role Documentation | Ansible roles | [config/roles/](../config/roles/) |
 
 ## 🔗 Quick Links
@@ -265,9 +265,9 @@ To contribute to documentation:
 ### Most Used Documentation
 
 1. [Quick Start Guide](./README.md#quick-start)
-2. [Ansible Cheat Sheet](./CHEATSHEET.md)
+2. [Ansible Cheat Sheet](./cheatsheet.md)
 3. [Role Overview](../config/roles/README.md)
-4. [Architecture Diagrams](./ARCHITECTURE.md)
+4. [Architecture Diagrams](./architecture.md)
 5. [Troubleshooting Guide](./README.md#troubleshooting)
 
 ### Security Documentation
@@ -278,17 +278,17 @@ To contribute to documentation:
 
 ### Operations
 
-1. [Deployment Workflow](./ARCHITECTURE.md#deployment-workflow)
-2. [Maintenance Procedures](./CHEATSHEET.md#maintenance)
-3. [Emergency Procedures](./CHEATSHEET.md#emergency-procedures)
+1. [Deployment Workflow](./architecture.md#deployment-workflow)
+2. [Maintenance Procedures](./cheatsheet.md#maintenance)
+3. [Emergency Procedures](./cheatsheet.md#emergency-procedures)
 
 ---
 
 **Navigation:**
 - [← Back to Project Root](../README.md)
 - [Complete Documentation →](./README.md)
-- [Quick Reference →](./CHEATSHEET.md)
-- [Architecture →](./ARCHITECTURE.md)
+- [Quick Reference →](./cheatsheet.md)
+- [Architecture →](./architecture.md)
 
 **Last Updated**: November 2025
 **Documentation Version**: 1.0
