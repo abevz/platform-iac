@@ -3,7 +3,7 @@
 server {
     listen 80;
     listen [::]:80;
-    server_name homelab.{{ mailserver_domain | default("<your-domain>.com") }} harbor.{{ mailserver_domain | default("<your-domain>.com") }} wiki.{{ dev_domain | default("<your-dev-domain>.dev") }} gitlab.{{ mailserver_domain | default("<your-domain>.com") }} s3.minio.{{ mailserver_domain | default("<your-domain>.com") }} minio.{{ mailserver_domain | default("<your-domain>.com") }} plantuml.{{ dev_domain | default("<your-dev-domain>.dev") }} grafana.{{ mailserver_domain | default("<your-domain>.com") }};
+    server_name homelab.{{ primary_domain | default("<your-domain>.com") }} harbor.{{ primary_domain | default("<your-domain>.com") }} wiki.{{ dev_domain | default("<your-dev-domain>.dev") }} gitlab.{{ primary_domain | default("<your-domain>.com") }} s3.minio.{{ primary_domain | default("<your-domain>.com") }} minio.{{ primary_domain | default("<your-domain>.com") }} plantuml.{{ dev_domain | default("<your-dev-domain>.dev") }} grafana.{{ primary_domain | default("<your-domain>.com") }} vault.{{ primary_domain | default("<your-domain>.com") }};
 
     location /.well-known/acme-challenge/ {
         root /var/www/html;
@@ -38,11 +38,11 @@ server {
 
 server {
     listen 127.0.0.1:1443 ssl http2 proxy_protocol;
-    server_name gitlab.{{ mailserver_domain | default("<your-domain>.com") }};
+    server_name gitlab.{{ primary_domain | default("<your-domain>.com") }};
 
-    ssl_certificate /etc/letsencrypt/live/{{ mailserver_domain | default("<your-domain>.com") | replace('.', '-') }}-wildcard/fullchain.pem;
-    ssl_certificate_key /etc/letsencrypt/live/{{ mailserver_domain | default("<your-domain>.com") | replace('.', '-') }}-wildcard/privkey.pem;
-    ssl_trusted_certificate /etc/letsencrypt/live/{{ mailserver_domain | default("<your-domain>.com") | replace('.', '-') }}-wildcard/chain.pem;
+    ssl_certificate /etc/letsencrypt/live/{{ primary_domain | default("<your-domain>.com") | replace('.', '-') }}-wildcard/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/{{ primary_domain | default("<your-domain>.com") | replace('.', '-') }}-wildcard/privkey.pem;
+    ssl_trusted_certificate /etc/letsencrypt/live/{{ primary_domain | default("<your-domain>.com") | replace('.', '-') }}-wildcard/chain.pem;
 
     limit_req zone=mylimit burst=10 nodelay;
 
@@ -58,11 +58,11 @@ server {
 
 server {
     listen 127.0.0.1:1443 ssl http2 proxy_protocol;
-    server_name s3.minio.{{ mailserver_domain | default("<your-domain>.com") }};
+    server_name s3.minio.{{ primary_domain | default("<your-domain>.com") }};
 
-    ssl_certificate /etc/letsencrypt/live/s3-minio-{{ mailserver_domain | default("<your-domain>.com") | replace('.', '-') }}/fullchain.pem;
-    ssl_certificate_key /etc/letsencrypt/live/s3-minio-{{ mailserver_domain | default("<your-domain>.com") | replace('.', '-') }}/privkey.pem;
-    ssl_trusted_certificate /etc/letsencrypt/live/s3-minio-{{ mailserver_domain | default("<your-domain>.com") | replace('.', '-') }}/chain.pem;
+    ssl_certificate /etc/letsencrypt/live/s3-minio-{{ primary_domain | default("<your-domain>.com") | replace('.', '-') }}/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/s3-minio-{{ primary_domain | default("<your-domain>.com") | replace('.', '-') }}/privkey.pem;
+    ssl_trusted_certificate /etc/letsencrypt/live/s3-minio-{{ primary_domain | default("<your-domain>.com") | replace('.', '-') }}/chain.pem;
     include conf.d/ssl-params.conf;
 
     client_max_body_size 0;
@@ -106,11 +106,11 @@ server {
 
 server {
     listen 127.0.0.1:1443 ssl http2 proxy_protocol;
-    server_name minio.{{ mailserver_domain | default("<your-domain>.com") }};
+    server_name minio.{{ primary_domain | default("<your-domain>.com") }};
 
-    ssl_certificate /etc/letsencrypt/live/{{ mailserver_domain | default("<your-domain>.com") | replace('.', '-') }}-wildcard/fullchain.pem;
-    ssl_certificate_key /etc/letsencrypt/live/{{ mailserver_domain | default("<your-domain>.com") | replace('.', '-') }}-wildcard/privkey.pem;
-    ssl_trusted_certificate /etc/letsencrypt/live/{{ mailserver_domain | default("<your-domain>.com") | replace('.', '-') }}-wildcard/chain.pem;
+    ssl_certificate /etc/letsencrypt/live/{{ primary_domain | default("<your-domain>.com") | replace('.', '-') }}-wildcard/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/{{ primary_domain | default("<your-domain>.com") | replace('.', '-') }}-wildcard/privkey.pem;
+    ssl_trusted_certificate /etc/letsencrypt/live/{{ primary_domain | default("<your-domain>.com") | replace('.', '-') }}-wildcard/chain.pem;
     include conf.d/ssl-params.conf;
     limit_req zone=mylimit burst=10 nodelay;
 
@@ -129,11 +129,11 @@ server {
 
 server {
     listen 127.0.0.1:1443 ssl http2 proxy_protocol;
-    server_name harbor.{{ mailserver_domain | default("<your-domain>.com") }};
+    server_name harbor.{{ primary_domain | default("<your-domain>.com") }};
 
-    ssl_certificate /etc/letsencrypt/live/{{ mailserver_domain | default("<your-domain>.com") | replace('.', '-') }}-wildcard/fullchain.pem;
-    ssl_certificate_key /etc/letsencrypt/live/{{ mailserver_domain | default("<your-domain>.com") | replace('.', '-') }}-wildcard/privkey.pem;
-    ssl_trusted_certificate /etc/letsencrypt/live/{{ mailserver_domain | default("<your-domain>.com") | replace('.', '-') }}-wildcard/chain.pem;
+    ssl_certificate /etc/letsencrypt/live/{{ primary_domain | default("<your-domain>.com") | replace('.', '-') }}-wildcard/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/{{ primary_domain | default("<your-domain>.com") | replace('.', '-') }}-wildcard/privkey.pem;
+    ssl_trusted_certificate /etc/letsencrypt/live/{{ primary_domain | default("<your-domain>.com") | replace('.', '-') }}-wildcard/chain.pem;
     include conf.d/ssl-params.conf;
     #limit_req zone=mylimit burst=10 nodelay;
 
@@ -157,11 +157,11 @@ server {
 
 server {
     listen 127.0.0.1:1443 ssl http2 proxy_protocol;
-    server_name homelab.{{ mailserver_domain | default("<your-domain>.com") }};
+    server_name homelab.{{ primary_domain | default("<your-domain>.com") }};
 
-    ssl_certificate /etc/letsencrypt/live/{{ mailserver_domain | default("<your-domain>.com") | replace('.', '-') }}-wildcard/fullchain.pem;
-    ssl_certificate_key /etc/letsencrypt/live/{{ mailserver_domain | default("<your-domain>.com") | replace('.', '-') }}-wildcard/privkey.pem;
-    ssl_trusted_certificate /etc/letsencrypt/live/{{ mailserver_domain | default("<your-domain>.com") | replace('.', '-') }}-wildcard/chain.pem;
+    ssl_certificate /etc/letsencrypt/live/{{ primary_domain | default("<your-domain>.com") | replace('.', '-') }}-wildcard/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/{{ primary_domain | default("<your-domain>.com") | replace('.', '-') }}-wildcard/privkey.pem;
+    ssl_trusted_certificate /etc/letsencrypt/live/{{ primary_domain | default("<your-domain>.com") | replace('.', '-') }}-wildcard/chain.pem;
     include conf.d/ssl-params.conf;
 
     location / {
@@ -182,11 +182,30 @@ server {
 
 server {
     listen 127.0.0.1:1443 ssl http2 proxy_protocol;
-    server_name grafana.{{ mailserver_domain | default("<your-domain>.com") }};
+    server_name vault.{{ primary_domain | default("<your-domain>.com") }};
 
-    ssl_certificate /etc/letsencrypt/live/{{ mailserver_domain | default("<your-domain>.com") | replace('.', '-') }}-wildcard/fullchain.pem;
-    ssl_certificate_key /etc/letsencrypt/live/{{ mailserver_domain | default("<your-domain>.com") | replace('.', '-') }}-wildcard/privkey.pem;
-    ssl_trusted_certificate /etc/letsencrypt/live/{{ mailserver_domain | default("<your-domain>.com") | replace('.', '-') }}-wildcard/chain.pem;
+    ssl_certificate /etc/letsencrypt/live/{{ primary_domain | default("<your-domain>.com") | replace('.', '-') }}-wildcard/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/{{ primary_domain | default("<your-domain>.com") | replace('.', '-') }}-wildcard/privkey.pem;
+    ssl_trusted_certificate /etc/letsencrypt/live/{{ primary_domain | default("<your-domain>.com") | replace('.', '-') }}-wildcard/chain.pem;
+    include conf.d/ssl-params.conf;
+
+    location / {
+        proxy_pass {{ nginx_proxy_upstreams.vault_http }};
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+}
+
+server {
+    listen 127.0.0.1:1443 ssl http2 proxy_protocol;
+    server_name grafana.{{ primary_domain | default("<your-domain>.com") }};
+
+    ssl_certificate /etc/letsencrypt/live/{{ primary_domain | default("<your-domain>.com") | replace('.', '-') }}-wildcard/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/{{ primary_domain | default("<your-domain>.com") | replace('.', '-') }}-wildcard/privkey.pem;
+    ssl_trusted_certificate /etc/letsencrypt/live/{{ primary_domain | default("<your-domain>.com") | replace('.', '-') }}-wildcard/chain.pem;
     include conf.d/ssl-params.conf;
 
     location / {
