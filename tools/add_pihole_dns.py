@@ -7,6 +7,7 @@ import yaml
 import urllib.parse
 import os
 import requests
+import configparser
 
 def get_sops_decoded_secrets(secrets_file_path):
     """Decrypts the SOPS file and returns the data."""
@@ -409,6 +410,88 @@ def get_terraform_outputs(tf_dir):
         print(f"An unexpected error occurred in get_terraform_outputs: {e}", file=sys.stderr)
         return None, None
 
+def load_static_inventory():
+    """Load config/inventory/static.ini if present."""
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    repo_root = os.path.abspath(os.path.join(script_dir, ".."))
+    static_inventory = os.path.join(repo_root, "config", "inventory", "static.ini")
+
+    if not os.path.exists(static_inventory):
+        return None
+
+    parser = configparser.ConfigParser(allow_no_value=True, delimiters=("=",))
+    parser.optionxform = str
+
+    try:
+        parser.read(static_inventory)
+    except configparser.Error:
+        return None
+
+    return parser
+
+def get_static_nginx_proxy_var(name):
+    """Return one variable from [nginx_proxies:vars]."""
+    parser = load_static_inventory()
+    if not parser or not parser.has_section("nginx_proxies:vars"):
+        return None
+
+    if parser.has_option("nginx_proxies:vars", name):
+        return parser.get("nginx_proxies:vars", name)
+
+    return None
+
+def get_domain_name(secrets):
+    """Return the primary domain from Ansible/SOPS-style vars."""
+    platform_domains = secrets.get("platform_domains")
+    if isinstance(platform_domains, dict) and platform_domains.get("primary"):
+        return platform_domains["primary"]
+
+    for key in ("primary_domain", "server_domain", "domain", "mailserver_domain"):
+        value = secrets.get(key)
+        if isinstance(value, str) and value:
+            return value
+
+    static_primary_domain = get_static_nginx_proxy_var("primary_domain")
+    if static_primary_domain:
+        return static_primary_domain
+
+    mailserver = secrets.get("mailserver")
+    if isinstance(mailserver, dict) and mailserver.get("domain"):
+        return mailserver["domain"]
+
+    return None
+
+def get_static_nginx_proxy_ip():
+    """Return the first host in config/inventory/static.ini [nginx_proxies]."""
+    parser = load_static_inventory()
+    if not parser:
+        return None
+
+    if not parser.has_section("nginx_proxies"):
+        return None
+
+    for raw_host in parser.options("nginx_proxies"):
+        host = raw_host.split()[0].strip()
+        if host and not host.startswith("#"):
+            return host
+
+    return None
+
+def get_proxy_ip(secrets, explicit_proxy_ip=None):
+    """Return the IP that FQDN records should point to for TLS termination."""
+    if explicit_proxy_ip:
+        return explicit_proxy_ip
+
+    pihole_data = secrets.get("pihole")
+    if isinstance(pihole_data, dict) and pihole_data.get("proxy_ip"):
+        return pihole_data["proxy_ip"]
+
+    nginx_proxy = secrets.get("nginx_proxy")
+    if isinstance(nginx_proxy, dict) and nginx_proxy.get("ip_address"):
+        return nginx_proxy["ip_address"]
+
+    return get_static_nginx_proxy_ip()
+
 def load_sops_secrets(custom_secrets_file_path=None, debug=False): # Add debug parameter
     """Loads secrets from the SOPS file.
     Uses custom_secrets_file_path if provided, otherwise defaults to
@@ -487,6 +570,19 @@ def main():
     parser.add_argument(
         "--domain-suffix",
         help="Filter DNS records by this domain suffix (e.g., '<your-domain>.com'). Used to identify cluster records."
+    )
+    parser.add_argument(
+        "--proxy-fqdn-for-short-hosts",
+        action="store_true",
+        help="Also register <short-host>.<domain> records pointing to the nginx proxy IP."
+    )
+    parser.add_argument(
+        "--proxy-ip",
+        help="Proxy IP for --proxy-fqdn-for-short-hosts. Defaults to pihole.proxy_ip, nginx_proxy.ip_address, or config/inventory/static.ini [nginx_proxies]."
+    )
+    parser.add_argument(
+        "--fqdn-domain",
+        help="Domain for --proxy-fqdn-for-short-hosts. Defaults to platform_domains.primary, primary_domain, server_domain, domain, mailserver_domain, or mailserver.domain from secrets."
     )
     parser.add_argument(
         "--debug",
@@ -570,6 +666,25 @@ def main():
     terraform_records = []
     for ip, domain in zip(vm_ipv4_addresses_output, vm_fqdns_output):
         terraform_records.append({"domain": domain, "ip": ip})
+
+    if args.proxy_fqdn_for_short_hosts:
+        fqdn_domain = args.fqdn_domain or get_domain_name(secrets)
+        proxy_ip = get_proxy_ip(secrets, explicit_proxy_ip=args.proxy_ip)
+
+        if not fqdn_domain:
+            print("Error: Unable to resolve FQDN domain for proxy DNS records.", file=sys.stderr)
+            sys.exit(1)
+        if not proxy_ip:
+            print("Error: Unable to resolve proxy IP for proxy DNS records.", file=sys.stderr)
+            sys.exit(1)
+
+        for domain in vm_fqdns_output:
+            if "." in domain:
+                continue
+            terraform_records.append({
+                "domain": f"{domain}.{fqdn_domain}",
+                "ip": proxy_ip
+            })
     #    print(f"ERROR: vm_fqdns_output (type: {type(vm_fqdns_output)}) and vm_ipv4_addresses_output (type: {type(vm_ipv4_addresses_output)}) are of incompatible or mixed types. Both must be lists or both must be dictionaries.")
     #    sys.exit(1)
 

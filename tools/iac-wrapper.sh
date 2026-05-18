@@ -338,7 +338,12 @@ apply)
 
   # Call Python script, passing Tofu dir and Ansible secrets file
   # (as it contains pihole.web_password)
-  if ! python3 "$PYTHON_DNS_SCRIPT" --action "add" --tf-dir "$TERRAFORM_DIR" --secrets-file "$ANSIBLE_SECRETS_FILE"; then
+  DNS_ARGS=()
+  if [ "$COMPONENT" == "vault" ]; then
+    DNS_ARGS+=(--proxy-fqdn-for-short-hosts)
+  fi
+
+  if ! python3 "$PYTHON_DNS_SCRIPT" --action "add" --tf-dir "$TERRAFORM_DIR" --secrets-file "$ANSIBLE_SECRETS_FILE" "${DNS_ARGS[@]}"; then
     log "🚨 Error: Failed to register DNS records in Pi-hole."
     exit 1
   fi
@@ -599,7 +604,12 @@ plan | destroy)
 
     # Call Python script with 'unregister-dns' action
     # It reads Tofu state (via tofu output) to find hosts to delete
-    if ! python3 "$PYTHON_DNS_SCRIPT" --action "unregister-dns" --tf-dir "$TERRAFORM_DIR" --secrets-file "$ANSIBLE_SECRETS_FILE"; then
+    DNS_ARGS=()
+    if [ "$COMPONENT" == "vault" ]; then
+      DNS_ARGS+=(--proxy-fqdn-for-short-hosts)
+    fi
+
+    if ! python3 "$PYTHON_DNS_SCRIPT" --action "unregister-dns" --tf-dir "$TERRAFORM_DIR" --secrets-file "$ANSIBLE_SECRETS_FILE" "${DNS_ARGS[@]}"; then
       log "⚠️  Warning: Failed to remove DNS records from Pi-hole. (Continuing with destroy...)"
       # We do NOT exit (exit 1) so destroy runs anyway
     else
