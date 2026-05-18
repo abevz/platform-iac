@@ -1,0 +1,4 @@
+# Copy to terraform.tfvars and choose a VMID that is free in Proxmox.
+# terraform.tfvars is ignored by git.
+
+vm_id = 109
