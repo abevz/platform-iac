@@ -2,6 +2,93 @@
 
 > **Platform Infrastructure as Code** - Universal IaC solution for managing all virtual machines on Proxmox VE with automated provisioning, configuration management, and security hardening.
 
+## Executive Summary
+
+`platform-iac` is a production-like Platform Engineering lab that
+automates the lifecycle of Proxmox-based infrastructure using
+OpenTofu, Ansible, and SOPS.
+
+It provisions virtual machines, generates dynamic Ansible inventory,
+bootstraps Kubernetes clusters, integrates Harbor registry, automates
+DNS through Pi-hole, deploys observability tooling, and applies
+Kubernetes security hardening practices.
+
+## Why This Project Matters
+
+This repository demonstrates how I design, provision, configure,
+secure, and operate infrastructure using Infrastructure as Code,
+Configuration Management, GitOps, secrets management, and observability
+practices in a homelab environment that mirrors production platform
+engineering problems.
+
+## For Recruiters And Interviewers
+
+This project highlights practical experience with:
+
+- Infrastructure as Code with OpenTofu/Terraform
+- Configuration Management with Ansible
+- Proxmox-based virtualization
+- Kubernetes cluster bootstrap with kubeadm
+- GitOps deployment with ArgoCD
+- Secure secrets management with SOPS and Vault/ESO architecture
+- Container registry integration with Harbor
+- Runtime and image security with Falco, Trivy, and kube-bench
+- Observability with Prometheus, Grafana, Alertmanager, and platform-owned rules
+- DNS automation with Pi-hole
+- Repository workflow with worktrees, PRs, pre-commit, and documented ADRs
+
+## Architecture At A Glance
+
+```mermaid
+flowchart LR
+  operator[Operator workstation]
+  wrapper[tools/iac-wrapper.sh]
+  tofu[OpenTofu]
+  ansible[Ansible]
+  sops[SOPS secrets]
+  proxmox[Proxmox VE]
+  k8s[Kubernetes cluster]
+  services[Platform services]
+  monitoring[Monitoring VM]
+
+  operator --> wrapper
+  wrapper --> sops
+  wrapper --> tofu
+  wrapper --> ansible
+  tofu --> proxmox
+  proxmox --> k8s
+  ansible --> k8s
+  ansible --> services
+  ansible --> monitoring
+  services --> k8s
+```
+
+## Current Status
+
+| Capability | Status |
+|---|---|
+| Proxmox VM provisioning | Implemented |
+| Dynamic Ansible inventory from OpenTofu outputs | Implemented |
+| Kubernetes bootstrap with kubeadm | Implemented |
+| Harbor registry integration | Implemented |
+| Pi-hole DNS automation | Implemented |
+| Monitoring VM with Prometheus/Grafana/Alertmanager | Implemented |
+| Kubernetes security tooling | Implemented |
+| Vault/ESO runtime secrets architecture | Documented |
+| Kubernetes-native observability overlays | Documented |
+| Terraform/OpenTofu tests | Planned |
+| Molecule role tests | Planned |
+
+## What This Demonstrates
+
+- Designing reusable Infrastructure as Code components
+- Automating VM provisioning on Proxmox VE
+- Managing secrets securely with SOPS and keeping runtime secrets out of Git
+- Bootstrapping Kubernetes clusters with kubeadm
+- Installing CNI, GitOps, monitoring, and security tooling
+- Building idempotent Ansible roles and playbooks
+- Operating a homelab as a production-like platform
+
 ## Overview
 
 `platform-iac` is a comprehensive **Infrastructure as Code (IaC)** and **Configuration Management (CM)** solution for managing **all virtual infrastructure** on **Proxmox VE**. This includes Kubernetes clusters, database servers (Percona XtraDB, PostgreSQL), GitLab instances, mail servers, application servers, and any other VM-based workloads.
@@ -20,10 +107,11 @@ The entire process is orchestrated by a master wrapper script (`tools/iac-wrappe
 ### 🎯 Quick Access
 
 - **[📖 Complete Documentation](docs/README.md)** - Full platform guide with workflows
-- **[🛠️ IAC Wrapper Guide](docs/IAC_WRAPPER.md)** ⭐ - Central orchestration script reference
-- **[⚡ Quick Reference](docs/CHEATSHEET.md)** - Command cheat sheet for daily use
-- **[🏗️ Architecture](docs/ARCHITECTURE.md)** - Visual diagrams and system design
-- **[📑 Documentation Index](docs/INDEX.md)** - Complete documentation catalog
+- **[🛠️ IAC Wrapper Guide](docs/iac-wrapper.md)** ⭐ - Central orchestration script reference
+- **[⚡ Quick Reference](docs/cheatsheet.md)** - Command cheat sheet for daily use
+- **[🏗️ Architecture](docs/architecture.md)** - Visual diagrams and system design
+- **[📑 Documentation Index](docs/index.md)** - Complete documentation catalog
+- **[🔐 Secrets Architecture](docs/secrets-architecture.md)** - Vault/ESO runtime secrets and backup model
 
 ### 🎭 Role Documentation
 
@@ -256,7 +344,6 @@ This is the primary command. It creates the VMs, registers DNS, and runs the ful
 ### Run Ansible Only (Configure Existing VMs)
 
 If you have made a change to an Ansible role and want to re-run the configuration without destroying the VMs, use `configure`.
-# Test diff
 
 ```bash
 # Usage: ./tools/iac-wrapper.sh configure <env> <component> [limit]
@@ -333,5 +420,3 @@ The `apply` command triggers the main `setup_k8s-lab-01.yml` playbook, which exe
 
 - Installs the `trivy` package on the control plane host.
   - Deploys the `trivy-operator` into the cluster via Helm.
-
-- Documentation updated via worktree
