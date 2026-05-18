@@ -1,0 +1,21 @@
+ui = true
+disable_mlock = false
+
+storage "raft" {
+  path    = "{{ vault_data_dir }}"
+  node_id = "{{ inventory_hostname }}"
+}
+
+listener "tcp" {
+  address         = "{{ vault_listener_address }}:{{ vault_api_port }}"
+  cluster_address = "{{ vault_listener_address }}:{{ vault_cluster_port }}"
+  tls_disable     = {{ vault_tls_disable | ternary("true", "false") }}
+}
+
+api_addr     = "{{ vault_api_addr }}"
+cluster_addr = "{{ vault_cluster_addr }}"
+
+telemetry {
+  prometheus_retention_time = "24h"
+  disable_hostname          = true
+}

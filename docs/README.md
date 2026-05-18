@@ -15,6 +15,7 @@ Complete documentation for the Platform Infrastructure as Code project - a unive
 - [argocd_install](../config/roles/argocd_install/README.md) - GitOps with ArgoCD
 - [falco_install_helm](../config/roles/falco_install_helm/README.md) - Runtime security monitoring
 - [kube_bench_run](../config/roles/kube_bench_run/README.md) - CIS benchmark compliance
+- [vault_server](../config/roles/vault_server/README.md) - Vault server with manual unseal and Raft snapshots
 
 ### Security & Compliance
 - [CKS Preparation](../kubernetes/cks-prep/README.md) - Certified Kubernetes Security Specialist resources
