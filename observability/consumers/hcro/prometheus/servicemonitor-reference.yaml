@@ -1,0 +1,62 @@
+# ServiceMonitor for HCRO
+#
+# Reference template — the actual ServiceMonitor CR is owned by HCRO
+# itself (lives in HCRO repo under config/observability/servicemonitor.yaml
+# per ADR-006). This file documents the expected shape so the platform
+# operator can verify or fall back to static scrape config when
+# Prometheus Operator is not available.
+#
+# When the HCRO Application is synced by ArgoCD, the ServiceMonitor
+# below is applied; Prometheus Operator discovers it via the label
+# selector configured in the kube-prometheus-stack release.
+
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: hcro-controller
+  namespace: hcro-system
+  labels:
+    release: kube-prometheus-stack  # must match Prometheus selector
+    app.kubernetes.io/name: hybrid-cloud-optimizer
+    app.kubernetes.io/component: controller
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: hybrid-cloud-optimizer
+      control-plane: controller-manager
+  namespaceSelector:
+    matchNames:
+      - hcro-system
+  endpoints:
+    - port: metrics   # service port name on the HCRO controller Service
+      interval: 30s
+      scheme: http
+      path: /metrics
+      # Drop high-cardinality labels just in case a consumer regresses.
+      # HCRO's NFR-002 already forbids these, this is defense in depth.
+      metricRelabelings:
+        - action: labeldrop
+          regex: (workload|pod_name|instance_id)
+
+# --- Fallback: static scrape config (non-Operator clusters) ---
+#
+# If kube-prometheus-stack is not installed, add the following to the
+# Prometheus config under `scrape_configs:` instead of relying on
+# ServiceMonitor discovery:
+#
+# - job_name: hcro-controller
+#   kubernetes_sd_configs:
+#     - role: endpoints
+#       namespaces:
+#         names:
+#           - hcro-system
+#   relabel_configs:
+#     - source_labels: [__meta_kubernetes_service_label_app_kubernetes_io_name]
+#       action: keep
+#       regex: hybrid-cloud-optimizer
+#     - source_labels: [__meta_kubernetes_endpoint_port_name]
+#       action: keep
+#       regex: metrics
+#   metric_relabel_configs:
+#     - action: labeldrop
+#       regex: (workload|pod_name|instance_id)
