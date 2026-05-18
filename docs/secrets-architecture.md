@@ -52,7 +52,7 @@ MVP does **not** require AWS KMS, AWS access keys, or AWS S3.
 
 ### 1. Provision Vault VM
 
-Planned component:
+MVP component:
 
 ```text
 infra/dev/vault/
@@ -60,9 +60,10 @@ config/playbooks/setup_vault.yml
 config/roles/vault_server/
 ```
 
-Expected wrapper shape:
+Wrapper path:
 
 ```bash
+./tools/iac-wrapper.sh plan dev vault
 ./tools/iac-wrapper.sh apply dev vault
 ./tools/iac-wrapper.sh configure dev vault vault_servers
 ```
@@ -260,6 +261,7 @@ working.
 
 ## Verification Checklist
 
+- [ ] `./tools/iac-wrapper.sh plan dev vault` shows only the Vault VM and cloud-init snippet
 - [ ] Vault VM is provisioned by `./tools/iac-wrapper.sh apply dev vault`
 - [ ] Vault initializes with 5 shares / threshold 3
 - [ ] Reboot leaves Vault sealed until manual unseal
