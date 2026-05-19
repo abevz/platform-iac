@@ -152,6 +152,22 @@
     state: absent
   when: not vault_backup_s3_enabled
 
+- name: Render optional Vault snapshot rclone configuration
+  ansible.builtin.template:
+    src: vault-rclone.conf.j2
+    dest: "{{ vault_backup_rclone_config_file }}"
+    owner: root
+    group: vault
+    mode: "0640"
+  when: vault_backup_rclone_enabled
+  no_log: true
+
+- name: Remove Vault snapshot rclone configuration when disabled
+  ansible.builtin.file:
+    path: "{{ vault_backup_rclone_config_file }}"
+    state: absent
+  when: not vault_backup_rclone_enabled
+
 - name: Render Vault snapshot systemd service
   ansible.builtin.template:
     src: vault-snapshot.service.j2
