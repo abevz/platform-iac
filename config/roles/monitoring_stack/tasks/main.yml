@@ -181,6 +181,29 @@
   notify: Restart monitoring stack
   become: true
 
+- name: Download Grafana dashboards from grafana.com
+  ansible.builtin.get_url:
+    url: "https://grafana.com/api/dashboards/{{ item.id }}/revisions/latest/download"
+    dest: "{{ monitoring_install_dir }}/grafana/dashboards/{{ item.name }}.json"
+    mode: "0644"
+    force: true
+  loop: "{{ monitoring_grafana_dashboards }}"
+  loop_control:
+    label: "{{ item.name }} (id={{ item.id }})"
+  notify: Restart monitoring stack
+  become: true
+
+- name: Bind downloaded dashboards to Prometheus datasource
+  ansible.builtin.replace:
+    path: "{{ monitoring_install_dir }}/grafana/dashboards/{{ item.name }}.json"
+    regexp: '"\$\{DS_PROMETHEUS\}"'
+    replace: '"{{ monitoring_grafana_datasource_uid }}"'
+  loop: "{{ monitoring_grafana_dashboards }}"
+  loop_control:
+    label: "{{ item.name }}"
+  notify: Restart monitoring stack
+  become: true
+
 - name: Render monitoring docker compose file
   ansible.builtin.template:
     src: docker-compose.yml.j2
