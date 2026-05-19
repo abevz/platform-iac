@@ -223,8 +223,22 @@ Current proven flow:
   -> vaults3:vault-backups/raft/vault-raft-*.snap
 ```
 
-The next backup layer is encrypted offsite copy with `rclone crypt`; plain
-Vault snapshots must not be copied directly to Google Drive.
+Encrypted offsite copy is implemented with `rclone crypt`. Plain Vault snapshots
+must not be copied directly to Google Drive. The current offsite target is:
+
+```text
+gdrive:99_Archive/Backups/Vault/vault-backups
+  -> vaultgdrivecrypt:raft/vault-raft-*.snap
+```
+
+The snapshot service verifies the encrypted object through the crypt remote
+after upload.
+
+Recovery warning: the encrypted Google Drive files are not self-describing.
+Restoring from another machine requires the rclone config for both the Google
+Drive remote and the crypt remote. In this repo the recovery material is stored
+as SOPS-managed `vault_backup_rclone_config`. If the crypt passwords are lost,
+the offsite objects cannot be decrypted.
 
 ## Restore Drill
 
