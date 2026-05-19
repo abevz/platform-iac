@@ -11,6 +11,16 @@ monitoring_k8s_clusters: []
 monitoring_k8s_node_exporter_port: 9100
 monitoring_k8s_kube_state_metrics_nodeport: 30080
 
+# Grafana dashboards to provision from grafana.com.
+# Each entry downloads the latest revision and replaces the
+# ${DS_PROMETHEUS} placeholder with the real datasource uid.
+monitoring_grafana_dashboards:
+  - id: 1860
+    name: node-exporter-full
+  - id: 15661
+    name: kubernetes-cluster
+monitoring_grafana_datasource_uid: prometheus
+
 monitoring_prometheus_image: prom/prometheus:v2.55.0
 monitoring_grafana_image: grafana/grafana:11.2.0
 monitoring_alertmanager_image: prom/alertmanager:v0.27.0
