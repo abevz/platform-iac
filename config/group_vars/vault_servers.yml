@@ -1,4 +1,0 @@
----
-vault_firewall_enabled: true
-vault_firewall_allowed_api_sources:
-  - "192.0.2.105"  # nginx reverse proxy
