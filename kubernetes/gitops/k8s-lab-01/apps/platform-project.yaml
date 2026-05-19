@@ -7,6 +7,7 @@ spec:
   description: Platform GitOps project for k8s-lab-01
   sourceRepos:
     - https://gitlab.example.com/abevz/platform-iac-gitops.git
+    - https://kubernetes-sigs.github.io/metrics-server/
   destinations:
     - namespace: "*"
       server: https://kubernetes.default.svc
