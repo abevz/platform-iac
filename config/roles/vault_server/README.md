@@ -109,3 +109,63 @@ vault_awscli_enabled: true
 The role installs AWS CLI v2 from the official AWS installer because some
 Debian/Ubuntu images do not provide an `awscli` package in the enabled apt
 repositories.
+
+## Encrypted Offsite Copy
+
+MinIO is the fast local restore target. The offsite copy must be encrypted
+before it leaves the homelab. Enable it with an rclone config stored in SOPS:
+
+```yaml
+vault_backup_rclone_enabled: true
+vault_backup_rclone_target: "vaultgdrivecrypt:raft"
+vault_backup_rclone_config: |
+  [gdrive]
+  type = drive
+  scope = drive
+  token = {"access_token":"example","token_type":"Bearer","refresh_token":"example","expiry":"2099-01-01T00:00:00Z"}
+
+  [vaultgdrivecrypt]
+  type = crypt
+  remote = gdrive:99_Archive/Backups/Vault/vault-backups
+  password = obscured-password
+  password2 = obscured-salt
+```
+
+The role renders the config to `/etc/vault.d/rclone.conf` with mode `0640`.
+The snapshot service copies the same local snapshot to the configured encrypted
+target and verifies that the encrypted object is listed there.
+
+Verify after configuration:
+
+```bash
+sudo systemctl start vault-snapshot.service
+sudo journalctl -u vault-snapshot.service -n 100 --no-pager
+sudo rclone --config /etc/vault.d/rclone.conf lsf vaultgdrivecrypt:raft --files-only
+```
+
+Verified on 2026-05-19:
+
+```text
+Copied encrypted snapshot to rclone target: vaultgdrivecrypt:raft/vault-raft-20260519T062127Z.snap
+```
+
+Recovery requirement:
+
+- To decrypt the offsite backup on another machine, you need the rclone
+  configuration for both the Google Drive remote and the `vaultgdrivecrypt`
+  crypt remote.
+- In this project that config is stored in SOPS as `vault_backup_rclone_config`
+  and rendered to `/etc/vault.d/rclone.conf`.
+- Losing the crypt remote passwords makes the Google Drive objects useless even
+  if the files are still present.
+- Store the SOPS decryption key material and a recovery copy of the rclone crypt
+  config outside the Vault VM.
+
+Minimal recovery check on another machine:
+
+```bash
+rclone --config ./rclone.conf lsf vaultgdrivecrypt:raft --files-only
+rclone --config ./rclone.conf copyto \
+  vaultgdrivecrypt:raft/vault-raft-YYYYMMDDTHHMMSSZ.snap \
+  ./vault-restore-test.snap
+```
