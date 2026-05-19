@@ -1,0 +1,10 @@
+---
+argocd_namespace: "argocd"
+argocd_project_name: "platform-lab"
+argocd_root_app_name: "platform-root"
+argocd_root_app_namespace: "{{ argocd_namespace }}"
+argocd_repo_url: "https://github.com/abevz/platform-iac.git"
+argocd_target_revision: "main"
+argocd_root_app_path: "kubernetes/gitops/k8s-lab-01/apps"
+argocd_destination_server: "https://kubernetes.default.svc"
+argocd_source_namespace: "argocd"

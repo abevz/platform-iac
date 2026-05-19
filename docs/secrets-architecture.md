@@ -206,6 +206,42 @@ dns:
 `tools/iac-wrapper.sh` maps that value into OpenTofu as `vm_dns_server`. It
 still falls back to `pihole.ip_address` for backward compatibility.
 
+## ArgoCD App-Of-Apps
+
+After ESO and Vault auth are working, ArgoCD can take over the GitOps-safe
+Kubernetes resources.
+
+Wrapper flow:
+
+```bash
+./tools/iac-wrapper.sh run-playbook dev k8s-lab-01 install_argocd.yml k8s_master
+./tools/iac-wrapper.sh run-playbook dev k8s-lab-01 bootstrap_argocd_apps.yml k8s_master
+```
+
+Current manifest layout:
+
+```text
+kubernetes/gitops/k8s-lab-01/
+  apps/
+    platform-project.yaml
+    external-secrets-config.yaml
+  external-secrets-config/
+    namespace-sandbox-secrets.yaml
+    clustersecretstore-vault-backend.yaml
+    externalsecret-vault-sandbox-example.yaml
+```
+
+The initial scope is intentionally narrow:
+
+- root app `platform-root`
+- project `platform-lab`
+- child app `external-secrets-config`
+- Git-managed `ClusterSecretStore/vault-backend`
+- Git-managed sandbox `ExternalSecret`
+
+That gives a real app-of-apps entry point without trying to migrate every
+cluster add-on into ArgoCD in one operation.
+
 Consumer responsibilities:
 
 - commit `ExternalSecret` resources

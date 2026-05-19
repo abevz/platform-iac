@@ -1,0 +1,77 @@
+---
+- name: Apply ArgoCD AppProject
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: argoproj.io/v1alpha1
+      kind: AppProject
+      metadata:
+        name: "{{ argocd_project_name }}"
+        namespace: "{{ argocd_namespace }}"
+      spec:
+        description: "Platform GitOps project for k8s-lab-01"
+        sourceRepos:
+          - "{{ argocd_repo_url }}"
+        destinations:
+          - namespace: "*"
+            server: "{{ argocd_destination_server }}"
+        clusterResourceWhitelist:
+          - group: "*"
+            kind: "*"
+        namespaceResourceWhitelist:
+          - group: "*"
+            kind: "*"
+
+- name: Apply ArgoCD root Application
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: argoproj.io/v1alpha1
+      kind: Application
+      metadata:
+        name: "{{ argocd_root_app_name }}"
+        namespace: "{{ argocd_root_app_namespace }}"
+      spec:
+        project: "{{ argocd_project_name }}"
+        source:
+          repoURL: "{{ argocd_repo_url }}"
+          targetRevision: "{{ argocd_target_revision }}"
+          path: "{{ argocd_root_app_path }}"
+        destination:
+          server: "{{ argocd_destination_server }}"
+          namespace: "{{ argocd_source_namespace }}"
+        syncPolicy:
+          automated:
+            prune: true
+            selfHeal: true
+          syncOptions:
+            - CreateNamespace=true
+
+- name: Wait for root Application to appear
+  ansible.builtin.command:
+    cmd: >-
+      kubectl get application {{ argocd_root_app_name }}
+      -n {{ argocd_root_app_namespace }}
+  register: argocd_root_app_status
+  retries: 20
+  delay: 5
+  until: argocd_root_app_status.rc == 0
+  changed_when: false
+
+- name: Show root Application summary
+  ansible.builtin.command:
+    cmd: >-
+      kubectl get application {{ argocd_root_app_name }}
+      -n {{ argocd_root_app_namespace }}
+      -o jsonpath={.status.sync.status}:{.status.health.status}
+  register: argocd_root_app_summary
+  changed_when: false
+
+- name: Display bootstrap result
+  ansible.builtin.debug:
+    msg:
+      - "ArgoCD project: {{ argocd_project_name }}"
+      - "Root application: {{ argocd_root_app_namespace }}/{{ argocd_root_app_name }}"
+      - "Repository: {{ argocd_repo_url }}"
+      - "Path: {{ argocd_root_app_path }}"
+      - "Status: {{ argocd_root_app_summary.stdout | default('Unknown') }}"
