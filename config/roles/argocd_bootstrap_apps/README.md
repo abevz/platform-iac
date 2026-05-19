@@ -27,7 +27,9 @@ Then bootstrap the root app:
 The initial root app manages a safe, narrow slice:
 
 - `AppProject/platform-lab`
+- child app `argocd-config`
 - child app `external-secrets-config`
+- ArgoCD custom health checks for ESO CRDs
 - `ClusterSecretStore/vault-backend`
 - sandbox `ExternalSecret`
 
