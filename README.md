@@ -39,58 +39,49 @@ This project highlights practical experience with:
 
 ## Architecture At A Glance
 
+Two views: how the platform is provisioned, and how it runs.
+
+### Day 1 — Provisioning & configuration
+
+```mermaid
+flowchart TD
+  op[Operator] --> wrapper[iac-wrapper.sh]
+  wrapper -- decrypts --> sops[(SOPS)]
+  wrapper --> tofu[OpenTofu]
+  wrapper --> ansible[Ansible]
+  tofu -- creates VMs --> pve[Proxmox VE]
+  tofu -- outputs JSON --> inv[tofu_inventory.py]
+  inv -- dynamic inventory --> ansible
+  ansible -- configures --> pve
+```
+
+### Day 2+ — Runtime topology
+
 ```mermaid
 flowchart LR
-  subgraph workstation[Operator workstation]
-    wrapper[tools/iac-wrapper.sh]
-    sops[(SOPS secrets)]
-    tofu[OpenTofu]
-    ansible[Ansible]
-    inv[tofu_inventory.py]
-  end
-
-  subgraph proxmox[Proxmox VE]
-    k8s[k8s-lab-01 cluster]
-    vault[Vault VM]
-    monitoring[Monitoring VM<br/>Prometheus + Grafana]
-    gitlab[GitLab VM<br/>private]
-    nginx[Nginx proxy]
-  end
-
-  subgraph gitops[In-cluster GitOps]
+  subgraph k8s[k8s-lab-01]
     argocd[ArgoCD]
-    eso[External Secrets Operator]
-    exporters[node-exporter + kube-state-metrics]
-    metrics[metrics-server]
+    eso[ESO]
+    exp[node-exporter +<br/>kube-state-metrics]
+    ms[metrics-server]
   end
 
-  wrapper --> sops
-  wrapper --> tofu
-  wrapper --> ansible
-  wrapper --> inv
-  tofu -- provisions VMs --> proxmox
-  inv -- dynamic inventory --> ansible
-  ansible -- configures --> k8s
-  ansible -- configures --> vault
-  ansible -- configures --> monitoring
-  ansible -- configures --> nginx
+  gitlab[(GitLab<br/>platform-iac-gitops)]
+  vault[(Vault)]
+  prom[Prometheus<br/>on monitoring VM]
+  grafana[Grafana]
+  nginx[Nginx proxy<br/>*.bevz.net]
 
   argocd -- pulls manifests --> gitlab
   argocd -- deploys --> eso
-  argocd -- deploys --> exporters
-  argocd -- deploys --> metrics
+  argocd -- deploys --> exp
+  argocd -- deploys --> ms
   eso -- reads secrets --> vault
-
-  monitoring -- scrape :9100 / :30080 --> exporters
-  monitoring -- reads node IPs from --> tofu
-  nginx -- reverse proxy --> vault
-  nginx -- reverse proxy --> gitlab
-  nginx -- reverse proxy --> monitoring
-
-  k8s -. hosts .- argocd
-  k8s -. hosts .- eso
-  k8s -. hosts .- exporters
-  k8s -. hosts .- metrics
+  prom -- scrape :9100 / :30080 --> exp
+  prom --> grafana
+  nginx -. https .-> vault
+  nginx -. https .-> gitlab
+  nginx -. https .-> grafana
 ```
 
 ## Current Status
