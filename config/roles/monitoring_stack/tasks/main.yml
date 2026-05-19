@@ -196,7 +196,7 @@
 - name: Bind downloaded dashboards to Prometheus datasource
   ansible.builtin.replace:
     path: "{{ monitoring_install_dir }}/grafana/dashboards/{{ item.name }}.json"
-    regexp: '"\$\{DS_PROMETHEUS\}"'
+    regexp: '"\$\{DS_[A-Z0-9_-]+\}"'
     replace: '"{{ monitoring_grafana_datasource_uid }}"'
   loop: "{{ monitoring_grafana_dashboards }}"
   loop_control:
