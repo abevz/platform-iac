@@ -1,0 +1,235 @@
+---
+- name: Require Vault admin token for ESO bootstrap
+  ansible.builtin.assert:
+    that:
+      - vault_eso_admin_token | length > 0
+    fail_msg: >-
+      vault_eso_admin_token is required to configure Vault Kubernetes auth,
+      Vault role and policy, and the sandbox secret.
+
+- name: Ensure token reviewer service account exists
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: v1
+      kind: ServiceAccount
+      metadata:
+        name: "{{ vault_eso_token_reviewer_service_account_name }}"
+        namespace: "{{ vault_eso_namespace }}"
+
+- name: Ensure token reviewer ClusterRoleBinding exists
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: rbac.authorization.k8s.io/v1
+      kind: ClusterRoleBinding
+      metadata:
+        name: "{{ vault_eso_token_reviewer_service_account_name }}"
+      subjects:
+        - kind: ServiceAccount
+          name: "{{ vault_eso_token_reviewer_service_account_name }}"
+          namespace: "{{ vault_eso_namespace }}"
+      roleRef:
+        apiGroup: rbac.authorization.k8s.io
+        kind: ClusterRole
+        name: system:auth-delegator
+
+- name: Wait for ESO controller service account
+  kubernetes.core.k8s_info:
+    api_version: v1
+    kind: ServiceAccount
+    name: "{{ vault_eso_service_account_name }}"
+    namespace: "{{ vault_eso_namespace }}"
+  register: vault_eso_controller_sa
+  retries: 20
+  delay: 5
+  until: vault_eso_controller_sa.resources | length > 0
+
+- name: Create token reviewer JWT
+  ansible.builtin.command:
+    cmd: >-
+      kubectl create token {{ vault_eso_token_reviewer_service_account_name }}
+      -n {{ vault_eso_namespace }}
+  register: vault_eso_token_reviewer_jwt
+  changed_when: false
+
+- name: Read Kubernetes API server URL
+  ansible.builtin.set_fact:
+    vault_eso_kubernetes_host: "https://{{ ansible_host }}:6443"
+  changed_when: false
+
+- name: Read Kubernetes CA bundle
+  ansible.builtin.shell:
+    cmd: >-
+      kubectl config view --minify --raw
+      -o jsonpath='{.clusters[0].cluster.certificate-authority-data}'
+      | base64 -d
+  args:
+    executable: /bin/bash
+  register: vault_eso_kubernetes_ca
+  changed_when: false
+
+- name: Check existing Vault auth mounts
+  ansible.builtin.uri:
+    url: "{{ vault_eso_vault_server }}/v1/sys/auth"
+    method: GET
+    headers:
+      X-Vault-Token: "{{ vault_eso_admin_token }}"
+    return_content: true
+    status_code: 200
+  register: vault_eso_auth_mounts
+  no_log: true
+
+- name: Enable Vault Kubernetes auth mount
+  ansible.builtin.uri:
+    url: "{{ vault_eso_vault_server }}/v1/sys/auth/{{ vault_eso_vault_auth_mount }}"
+    method: POST
+    headers:
+      X-Vault-Token: "{{ vault_eso_admin_token }}"
+    body_format: json
+    body:
+      type: kubernetes
+    status_code: [200, 204]
+  when: (vault_eso_vault_auth_mount ~ "/") not in (vault_eso_auth_mounts.json.data | default({}))
+  no_log: true
+
+- name: Configure Vault Kubernetes auth backend
+  ansible.builtin.uri:
+    url: "{{ vault_eso_vault_server }}/v1/auth/{{ vault_eso_vault_auth_mount }}/config"
+    method: POST
+    headers:
+      X-Vault-Token: "{{ vault_eso_admin_token }}"
+    body_format: json
+    body:
+      token_reviewer_jwt: "{{ vault_eso_token_reviewer_jwt.stdout }}"
+      kubernetes_host: "{{ vault_eso_kubernetes_host }}"
+      kubernetes_ca_cert: "{{ vault_eso_kubernetes_ca.stdout }}"
+    status_code: [200, 204]
+  no_log: true
+
+- name: Create Vault sandbox policy
+  ansible.builtin.uri:
+    url: "{{ vault_eso_vault_server }}/v1/sys/policies/acl/{{ vault_eso_policy_name }}"
+    method: PUT
+    headers:
+      X-Vault-Token: "{{ vault_eso_admin_token }}"
+    body_format: json
+    body:
+      policy: |
+        path "{{ vault_eso_vault_kv_mount }}/data/{{ vault_eso_remote_secret_key }}" {
+          capabilities = ["read"]
+        }
+    status_code: [200, 204]
+  no_log: true
+
+- name: Create Vault ESO auth role
+  ansible.builtin.uri:
+    url: "{{ vault_eso_vault_server }}/v1/auth/{{ vault_eso_vault_auth_mount }}/role/{{ vault_eso_role_name }}"
+    method: POST
+    headers:
+      X-Vault-Token: "{{ vault_eso_admin_token }}"
+    body_format: json
+    body:
+      bound_service_account_names: "{{ vault_eso_service_account_name }}"
+      bound_service_account_namespaces: "{{ vault_eso_namespace }}"
+      policies: "{{ vault_eso_policy_name }}"
+      audience: "{{ vault_eso_role_audience }}"
+      ttl: "1h"
+    status_code: [200, 204]
+  no_log: true
+
+- name: Seed sandbox secret in Vault
+  ansible.builtin.uri:
+    url: "{{ vault_eso_vault_server }}/v1/{{ vault_eso_vault_kv_mount }}/data/{{ vault_eso_remote_secret_key }}"
+    method: POST
+    headers:
+      X-Vault-Token: "{{ vault_eso_admin_token }}"
+    body_format: json
+    body:
+      data: "{{ { vault_eso_remote_secret_property: vault_eso_sandbox_secret_value } }}"
+    status_code: [200, 204]
+  when: vault_eso_seed_sandbox_secret
+  no_log: true
+
+- name: Ensure sandbox namespace exists
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: v1
+      kind: Namespace
+      metadata:
+        name: "{{ vault_eso_sandbox_namespace }}"
+
+- name: Apply Vault ClusterSecretStore
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: external-secrets.io/v1
+      kind: ClusterSecretStore
+      metadata:
+        name: "{{ vault_eso_store_name }}"
+      spec:
+        provider:
+          vault:
+            server: "{{ vault_eso_vault_server }}"
+            path: "{{ vault_eso_vault_kv_mount }}"
+            version: "{{ vault_eso_vault_kv_version }}"
+            auth:
+              kubernetes:
+                mountPath: "{{ vault_eso_vault_auth_mount }}"
+                role: "{{ vault_eso_role_name }}"
+                serviceAccountRef:
+                  name: "{{ vault_eso_service_account_name }}"
+                  namespace: "{{ vault_eso_namespace }}"
+
+- name: Apply sandbox ExternalSecret
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: external-secrets.io/v1
+      kind: ExternalSecret
+      metadata:
+        name: "{{ vault_eso_external_secret_name }}"
+        namespace: "{{ vault_eso_sandbox_namespace }}"
+      spec:
+        refreshInterval: "{{ vault_eso_refresh_interval }}"
+        secretStoreRef:
+          kind: ClusterSecretStore
+          name: "{{ vault_eso_store_name }}"
+        target:
+          name: "{{ vault_eso_target_secret_name }}"
+          creationPolicy: Owner
+        data:
+          - secretKey: "{{ vault_eso_remote_secret_property }}"
+            remoteRef:
+              key: "{{ vault_eso_remote_secret_key }}"
+              property: "{{ vault_eso_remote_secret_property }}"
+
+- name: Wait for sandbox Secret to be created
+  ansible.builtin.command:
+    cmd: >-
+      kubectl get secret {{ vault_eso_target_secret_name }}
+      -n {{ vault_eso_sandbox_namespace }}
+  register: vault_eso_target_secret
+  retries: 20
+  delay: 6
+  until: vault_eso_target_secret.rc == 0
+  changed_when: false
+
+- name: Show sandbox Secret payload
+  ansible.builtin.command:
+    cmd: >-
+      kubectl get secret {{ vault_eso_target_secret_name }}
+      -n {{ vault_eso_sandbox_namespace }}
+      -o jsonpath={.data.{{ vault_eso_remote_secret_property }}}
+  register: vault_eso_secret_value_b64
+  changed_when: false
+
+- name: Display result
+  ansible.builtin.debug:
+    msg:
+      - "Vault auth mount: {{ vault_eso_vault_auth_mount }}"
+      - "ClusterSecretStore: {{ vault_eso_store_name }}"
+      - "ExternalSecret: {{ vault_eso_sandbox_namespace }}/{{ vault_eso_external_secret_name }}"
+      - "Synced Secret: {{ vault_eso_sandbox_namespace }}/{{ vault_eso_target_secret_name }}"
+      - "Synced value (base64): {{ vault_eso_secret_value_b64.stdout }}"

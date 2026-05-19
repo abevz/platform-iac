@@ -130,7 +130,7 @@ Sealed: false
 
 Install ESO into `k8s-lab-01` after Vault is reachable from the cluster.
 
-Planned wrapper shape:
+Wrapper shape:
 
 ```bash
 ./tools/iac-wrapper.sh run-playbook dev k8s-lab-01 install_external_secrets.yml k8s_master
@@ -144,6 +144,67 @@ Platform responsibilities:
 - configure Vault auth role bindings
 - install ESO
 - create `ClusterSecretStore` or namespace `SecretStore`
+- seed one sandbox secret and prove ESO sync into a normal Kubernetes Secret
+
+Current bootstrap path in this repo:
+
+- `install_external_secrets.yml` installs ESO in namespace `external-secrets`
+- `apply_external_secrets.yml` configures Vault auth and a sandbox
+  `ClusterSecretStore` / `ExternalSecret`
+- the first sandbox sync uses:
+  - Vault role/policy: `eso-sandbox`
+  - namespace: `sandbox-secrets`
+  - `ClusterSecretStore`: `vault-backend`
+  - `ExternalSecret`: `vault-sandbox-example`
+  - Vault endpoint: `https://vault.bevz.net`
+
+Runtime requirement:
+
+- `apply_external_secrets.yml` needs `vault_eso_admin_token` because it writes
+  Vault auth config, Vault policy, Vault role, and the initial sandbox secret.
+
+Example:
+
+```bash
+ssh abevz@10.10.10.109
+export VAULT_ADDR=http://127.0.0.1:8200
+vault login
+vault token create -ttl=1h
+
+./tools/iac-wrapper.sh run-playbook dev k8s-lab-01 apply_external_secrets.yml k8s_master \
+  -e vault_eso_admin_token=<admin-or-root-token>
+```
+
+Important implementation notes from the first live bootstrap:
+
+- the Vault Kubernetes auth role needs `audience` set to the cluster service
+  account token audience;
+- final steady-state config uses `https://vault.bevz.net` from inside the
+  cluster;
+- cluster DNS must resolve homelab service FQDNs through the lab DNS server;
+- the Vault auth backend should use the control-plane IP for
+  `kubernetes_host`, so Vault does not depend on resolving kubeconfig hostnames.
+
+Troubleshooting notes:
+
+- the first live debug pass temporarily used `http://10.10.10.109:8200` and
+  temporary node-to-Vault firewall exceptions;
+- those steps were not kept as the recommended model;
+- `s3.minio.bevz.net` NXDOMAIN remains a separate lab DNS record problem, not
+  an ESO or kubelet resolver contract issue.
+
+### DNS Source Of Truth
+
+New VM provisioning should take its resolver from the Ansible secrets file:
+
+```yaml
+dns:
+  server:
+    ip_address: "10.10.10.100"
+```
+
+`tools/iac-wrapper.sh` maps that value into OpenTofu as `vm_dns_server`. It
+still falls back to `pihole.ip_address` for backward compatibility.
 
 Consumer responsibilities:
 
