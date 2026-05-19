@@ -188,6 +188,15 @@
   notify: Reload systemd
   when: vault_snapshot_enabled
 
+- name: Fix vault.env permissions
+  ansible.builtin.file:
+    path: "{{ vault_config_dir }}/vault.env"
+    owner: root
+    group: vault
+    mode: "0640"
+    state: file
+  failed_when: false
+
 - name: Enable and start Vault service
   ansible.builtin.systemd:
     name: vault
@@ -209,3 +218,48 @@
     state: stopped
     daemon_reload: true
   when: not vault_snapshot_enabled
+
+- name: Install ufw
+  ansible.builtin.apt:
+    name: ufw
+    state: present
+    update_cache: true
+  when:
+    - vault_firewall_enabled
+    - ansible_os_family == "Debian"
+
+- name: Set ufw default incoming policy to deny
+  community.general.ufw:
+    direction: incoming
+    policy: deny
+  when: vault_firewall_enabled
+  notify: Reload ufw
+
+- name: Allow SSH through ufw
+  community.general.ufw:
+    rule: allow
+    port: "22"
+    proto: tcp
+  when: vault_firewall_enabled
+
+- name: Allow Vault API from permitted sources
+  community.general.ufw:
+    rule: allow
+    port: "{{ vault_api_port }}"
+    proto: tcp
+    src: "{{ item }}"
+  loop: "{{ vault_firewall_allowed_api_sources }}"
+  when: vault_firewall_enabled
+
+- name: Allow Vault cluster port from loopback only
+  community.general.ufw:
+    rule: allow
+    port: "{{ vault_cluster_port }}"
+    proto: tcp
+    src: "127.0.0.1"
+  when: vault_firewall_enabled
+
+- name: Enable ufw
+  community.general.ufw:
+    state: enabled
+  when: vault_firewall_enabled
