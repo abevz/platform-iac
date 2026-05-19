@@ -223,8 +223,11 @@ Current manifest layout:
 ```text
 kubernetes/gitops/k8s-lab-01/
   apps/
+    argocd-config.yaml
     platform-project.yaml
     external-secrets-config.yaml
+  argocd-config/
+    argocd-cm-external-secrets-health.yaml
   external-secrets-config/
     namespace-sandbox-secrets.yaml
     clustersecretstore-vault-backend.yaml
@@ -235,7 +238,9 @@ The initial scope is intentionally narrow:
 
 - root app `platform-root`
 - project `platform-lab`
+- child app `argocd-config`
 - child app `external-secrets-config`
+- ArgoCD health customization for ESO CRDs
 - Git-managed `ClusterSecretStore/vault-backend`
 - Git-managed sandbox `ExternalSecret`
 
