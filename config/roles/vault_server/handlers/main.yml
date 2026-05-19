@@ -7,3 +7,7 @@
   ansible.builtin.systemd:
     name: vault
     state: restarted
+
+- name: Reload ufw
+  community.general.ufw:
+    state: enabled
