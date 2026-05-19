@@ -9,6 +9,8 @@
     requested_version: ""
     # STATE VARIABLE
     addon_state: "present" # (Override via -e "addon_state=absent")
+    # Set to [] to skip Grafana/Jaeger/Kiali/Prometheus addons
+    istio_addons_list: []
 
   roles:
     - role: istio_install
