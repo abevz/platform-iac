@@ -24,8 +24,13 @@ vault_backup_s3_enabled: false
 vault_backup_s3_endpoint: ""
 vault_backup_s3_bucket: vault-backups
 vault_backup_s3_prefix: raft
+vault_backup_s3_create_bucket: false
 vault_backup_s3_access_key: ""
 vault_backup_s3_secret_key: ""
 
 vault_backup_rclone_enabled: false
 vault_backup_rclone_target: ""
+
+vault_awscli_enabled: false
+vault_awscli_install_dir: /usr/local/aws-cli
+vault_awscli_bin_dir: /usr/local/bin
