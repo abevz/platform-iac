@@ -8,9 +8,9 @@ metadata:
 spec:
   project: platform-lab
   source:
-    repoURL: https://github.com/abevz/platform-iac.git
+    repoURL: https://gitlab.bevz.net/abevz/platform-iac-gitops.git
     targetRevision: main
-    path: kubernetes/gitops/k8s-lab-01/coredns-config
+    path: k8s-lab-01/coredns-config
   destination:
     server: https://kubernetes.default.svc
     namespace: kube-system
