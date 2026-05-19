@@ -41,7 +41,7 @@ This project highlights practical experience with:
 
 Two views: how the platform is provisioned, and how it runs.
 
-### Day 1 — Provisioning & configuration
+### Provisioning & configuration
 
 ```mermaid
 flowchart TD
@@ -55,7 +55,7 @@ flowchart TD
   ansible -- configures --> pve
 ```
 
-### Day 2+ — Runtime topology
+### Runtime topology
 
 ```mermaid
 flowchart LR
