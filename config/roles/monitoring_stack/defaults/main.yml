@@ -2,6 +2,15 @@
 monitoring_install_dir: /srv/monitoring
 monitoring_compose_project_name: monitoring
 
+# k8s clusters discovered from Tofu state at runtime.
+# Populate monitoring_k8s_environments via SOPS extra_vars
+# (e.g. ["dev/k8s-lab-01"]). The role reads tofu output for
+# each env and fills monitoring_k8s_clusters with node IPs.
+monitoring_k8s_environments: []
+monitoring_k8s_clusters: []
+monitoring_k8s_node_exporter_port: 9100
+monitoring_k8s_kube_state_metrics_nodeport: 30080
+
 monitoring_prometheus_image: prom/prometheus:v2.55.0
 monitoring_grafana_image: grafana/grafana:11.2.0
 monitoring_alertmanager_image: prom/alertmanager:v0.27.0
