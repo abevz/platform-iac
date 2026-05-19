@@ -14,6 +14,14 @@ log() {
   echo "[$(date --iso-8601=seconds)] $*"
 }
 
+require_env() {
+  local name="$1"
+  if [ -z "${!name:-}" ]; then
+    log "Required environment variable is empty: $name"
+    exit 1
+  fi
+}
+
 if [ ! -r "$TOKEN_FILE" ]; then
   log "Snapshot token file is missing or unreadable: $TOKEN_FILE"
   exit 0
@@ -57,11 +65,31 @@ if [ "$S3_ENABLED" = "true" ]; then
     log "S3 backup is enabled but $S3_ENV_FILE is missing"
     exit 1
   fi
+  set -a
   # shellcheck source=/dev/null
+  # shellcheck disable=SC1090
   source "$S3_ENV_FILE"
-  aws --endpoint-url "$VAULT_BACKUP_S3_ENDPOINT" \
-    s3 cp "$snapshot_path" "s3://${VAULT_BACKUP_S3_BUCKET}/${VAULT_BACKUP_S3_PREFIX}/$(basename "$snapshot_path")"
-  log "Uploaded snapshot to MinIO bucket: ${VAULT_BACKUP_S3_BUCKET}"
+  set +a
+  require_env RCLONE_CONFIG_VAULTS3_ACCESS_KEY_ID
+  require_env RCLONE_CONFIG_VAULTS3_SECRET_ACCESS_KEY
+  require_env RCLONE_CONFIG_VAULTS3_ENDPOINT
+  require_env VAULT_BACKUP_S3_ENDPOINT
+  require_env VAULT_BACKUP_S3_BUCKET
+  require_env VAULT_BACKUP_S3_PREFIX
+
+  if [ "${VAULT_BACKUP_S3_CREATE_BUCKET:-false}" = "true" ]; then
+    if ! rclone --config /dev/null lsd "vaults3:" --max-depth 1 | awk '{print $NF}' | grep -Fx "$VAULT_BACKUP_S3_BUCKET" >/dev/null; then
+      rclone --config /dev/null mkdir "vaults3:${VAULT_BACKUP_S3_BUCKET}"
+      log "Created MinIO bucket: ${VAULT_BACKUP_S3_BUCKET}"
+    fi
+  fi
+
+  snapshot_name=$(basename "$snapshot_path")
+  s3_dir="vaults3:${VAULT_BACKUP_S3_BUCKET}/${VAULT_BACKUP_S3_PREFIX}"
+  s3_object="${s3_dir}/${snapshot_name}"
+  rclone --config /dev/null copyto "$snapshot_path" "$s3_object"
+  rclone --config /dev/null lsf "$s3_dir" --files-only | grep -Fx "$snapshot_name" >/dev/null
+  log "Uploaded snapshot to MinIO: ${s3_object}"
 fi
 
 if [ "$RCLONE_ENABLED" = "true" ]; then

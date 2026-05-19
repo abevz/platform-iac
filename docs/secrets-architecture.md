@@ -210,8 +210,21 @@ Manual snapshot:
 vault operator raft snapshot save /var/backups/vault/manual.snap
 ```
 
-Upload targets are implementation details of `config/roles/vault_server`
-and should be documented in the role once implemented.
+MinIO upload is implemented in `config/roles/vault_server` with `rclone`
+using an environment-only S3 remote. The role writes the MinIO settings to
+`/etc/vault.d/snapshot-s3.env`, keeps that file readable only by `root:vault`,
+and the snapshot service verifies that the uploaded object is visible in the
+`vault-backups` bucket.
+
+Current proven flow:
+
+```text
+/var/backups/vault/vault-raft-*.snap
+  -> vaults3:vault-backups/raft/vault-raft-*.snap
+```
+
+The next backup layer is encrypted offsite copy with `rclone crypt`; plain
+Vault snapshots must not be copied directly to Google Drive.
 
 ## Restore Drill
 

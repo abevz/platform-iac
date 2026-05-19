@@ -60,3 +60,52 @@ sudo install -o root -g vault -m 0640 /dev/stdin /etc/vault.d/snapshot-token
 ```
 
 Then paste the token and press `Ctrl-D`.
+
+## MinIO Snapshot Upload
+
+Local snapshots are created first. MinIO upload is enabled by SOPS-managed
+Ansible variables:
+
+```yaml
+vault_backup_s3_enabled: true
+vault_backup_s3_endpoint: "https://s3.minio.example.com"
+vault_backup_s3_bucket: "vault-backups"
+vault_backup_s3_prefix: "raft"
+vault_backup_s3_create_bucket: true
+vault_backup_s3_access_key: "vault-backup-access-key"
+vault_backup_s3_secret_key: "vault-backup-secret-key"
+```
+
+The role renders these values to `/etc/vault.d/snapshot-s3.env` with mode
+`0640` and group `vault`. The snapshot service uses `rclone` with an ephemeral
+S3 remote from environment variables, optionally creates the bucket, uploads the
+snapshot, and checks that the object is visible in MinIO.
+
+Verify after configuration:
+
+```bash
+sudo systemctl start vault-snapshot.service
+sudo journalctl -u vault-snapshot.service -n 100 --no-pager
+sudo bash -lc 'set -a; source /etc/vault.d/snapshot-s3.env; set +a; rclone --config /dev/null lsf vaults3:vault-backups/raft --files-only'
+```
+
+Verified on 2026-05-19:
+
+```text
+Uploaded snapshot to MinIO: vaults3:vault-backups/raft/vault-raft-20260519T060919Z.snap
+```
+
+## Optional AWS CLI
+
+Vault can store AWS credentials for other projects without AWS CLI being
+installed on the Vault VM. AWS CLI is therefore not required for the snapshot
+path. If the Vault VM later needs to run AWS operational commands directly,
+enable the opt-in installer:
+
+```yaml
+vault_awscli_enabled: true
+```
+
+The role installs AWS CLI v2 from the official AWS installer because some
+Debian/Ubuntu images do not provide an `awscli` package in the enabled apt
+repositories.
