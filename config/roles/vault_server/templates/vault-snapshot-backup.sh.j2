@@ -1,7 +1,7 @@
 #!/bin/bash
 set -euo pipefail
 
-export VAULT_ADDR="{{ vault_api_addr }}"
+export VAULT_ADDR="{{ vault_snapshot_vault_addr }}"
 TOKEN_FILE="{{ vault_snapshot_token_file }}"
 SNAPSHOT_DIR="{{ vault_backup_dir }}"
 RETENTION_DAYS="{{ vault_snapshot_local_retention_days }}"
