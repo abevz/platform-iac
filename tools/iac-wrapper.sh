@@ -89,6 +89,7 @@ load_tofu_secrets_to_temp_file() {
   log "Decrypting Tofu secrets (for -var-file)..."
 
   local COMPONENT="$1"
+  local ANSIBLE_JSON="{}"
 
   # --- START: CHICKEN AND EGG FIX (API, SSH Addr, SSH Port) ---
   # Values loaded from SOPS secrets (with fallback defaults for bootstrap)
@@ -153,13 +154,30 @@ load_tofu_secrets_to_temp_file() {
   # --- END: CHICKEN AND EGG FIX ---
 
   local PROXMOX_JSON
+  local VM_DNS_SERVER
+
+  if [ -f "$ANSIBLE_SECRETS_FILE" ]; then
+    ANSIBLE_JSON=$(sops -d "$ANSIBLE_SECRETS_FILE" | yq -o json)
+  fi
+
+  VM_DNS_SERVER=$(echo "$ANSIBLE_JSON" | jq -r '
+    .dns.server.ip_address // .pihole.ip_address // empty
+  ')
+
+  if [ -n "$VM_DNS_SERVER" ] && [ "$VM_DNS_SERVER" != "null" ]; then
+    log "Using VM DNS server from Ansible secrets: $VM_DNS_SERVER"
+  else
+    VM_DNS_SERVER=""
+  fi
+
   # 3. Pass ALL variables to jq
   PROXMOX_JSON=$(sops -d "$PROXMOX_SECRETS_FILE" | yq -o json | jq -r \
     --arg api_url "$proxmox_api_url" \
     --arg ssh_addr "$proxmox_ssh_address" \
     --arg ssh_port "$proxmox_ssh_port" \
     --arg pub_key "$PUBLIC_KEY_CONTENT" \
-    --arg node_name "homelab" '
+    --arg node_name "homelab" \
+    --arg vm_dns_server "$VM_DNS_SERVER" '
       {
         "proxmox_api_url": $api_url,
         "proxmox_api_username": .PROXMOX_VE_API_TOKEN_ID,
@@ -170,7 +188,13 @@ load_tofu_secrets_to_temp_file() {
         "proxmox_ssh_port": ($ssh_port | tonumber),
         "proxmox_node_name": $node_name,
         "ssh_public_key": $pub_key
-      }
+      } + (
+        if ($vm_dns_server | length) > 0 then
+          { "vm_dns_server": $vm_dns_server }
+        else
+          {}
+        end
+      )
     ')
 
   log "Disabling SSL verification (Forced)..."
