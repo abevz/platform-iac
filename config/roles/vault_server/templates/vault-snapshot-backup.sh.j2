@@ -8,6 +8,7 @@ RETENTION_DAYS="{{ vault_snapshot_local_retention_days }}"
 S3_ENABLED="{{ vault_backup_s3_enabled | ternary('true', 'false') }}"
 RCLONE_ENABLED="{{ vault_backup_rclone_enabled | ternary('true', 'false') }}"
 RCLONE_TARGET="{{ vault_backup_rclone_target }}"
+RCLONE_CONFIG_FILE="{{ vault_backup_rclone_config_file }}"
 S3_ENV_FILE="{{ vault_config_dir }}/snapshot-s3.env"
 
 log() {
@@ -97,6 +98,14 @@ if [ "$RCLONE_ENABLED" = "true" ]; then
     log "rclone backup is enabled but no target is configured"
     exit 1
   fi
-  rclone copy "$snapshot_path" "$RCLONE_TARGET"
-  log "Copied encrypted snapshot to rclone target: $RCLONE_TARGET"
+  if [ ! -r "$RCLONE_CONFIG_FILE" ]; then
+    log "rclone backup is enabled but $RCLONE_CONFIG_FILE is missing or unreadable"
+    exit 1
+  fi
+  snapshot_name=$(basename "$snapshot_path")
+  rclone_target_dir="${RCLONE_TARGET%/}"
+  rclone_object="${rclone_target_dir}/${snapshot_name}"
+  rclone --config "$RCLONE_CONFIG_FILE" copyto "$snapshot_path" "$rclone_object"
+  rclone --config "$RCLONE_CONFIG_FILE" lsf "$rclone_target_dir" --files-only | grep -Fx "$snapshot_name" >/dev/null
+  log "Copied encrypted snapshot to rclone target: $rclone_object"
 fi
