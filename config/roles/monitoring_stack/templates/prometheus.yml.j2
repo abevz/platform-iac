@@ -32,6 +32,22 @@ scrape_configs:
       - target_label: __address__
         replacement: pve-exporter:9221
 
+  - job_name: k8s-lab-01-nodes
+    static_configs:
+      - targets:
+          - "10.10.10.200:9100"
+          - "10.10.10.201:9100"
+          - "10.10.10.202:9100"
+        labels:
+          cluster: k8s-lab-01
+
+  - job_name: kube-state-metrics
+    static_configs:
+      - targets:
+          - "10.10.10.200:30080"
+        labels:
+          cluster: k8s-lab-01
+
   - job_name: alertmanager
     static_configs:
       - targets: ["alertmanager:9093"]
