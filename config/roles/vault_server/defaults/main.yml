@@ -30,6 +30,8 @@ vault_backup_s3_secret_key: ""
 
 vault_backup_rclone_enabled: false
 vault_backup_rclone_target: ""
+vault_backup_rclone_config_file: "{{ vault_config_dir }}/rclone.conf"
+vault_backup_rclone_config: ""
 
 vault_awscli_enabled: false
 vault_awscli_install_dir: /usr/local/aws-cli
