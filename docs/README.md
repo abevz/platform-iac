@@ -13,6 +13,7 @@ Complete documentation for the Platform Infrastructure as Code project - a unive
 - [k8s_bootstrap_node](../config/roles/k8s_bootstrap_node/README.md) - Node bootstrap with containerd
 - [k8s_cluster_manager](../config/roles/k8s_cluster_manager/README.md) - Cluster initialization
 - [argocd_install](../config/roles/argocd_install/README.md) - GitOps with ArgoCD
+- [argocd_bootstrap_apps](../config/roles/argocd_bootstrap_apps/README.md) - ArgoCD app-of-apps bootstrap
 - [falco_install_helm](../config/roles/falco_install_helm/README.md) - Runtime security monitoring
 - [kube_bench_run](../config/roles/kube_bench_run/README.md) - CIS benchmark compliance
 - [vault_server](../config/roles/vault_server/README.md) - Vault server with manual unseal and Raft snapshots

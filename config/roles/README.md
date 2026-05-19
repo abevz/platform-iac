@@ -16,6 +16,7 @@ This directory contains Ansible roles for bootstrapping and managing Kubernetes 
 | [k8s_bootstrap_node](./k8s_bootstrap_node/README.md) | Bootstrap Kubernetes nodes with containerd and required packages | `bootstrap_prereqs`, `containerd`, `k8s_packages` |
 | [k8s_cluster_manager](./k8s_cluster_manager/README.md) | Initialize and join nodes to Kubernetes cluster | `init_cluster`, `join_workers` |
 | [argocd_install](./argocd_install/README.md) | Deploy ArgoCD GitOps tool | `argocd` |
+| [argocd_bootstrap_apps](./argocd_bootstrap_apps/README.md) | Bootstrap ArgoCD app-of-apps root and initial child apps | `argocd` |
 | [calico_install_manifest](./calico_install_manifest/README.md) | Install Calico CNI via manifest | `calico` |
 | [calico_install_helm](./calico_install_helm/README.md) | Install Calico CNI via Helm | `calico` |
 | [cilium_install_helm](./cilium_install_helm/README.md) | Install Cilium CNI via Helm | `cilium` |
