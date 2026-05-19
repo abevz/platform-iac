@@ -176,6 +176,16 @@ kubectl -n argocd get secret argocd-initial-admin-secret \
 kubectl port-forward svc/argocd-server -n argocd 8080:443
 ```
 
+### argocd_bootstrap_apps
+**Purpose:** Bootstrap the root app-of-apps and initial GitOps project
+**Tags:** `argocd`
+**Docs:** [Full Documentation](./argocd_bootstrap_apps/README.md)
+
+```bash
+./tools/iac-wrapper.sh run-playbook dev k8s-lab-01 bootstrap_argocd_apps.yml k8s_master
+kubectl get applications -n argocd
+```
+
 ### bom_install
 **Purpose:** Install Bill of Materials (BOM) tooling
 **Tags:** `bom`
