@@ -41,26 +41,56 @@ This project highlights practical experience with:
 
 ```mermaid
 flowchart LR
-  operator[Operator workstation]
-  wrapper[tools/iac-wrapper.sh]
-  tofu[OpenTofu]
-  ansible[Ansible]
-  sops[SOPS secrets]
-  proxmox[Proxmox VE]
-  k8s[Kubernetes cluster]
-  services[Platform services]
-  monitoring[Monitoring VM]
+  subgraph workstation[Operator workstation]
+    wrapper[tools/iac-wrapper.sh]
+    sops[(SOPS secrets)]
+    tofu[OpenTofu]
+    ansible[Ansible]
+    inv[tofu_inventory.py]
+  end
 
-  operator --> wrapper
+  subgraph proxmox[Proxmox VE]
+    k8s[k8s-lab-01 cluster]
+    vault[Vault VM]
+    monitoring[Monitoring VM<br/>Prometheus + Grafana]
+    gitlab[GitLab VM<br/>private]
+    nginx[Nginx proxy]
+  end
+
+  subgraph gitops[In-cluster GitOps]
+    argocd[ArgoCD]
+    eso[External Secrets Operator]
+    exporters[node-exporter + kube-state-metrics]
+    metrics[metrics-server]
+  end
+
   wrapper --> sops
   wrapper --> tofu
   wrapper --> ansible
-  tofu --> proxmox
-  proxmox --> k8s
-  ansible --> k8s
-  ansible --> services
-  ansible --> monitoring
-  services --> k8s
+  wrapper --> inv
+  tofu -- provisions VMs --> proxmox
+  inv -- dynamic inventory --> ansible
+  ansible -- configures --> k8s
+  ansible -- configures --> vault
+  ansible -- configures --> monitoring
+  ansible -- configures --> nginx
+
+  argocd -- pulls manifests --> gitlab
+  argocd -- deploys --> eso
+  argocd -- deploys --> exporters
+  argocd -- deploys --> metrics
+  eso -- reads secrets --> vault
+
+  monitoring -- scrape :9100 / :30080 --> exporters
+  monitoring -- reads node IPs from --> tofu
+  nginx -- reverse proxy --> vault
+  nginx -- reverse proxy --> gitlab
+  nginx -- reverse proxy --> monitoring
+
+  k8s -. hosts .- argocd
+  k8s -. hosts .- eso
+  k8s -. hosts .- exporters
+  k8s -. hosts .- metrics
 ```
 
 ## Current Status
@@ -74,7 +104,10 @@ flowchart LR
 | Pi-hole DNS automation | Implemented |
 | Monitoring VM with Prometheus/Grafana/Alertmanager | Implemented |
 | Kubernetes security tooling | Implemented |
-| Vault/ESO runtime secrets architecture | Documented |
+| Vault/ESO runtime secrets architecture | Implemented |
+| ArgoCD app-of-apps with private GitLab source | Implemented |
+| Kubernetes metrics-server (Helm via ArgoCD) | Implemented |
+| k8s exporters (node-exporter + kube-state-metrics) → central Grafana | Implemented |
 | Kubernetes-native observability overlays | Documented |
 | Terraform/OpenTofu tests | Planned |
 | Molecule role tests | Planned |
