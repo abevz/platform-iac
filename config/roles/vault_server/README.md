@@ -67,14 +67,19 @@ Local snapshots are created first. MinIO upload is enabled by SOPS-managed
 Ansible variables:
 
 ```yaml
-vault_backup_s3_enabled: true
-vault_backup_s3_endpoint: "https://s3.minio.example.com"
-vault_backup_s3_bucket: "vault-backups"
-vault_backup_s3_prefix: "raft"
-vault_backup_s3_create_bucket: true
-vault_backup_s3_access_key: "vault-backup-access-key"
-vault_backup_s3_secret_key: "vault-backup-secret-key"
+vault:
+  backup:
+    s3:
+      enabled: true
+      endpoint: "https://s3.minio.example.com"
+      bucket: "vault-backups"
+      prefix: "raft"
+      create_bucket: true
+      access_key: "vault-backup-access-key"
+      secret_key: "vault-backup-secret-key"
 ```
+
+Flat `vault_backup_*` keys still work for backward compatibility.
 
 The role renders these values to `/etc/vault.d/snapshot-s3.env` with mode
 `0640` and group `vault`. The snapshot service uses `rclone` with an ephemeral
@@ -116,20 +121,25 @@ MinIO is the fast local restore target. The offsite copy must be encrypted
 before it leaves the homelab. Enable it with an rclone config stored in SOPS:
 
 ```yaml
-vault_backup_rclone_enabled: true
-vault_backup_rclone_target: "vaultgdrivecrypt:raft"
-vault_backup_rclone_config: |
-  [gdrive]
-  type = drive
-  scope = drive
-  token = {"access_token":"example","token_type":"Bearer","refresh_token":"example","expiry":"2099-01-01T00:00:00Z"}
+vault:
+  backup:
+    rclone:
+      enabled: true
+      target: "vaultgdrivecrypt:raft"
+      config: |
+        [gdrive]
+        type = drive
+        scope = drive
+        token = {"access_token":"example","token_type":"Bearer","refresh_token":"example","expiry":"2099-01-01T00:00:00Z"}
 
-  [vaultgdrivecrypt]
-  type = crypt
-  remote = gdrive:99_Archive/Backups/Vault/vault-backups
-  password = obscured-password
-  password2 = obscured-salt
+        [vaultgdrivecrypt]
+        type = crypt
+        remote = gdrive:99_Archive/Backups/Vault/vault-backups
+        password = obscured-password
+        password2 = obscured-salt
 ```
+
+Flat `vault_backup_rclone_*` keys still work for backward compatibility.
 
 The role renders the config to `/etc/vault.d/rclone.conf` with mode `0640`.
 The snapshot service copies the same local snapshot to the configured encrypted

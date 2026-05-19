@@ -1,0 +1,24 @@
+---
+vault_eso_admin_token: ""
+vault_eso_vault_server: "https://vault.bevz.net"
+vault_eso_vault_auth_mount: "kubernetes"
+vault_eso_vault_kv_mount: "secret"
+vault_eso_vault_kv_version: "v2"
+vault_eso_role_audience: "https://kubernetes.default.svc.cluster.local"
+
+vault_eso_namespace: "external-secrets"
+vault_eso_service_account_name: "external-secrets"
+vault_eso_token_reviewer_service_account_name: "vault-token-reviewer"
+vault_eso_store_name: "vault-backend"
+
+vault_eso_policy_name: "eso-sandbox"
+vault_eso_role_name: "eso-sandbox"
+
+vault_eso_sandbox_namespace: "sandbox-secrets"
+vault_eso_external_secret_name: "vault-sandbox-example"
+vault_eso_target_secret_name: "vault-sandbox-example"
+vault_eso_remote_secret_key: "sandbox/eso-example"
+vault_eso_remote_secret_property: "value"
+vault_eso_refresh_interval: "1h"
+vault_eso_seed_sandbox_secret: true
+vault_eso_sandbox_secret_value: "hello-from-vault"
