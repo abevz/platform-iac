@@ -33,12 +33,57 @@
 
 - name: Install optional backup packages
   ansible.builtin.apt:
-    name: "{{ ['awscli'] + (['rclone'] if vault_backup_rclone_enabled else []) }}"
+    name:
+      - rclone
     state: present
     update_cache: true
   when:
     - ansible_os_family == "Debian"
     - vault_backup_s3_enabled or vault_backup_rclone_enabled
+
+- name: Install AWS CLI prerequisites
+  ansible.builtin.apt:
+    name:
+      - unzip
+    state: present
+    update_cache: true
+  when:
+    - ansible_os_family == "Debian"
+    - vault_awscli_enabled
+
+- name: Check AWS CLI installation
+  ansible.builtin.command:
+    cmd: "{{ vault_awscli_bin_dir }}/aws --version"
+  register: vault_awscli_check
+  changed_when: false
+  failed_when: false
+  when: vault_awscli_enabled
+
+- name: Download AWS CLI v2 installer
+  ansible.builtin.get_url:
+    url: "https://awscli.amazonaws.com/awscli-exe-linux-{{ 'aarch64' if ansible_architecture in ['aarch64', 'arm64'] else 'x86_64' }}.zip"
+    dest: /tmp/awscliv2.zip
+    mode: "0644"
+  when:
+    - vault_awscli_enabled
+    - vault_awscli_check.rc != 0
+
+- name: Unpack AWS CLI v2 installer
+  ansible.builtin.unarchive:
+    src: /tmp/awscliv2.zip
+    dest: /tmp
+    remote_src: true
+  when:
+    - vault_awscli_enabled
+    - vault_awscli_check.rc != 0
+
+- name: Install AWS CLI v2
+  ansible.builtin.command:
+    cmd: "/tmp/aws/install --install-dir {{ vault_awscli_install_dir }} --bin-dir {{ vault_awscli_bin_dir }}"
+    creates: "{{ vault_awscli_bin_dir }}/aws"
+  when:
+    - vault_awscli_enabled
+    - vault_awscli_check.rc != 0
 
 - name: Install HashiCorp archive key
   ansible.builtin.shell:
@@ -99,6 +144,7 @@
     group: vault
     mode: "0640"
   when: vault_backup_s3_enabled
+  no_log: true
 
 - name: Remove Vault snapshot S3 environment when disabled
   ansible.builtin.file:
