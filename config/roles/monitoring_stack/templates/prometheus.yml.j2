@@ -32,6 +32,24 @@ scrape_configs:
       - target_label: __address__
         replacement: pve-exporter:9221
 
+{% for cluster in monitoring_k8s_clusters | default([]) %}
+  - job_name: {{ cluster.name }}-nodes
+    static_configs:
+      - targets:
+{% for ip in cluster.node_ips %}
+          - "{{ ip }}:{{ monitoring_k8s_node_exporter_port | default(9100) }}"
+{% endfor %}
+        labels:
+          cluster: {{ cluster.name }}
+
+  - job_name: {{ cluster.name }}-kube-state-metrics
+    static_configs:
+      - targets:
+          - "{{ cluster.node_ips[0] }}:{{ monitoring_k8s_kube_state_metrics_nodeport | default(30080) }}"
+        labels:
+          cluster: {{ cluster.name }}
+
+{% endfor %}
   - job_name: alertmanager
     static_configs:
       - targets: ["alertmanager:9093"]

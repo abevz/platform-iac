@@ -1,4 +1,29 @@
 ---
+- name: Read Tofu inventory output for each k8s environment
+  ansible.builtin.command:
+    cmd: tofu -chdir={{ playbook_dir }}/../../infra/{{ item }} output -raw ansible_inventory_data
+  loop: "{{ monitoring_k8s_environments }}"
+  register: monitoring_k8s_tofu_outputs
+  delegate_to: localhost
+  become: false
+  changed_when: false
+  when: monitoring_k8s_environments | length > 0
+
+- name: Build monitoring_k8s_clusters from Tofu state
+  ansible.builtin.set_fact:
+    monitoring_k8s_clusters: >-
+      {{ monitoring_k8s_clusters + [{
+        'name': (item.item | regex_replace('/', '-')),
+        'node_ips': ((item.stdout | from_json)._meta.hostvars.values()
+                     | map(attribute='ansible_host') | list)
+      }] }}
+  loop: "{{ monitoring_k8s_tofu_outputs.results | default([]) }}"
+  loop_control:
+    label: "{{ item.item }}"
+  when:
+    - monitoring_k8s_environments | length > 0
+    - item.stdout is defined
+
 - name: Resolve monitoring secrets from flat or nested vars
   ansible.builtin.set_fact:
     monitoring_domain_resolved: >-
