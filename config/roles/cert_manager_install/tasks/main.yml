@@ -25,7 +25,7 @@
     set_values:
       - value: installCRDs=true
       - value: global.leaderElection.namespace={{ cert_manager_namespace }}
-      - value: extraArgs[0]=--enable-gateway-api
+      # --enable-gateway-api requires gateway.networking.k8s.io CRDs; omit unless Gateway API is installed
 
 - name: Manage Cloudflare API secret
   kubernetes.core.k8s:

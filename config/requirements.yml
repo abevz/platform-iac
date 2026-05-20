@@ -1,0 +1,8 @@
+---
+collections:
+  - name: kubernetes.core
+    version: ">=6.4.0"  # 6.4.0+ required for Helm 4.x support
+  - name: community.docker
+    version: ">=3.0.0"
+  - name: community.general
+    version: ">=9.0.0"
