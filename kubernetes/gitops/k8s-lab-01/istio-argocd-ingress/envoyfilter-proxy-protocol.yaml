@@ -8,15 +8,14 @@ spec:
     labels:
       istio: ingressgateway
   configPatches:
-  - applyTo: LISTENER
+  - applyTo: LISTENER_FILTER
     match:
       context: GATEWAY
       listener:
-        portNumber: 443
+        portNumber: 8443
     patch:
-      operation: MERGE
+      operation: INSERT_FIRST
       value:
-        listener_filters:
-        - name: envoy.filters.listener.proxy_protocol
-          typed_config:
-            "@type": type.googleapis.com/envoy.extensions.filters.listener.proxy_protocol.v3.ProxyProtocol
+        name: envoy.filters.listener.proxy_protocol
+        typed_config:
+          "@type": type.googleapis.com/envoy.extensions.filters.listener.proxy_protocol.v3.ProxyProtocol
