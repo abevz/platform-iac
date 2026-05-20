@@ -1,0 +1,8 @@
+---
+minio_backup_rclone_enabled: "{{ minio_backup.rclone.enabled | default(false) }}"
+minio_backup_rclone_target: "{{ minio_backup.rclone.target | default('miniogdrivecrypt:') }}"
+minio_backup_rclone_source: "{{ minio_backup.rclone.source | default('minio-src:') }}"
+minio_backup_rclone_config: "{{ minio_backup.rclone.config | default('') }}"
+minio_backup_rclone_config_file: /etc/rclone/minio-backup.conf
+minio_backup_on_calendar: "03:00"
+minio_backup_script: /usr/local/sbin/minio-backup-gdrive.sh

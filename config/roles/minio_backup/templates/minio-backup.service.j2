@@ -1,0 +1,11 @@
+[Unit]
+Description=MinIO backup sync to encrypted GDrive
+After=network-online.target
+
+[Service]
+Type=oneshot
+User=root
+ExecStart={{ minio_backup_script }}
+Nice=10
+IOSchedulingClass=best-effort
+NoNewPrivileges=yes

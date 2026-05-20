@@ -1,0 +1,70 @@
+---
+- name: Install rclone
+  ansible.builtin.apt:
+    name: rclone
+    state: present
+    update_cache: true
+  become: true
+  when: minio_backup_rclone_enabled | bool
+
+- name: Ensure rclone config dir exists
+  ansible.builtin.file:
+    path: /etc/rclone
+    state: directory
+    owner: root
+    group: root
+    mode: "0700"
+  become: true
+  when: minio_backup_rclone_enabled | bool
+
+- name: Render rclone config for MinIO backup
+  ansible.builtin.copy:
+    content: "{{ minio_backup_rclone_config }}"
+    dest: "{{ minio_backup_rclone_config_file }}"
+    owner: root
+    group: root
+    mode: "0600"
+  become: true
+  no_log: true
+  when: minio_backup_rclone_enabled | bool
+
+- name: Render MinIO backup script
+  ansible.builtin.template:
+    src: minio-backup-gdrive.sh.j2
+    dest: "{{ minio_backup_script }}"
+    owner: root
+    group: root
+    mode: "0750"
+  become: true
+  when: minio_backup_rclone_enabled | bool
+
+- name: Render MinIO backup systemd service
+  ansible.builtin.template:
+    src: minio-backup.service.j2
+    dest: /etc/systemd/system/minio-backup-gdrive.service
+    owner: root
+    group: root
+    mode: "0644"
+  become: true
+  notify: Reload systemd
+  when: minio_backup_rclone_enabled | bool
+
+- name: Render MinIO backup systemd timer
+  ansible.builtin.template:
+    src: minio-backup.timer.j2
+    dest: /etc/systemd/system/minio-backup-gdrive.timer
+    owner: root
+    group: root
+    mode: "0644"
+  become: true
+  notify: Reload systemd
+  when: minio_backup_rclone_enabled | bool
+
+- name: Enable and start MinIO backup timer
+  ansible.builtin.systemd:
+    name: minio-backup-gdrive.timer
+    enabled: true
+    state: started
+    daemon_reload: true
+  become: true
+  when: minio_backup_rclone_enabled | bool

@@ -1,0 +1,11 @@
+[Unit]
+Description=GitLab backup to encrypted GDrive
+After=network-online.target
+
+[Service]
+Type=oneshot
+User=root
+ExecStart={{ gitlab_backup_script }}
+Nice=10
+IOSchedulingClass=best-effort
+NoNewPrivileges=yes
