@@ -200,7 +200,7 @@ New VM provisioning should take its resolver from the Ansible secrets file:
 ```yaml
 dns:
   server:
-    ip_address: "192.0.2.100"
+    ip_address: "192.0.2.53"
 ```
 
 `tools/iac-wrapper.sh` maps that value into OpenTofu as `vm_dns_server`. It

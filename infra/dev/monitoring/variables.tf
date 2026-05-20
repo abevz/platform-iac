@@ -103,7 +103,7 @@ variable "ip_prefix_length" {
 variable "vm_dns_server" {
   description = "DNS server IP"
   type        = string
-  default     = "192.0.2.100"
+  default     = "192.0.2.53"
 }
 
 variable "vm_started" {
