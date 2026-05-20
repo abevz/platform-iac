@@ -1,0 +1,8 @@
+---
+gitlab_backup_rclone_enabled: "{{ gitlab.backup.rclone.enabled | default(false) }}"
+gitlab_backup_rclone_target: "{{ gitlab.backup.rclone.target | default('gitlabgdrivecrypt:backups') }}"
+gitlab_backup_rclone_config: "{{ gitlab.backup.rclone.config | default('') }}"
+gitlab_backup_rclone_config_file: /etc/gitlab/backup-rclone.conf
+gitlab_backup_local_retention_days: "{{ gitlab.backup.rclone.local_retention_days | default(7) }}"
+gitlab_backup_on_calendar: "02:30"
+gitlab_backup_script: /usr/local/sbin/gitlab-backup-gdrive.sh

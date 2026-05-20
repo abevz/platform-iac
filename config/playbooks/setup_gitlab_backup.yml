@@ -1,0 +1,7 @@
+---
+- name: Setup GitLab backup to GDrive (rclone crypt)
+  hosts: all
+  become: true
+
+  roles:
+    - role: gitlab_backup
