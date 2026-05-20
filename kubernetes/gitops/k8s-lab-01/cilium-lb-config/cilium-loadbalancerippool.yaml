@@ -1,0 +1,12 @@
+apiVersion: cilium.io/v2
+kind: CiliumLoadBalancerIPPool
+metadata:
+  name: ingress-pool
+spec:
+  allowFirstLastIPs: "No"
+  blocks:
+    - start: 192.0.2.200
+      stop: 192.0.2.219
+  serviceSelector:
+    matchLabels:
+      networking.platform.example.com/l2-announce: "true"
