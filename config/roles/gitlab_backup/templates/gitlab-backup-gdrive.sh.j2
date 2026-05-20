@@ -26,3 +26,10 @@ log "Uploaded encrypted backup: ${RCLONE_TARGET%/}/${BACKUP_NAME}"
 
 find "$BACKUP_DIR" -name "*_gitlab_backup.tar" -mtime +"$RETENTION_DAYS" -delete
 log "Cleaned backups older than ${RETENTION_DAYS} days"
+
+# Upload gitlab.rb and gitlab-secrets.json (required for restore, not in standard backup)
+SECRETS_ARCHIVE="/tmp/gitlab-secrets-$(date -u +%Y%m%dT%H%M%SZ).tar.gz"
+tar -czf "$SECRETS_ARCHIVE" /etc/gitlab/gitlab.rb /etc/gitlab/gitlab-secrets.json 2>/dev/null
+rclone --config "$RCLONE_CONFIG" copyto "$SECRETS_ARCHIVE" "${RCLONE_TARGET%/}/gitlab-secrets-latest.tar.gz"
+rm -f "$SECRETS_ARCHIVE"
+log "Uploaded gitlab.rb + gitlab-secrets.json to ${RCLONE_TARGET%/}/gitlab-secrets-latest.tar.gz"
