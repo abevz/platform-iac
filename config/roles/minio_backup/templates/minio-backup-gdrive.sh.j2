@@ -1,0 +1,22 @@
+#!/bin/bash
+set -euo pipefail
+
+RCLONE_SOURCE="{{ minio_backup_rclone_source }}"
+RCLONE_TARGET="{{ minio_backup_rclone_target }}"
+RCLONE_CONFIG="{{ minio_backup_rclone_config_file }}"
+
+log() { echo "[$(date --iso-8601=seconds)] minio-backup: $*"; }
+
+log "Starting MinIO → GDrive encrypted sync"
+log "Source: ${RCLONE_SOURCE}  Target: ${RCLONE_TARGET}"
+
+rclone sync \
+  --config "$RCLONE_CONFIG" \
+  --transfers 4 \
+  --checkers 8 \
+  --retries 3 \
+  --log-level INFO \
+  "${RCLONE_SOURCE}" \
+  "${RCLONE_TARGET}"
+
+log "MinIO sync completed"

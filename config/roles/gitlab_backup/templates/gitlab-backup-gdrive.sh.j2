@@ -1,0 +1,28 @@
+#!/bin/bash
+set -euo pipefail
+
+RCLONE_TARGET="{{ gitlab_backup_rclone_target }}"
+RCLONE_CONFIG="{{ gitlab_backup_rclone_config_file }}"
+BACKUP_DIR="/var/opt/gitlab/backups"
+RETENTION_DAYS="{{ gitlab_backup_local_retention_days }}"
+
+log() { echo "[$(date --iso-8601=seconds)] gitlab-backup: $*"; }
+
+log "Starting GitLab backup"
+gitlab-rake gitlab:backup:create STRATEGY=copy 2>&1 | tail -5
+log "GitLab backup created"
+
+LATEST=$(ls -t "${BACKUP_DIR}"/*_gitlab_backup.tar 2>/dev/null | head -1)
+if [ -z "$LATEST" ]; then
+  log "No backup file found in ${BACKUP_DIR}"
+  exit 1
+fi
+
+BACKUP_NAME=$(basename "$LATEST")
+log "Uploading ${BACKUP_NAME} to ${RCLONE_TARGET}"
+rclone --config "$RCLONE_CONFIG" copyto "$LATEST" "${RCLONE_TARGET%/}/${BACKUP_NAME}"
+rclone --config "$RCLONE_CONFIG" lsf "${RCLONE_TARGET%/}" | grep -Fx "$BACKUP_NAME" >/dev/null
+log "Uploaded encrypted backup: ${RCLONE_TARGET%/}/${BACKUP_NAME}"
+
+find "$BACKUP_DIR" -name "*_gitlab_backup.tar" -mtime +"$RETENTION_DAYS" -delete
+log "Cleaned backups older than ${RETENTION_DAYS} days"

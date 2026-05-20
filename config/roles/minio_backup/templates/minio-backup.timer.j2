@@ -1,0 +1,10 @@
+[Unit]
+Description=Run MinIO backup to GDrive daily
+
+[Timer]
+OnCalendar={{ minio_backup_on_calendar }}
+Persistent=true
+RandomizedDelaySec=300
+
+[Install]
+WantedBy=timers.target
