@@ -181,6 +181,32 @@ cilium hubble ui
 # Opens http://localhost:12000
 ```
 
+### LB IPAM and L2 Announcements
+
+For on-prem clusters without a cloud load balancer, this repository includes a
+sanitized GitOps example under
+`kubernetes/gitops/k8s-lab-01/cilium-lb-config`.
+
+It is designed for exposing selected `LoadBalancer` services on the LAN without
+tracking real addresses in git:
+
+- `CiliumLoadBalancerIPPool` uses a documentation-only range from
+  `192.0.2.0/24`
+- `CiliumL2AnnouncementPolicy` only matches services labeled with
+  `networking.platform.example.com/l2-announce: "true"`
+
+Recommended service settings:
+
+```yaml
+metadata:
+  labels:
+    networking.platform.example.com/l2-announce: "true"
+spec:
+  type: LoadBalancer
+  externalTrafficPolicy: Cluster
+  loadBalancerClass: io.cilium/l2-announcer
+```
+
 ### Network Policies
 
 Cilium supports both Kubernetes NetworkPolicies and CiliumNetworkPolicies with advanced features:
