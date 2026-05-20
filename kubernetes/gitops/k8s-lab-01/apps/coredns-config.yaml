@@ -8,7 +8,7 @@ metadata:
 spec:
   project: platform-lab
   source:
-    repoURL: https://gitlab.example.com/abevz/platform-iac-gitops.git
+    repoURL: https://gitlab.example.com/platform/platform-iac-gitops.git
     targetRevision: main
     path: k8s-lab-01/coredns-config
   destination:
