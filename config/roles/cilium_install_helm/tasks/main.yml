@@ -126,4 +126,9 @@
         enabled: true
       operator.prometheus:
         enabled: true
+      l2announcements:
+        enabled: true
+      k8sClientRateLimit:
+        qps: 20
+        burst: 100
 # --- END: BLOCK FROM cilium.yml ---
