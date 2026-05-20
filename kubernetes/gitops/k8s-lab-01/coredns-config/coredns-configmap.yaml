@@ -18,8 +18,8 @@ data:
         }
         prometheus :9153
         # Forward homelab domains to Pi-hole (systemd-resolved 127.0.0.53 is not reachable from pods)
-        forward example.com 192.0.2.100
-        forward dev.example.com 192.0.2.100
+        forward example.com 192.0.2.53
+        forward dev.example.com 192.0.2.53
         forward . /etc/resolv.conf {
            max_concurrent 1000
         }
