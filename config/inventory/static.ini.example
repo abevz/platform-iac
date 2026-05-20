@@ -6,19 +6,27 @@
 # Your Proxmox host (FQDN or IP)
 proxmox.example.com ansible_user=terraform
 
+[nginx_proxies]
+# Public reverse proxy host. Keep real hosts in local static.ini only.
+nginx-proxy.example.com ansible_user=your-username
+
+[nginx_proxies:vars]
+primary_domain=example.com
+dev_domain=dev.example.com
+
 [mailservers]
 # Укажите IP или FQDN вашего почтового сервера
 mail.example.com ansible_user=your-username
 
 [my_k8s_cp]
 # Control plane node(s)
-10.0.0.10 ansible_user=your-username
+<K8S-CONTROL-PLANE-IP> ansible_user=your-username
 
 [my_k8s_workers]
 # Worker nodes
-10.0.0.11 ansible_user=your-username
-10.0.0.12 ansible_user=your-username
-10.0.0.13 ansible_user=your-username
+<K8S-WORKER-1-IP> ansible_user=your-username
+<K8S-WORKER-2-IP> ansible_user=your-username
+<K8S-WORKER-3-IP> ansible_user=your-username
 
 [my_k8s_cluster:children]
 my_k8s_cp
