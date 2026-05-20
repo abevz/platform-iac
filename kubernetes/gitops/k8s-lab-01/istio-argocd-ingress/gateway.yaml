@@ -10,8 +10,9 @@ spec:
   - port:
       number: 443
       name: https
-      protocol: TLS
+      protocol: HTTPS
     hosts:
-    - argocd.k8s.bevz.net
+    - "*.k8s.bevz.net"
     tls:
-      mode: PASSTHROUGH
+      mode: SIMPLE
+      credentialName: k8s-bevz-net-wildcard-tls

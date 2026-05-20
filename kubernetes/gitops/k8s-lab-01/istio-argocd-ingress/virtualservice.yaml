@@ -8,13 +8,9 @@ spec:
   - argocd.k8s.bevz.net
   gateways:
   - argocd-gateway
-  tls:
-  - match:
-    - port: 443
-      sniHosts:
-      - argocd.k8s.bevz.net
-    route:
+  http:
+  - route:
     - destination:
         host: argocd-server
         port:
-          number: 443
+          number: 80
