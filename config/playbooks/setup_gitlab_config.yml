@@ -1,0 +1,7 @@
+---
+- name: Configure GitLab instance settings
+  hosts: "{{ target | default('gitlab') }}"
+  become: true
+  roles:
+    - role: gitlab_config
+      tags: gitlab_config

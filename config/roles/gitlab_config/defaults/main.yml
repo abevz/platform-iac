@@ -1,0 +1,5 @@
+---
+gitlab_rb_path: /etc/gitlab/gitlab.rb
+
+# Gitaly settings appended to gitlab.rb
+gitlab_gitaly_allow_any_sha: true
