@@ -1,0 +1,49 @@
+---
+- name: Enable JWT auth method
+  ansible.builtin.command: >
+    vault auth enable -path={{ vault_jwt_auth_path }} jwt
+  environment:
+    VAULT_ADDR: "{{ vault_addr }}"
+  register: jwt_enable
+  changed_when: jwt_enable.rc == 0
+  failed_when:
+    - jwt_enable.rc != 0
+    - "'already in use' not in jwt_enable.stderr"
+  tags: vault_jwt
+
+- name: Configure JWT auth with GitLab JWKS
+  ansible.builtin.command: >
+    vault write auth/{{ vault_jwt_auth_path }}/config
+    jwks_url="{{ vault_jwt_gitlab_url }}/-/jwks"
+    bound_issuer="{{ vault_jwt_gitlab_url }}"
+  environment:
+    VAULT_ADDR: "{{ vault_addr }}"
+  changed_when: true
+  tags: vault_jwt
+
+- name: Create CI cosign policy
+  ansible.builtin.command: >
+    vault policy write {{ vault_ci_policy_name }} /dev/stdin
+  args:
+    stdin: |
+      path "secret/data/ci/*" {
+        capabilities = ["read"]
+      }
+  environment:
+    VAULT_ADDR: "{{ vault_addr }}"
+  changed_when: true
+  tags: vault_jwt
+
+- name: Create JWT role for CI pipeline
+  ansible.builtin.command: >
+    vault write auth/{{ vault_jwt_auth_path }}/role/{{ vault_ci_jwt_role_name }}
+    role_type="jwt"
+    bound_claims_type="glob"
+    bound_claims='{"project_path": "{{ vault_ci_project_path }}", "ref_protected": "true"}'
+    user_claim="user_login"
+    policies="{{ vault_ci_policy_name }}"
+    ttl="1h"
+  environment:
+    VAULT_ADDR: "{{ vault_addr }}"
+  changed_when: true
+  tags: vault_jwt
