@@ -11,10 +11,10 @@
     - "'already in use' not in jwt_enable.stderr"
   tags: vault_jwt
 
-- name: Configure JWT auth with GitLab JWKS
+- name: Configure JWT auth with GitLab OIDC discovery
   ansible.builtin.command: >
     vault write auth/{{ vault_jwt_auth_path }}/config
-    jwks_url="{{ vault_jwt_gitlab_url }}/-/jwks"
+    oidc_discovery_url="{{ vault_jwt_gitlab_url }}"
     bound_issuer="{{ vault_jwt_gitlab_url }}"
   environment:
     VAULT_ADDR: "{{ vault_addr }}"
@@ -38,9 +38,10 @@
   ansible.builtin.command: >
     vault write auth/{{ vault_jwt_auth_path }}/role/{{ vault_ci_jwt_role_name }}
     role_type="jwt"
+    bound_audiences="{{ vault_addr }}"
     bound_claims_type="glob"
     bound_claims='{"project_path": "{{ vault_ci_project_path }}", "ref_protected": "true"}'
-    user_claim="user_login"
+    user_claim="sub"
     policies="{{ vault_ci_policy_name }}"
     ttl="1h"
   environment:
