@@ -1,0 +1,89 @@
+name: IaC Validate
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    paths:
+      - "infra/**"
+      - "config/**"
+      - ".tflint.hcl"
+      - ".ansible-lint"
+      - ".github/workflows/iac-validate.yml"
+
+jobs:
+  tofu-validate:
+    name: OpenTofu Validate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup OpenTofu
+        uses: opentofu/setup-opentofu@v1
+        with:
+          tofu_version: "1.9.x"
+
+      - name: Validate all modules
+        run: |
+          set -e
+          for dir in infra/dev/*/; do
+            echo "=== Validating $dir ==="
+            tofu -chdir="$dir" init -backend=false -input=false
+            tofu -chdir="$dir" validate
+          done
+
+  tflint:
+    name: TFLint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: terraform-linters/setup-tflint@v4
+        with:
+          tflint_version: latest
+
+      - name: Init TFLint plugins
+        run: tflint --init --config=.tflint.hcl
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Run TFLint
+        run: tflint --recursive --config=.tflint.hcl
+
+  ansible-lint:
+    name: Ansible Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install ansible + ansible-lint
+        run: pip install ansible ansible-lint
+
+      - name: Install collections
+        run: ansible-galaxy collection install -r config/requirements.yml
+        env:
+          ANSIBLE_ROLES_PATH: config/roles
+          ANSIBLE_CONFIG: config/ansible.cfg
+
+      - name: Run ansible-lint
+        run: ansible-lint config/playbooks/
+        env:
+          ANSIBLE_ROLES_PATH: config/roles
+          ANSIBLE_CONFIG: config/ansible.cfg
+
+  gitleaks:
+    name: Secret Scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
