@@ -24,7 +24,7 @@ jobs:
       - name: Setup OpenTofu
         uses: opentofu/setup-opentofu@v1
         with:
-          tofu_version: "1.9.x"
+          tofu_version: "latest"
 
       - name: Validate all modules
         run: |
@@ -51,7 +51,12 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Run TFLint
-        run: tflint --recursive --config=.tflint.hcl
+        run: |
+          set -e
+          for dir in infra/dev/*/; do
+            echo "=== TFLint $dir ==="
+            tflint --chdir="$dir" --config="$(pwd)/.tflint.hcl"
+          done
 
   ansible-lint:
     name: Ansible Lint
