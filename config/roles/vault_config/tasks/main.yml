@@ -34,17 +34,35 @@
   changed_when: true
   tags: vault_jwt
 
+- name: Write JWT role JSON to temp file
+  ansible.builtin.copy:
+    dest: /tmp/vault-ci-role.json
+    mode: "0600"
+    content: |
+      {
+        "role_type": "jwt",
+        "bound_audiences": ["{{ vault_addr }}"],
+        "bound_claims_type": "glob",
+        "bound_claims": {
+          "project_path": "{{ vault_ci_project_path }}"
+        },
+        "user_claim": "sub",
+        "policies": ["{{ vault_ci_policy_name }}"],
+        "ttl": "1h"
+      }
+  tags: vault_jwt
+
 - name: Create JWT role for CI pipeline
   ansible.builtin.command: >
     vault write auth/{{ vault_jwt_auth_path }}/role/{{ vault_ci_jwt_role_name }}
-    role_type="jwt"
-    bound_audiences="{{ vault_addr }}"
-    bound_claims_type="glob"
-    bound_claims='{"project_path": "{{ vault_ci_project_path }}", "ref_protected": "true"}'
-    user_claim="sub"
-    policies="{{ vault_ci_policy_name }}"
-    ttl="1h"
+    @/tmp/vault-ci-role.json
   environment:
     VAULT_ADDR: "{{ vault_addr }}"
   changed_when: true
+  tags: vault_jwt
+
+- name: Remove JWT role temp file
+  ansible.builtin.file:
+    path: /tmp/vault-ci-role.json
+    state: absent
   tags: vault_jwt
