@@ -33,9 +33,11 @@ def get_inventory():
             raw_outputs = json.load(f)
 
         # 2. Получение значения ключа "ansible_inventory_data"
+        # Service components (e.g. gitlab, minio) have no Tofu state — return empty inventory
         if OUTPUT_KEY not in raw_outputs:
-            print(f"Ошибка: Ключ '{OUTPUT_KEY}' не найден в файле {CACHE_PATH}", file=sys.stderr)
-            sys.exit(1)
+            empty = {"_meta": {"hostvars": {}}}
+            json.dump(empty, sys.stdout, indent=2)
+            return
 
         inventory_string = raw_outputs[OUTPUT_KEY]['value']
 
