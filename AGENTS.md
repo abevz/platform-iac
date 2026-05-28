@@ -114,11 +114,11 @@ shellcheck tools/*.sh
 - **Pre-commit:** Must pass before any commit
 - **No force push** to shared branches
 
-## Attribution Rules
+## Attribution Rules (MANDATORY — NO EXCEPTIONS)
 
-- Do not add AI attribution trailers or bot identities to commits, PR bodies, generated files, docs, examples, logs, or release notes
-- Do not add `Co-authored-by` lines for AI tools
-- Do not mention Claude, Codex, ChatGPT, opencode, or other AI agents as authors or participants in repository-visible artifacts unless explicitly requested
+- **NEVER** add `Co-authored-by` or `Co-Authored-By` lines for AI tools in any commit
+- **NEVER** add AI attribution trailers, bot identities, or agent names to commits, PR bodies, generated files, docs, examples, logs, or release notes
+- **NEVER** mention Claude, Codex, ChatGPT, opencode, or other AI agents as authors or participants in repository-visible artifacts unless explicitly requested by the repo owner
 - Keep commits and PRs as normal human project history using the existing Conventional Commits style
 
 ## Common File Patterns
