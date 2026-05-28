@@ -2,6 +2,12 @@
 
 > **Platform Infrastructure as Code** - Universal IaC solution for managing all virtual machines on Proxmox VE with automated provisioning, configuration management, and security hardening.
 
+## Related
+
+- **[platform-iac-gitops](https://github.com/abevz/platform-iac-gitops)** — GitOps manifests for k8s-lab-01: ArgoCD app-of-apps, External Secrets + Vault, Kyverno policies, Istio ingress, cosign supply chain
+
+---
+
 ## Executive Summary
 
 `platform-iac` is a production-like Platform Engineering lab that
@@ -66,7 +72,7 @@ flowchart LR
     ms[metrics-server]
   end
 
-  gitlab[(GitLab<br/>platform-iac-gitops)]
+  gitlab[(GitHub<br/>platform-iac-gitops)]
   vault[(Vault)]
   prom[Prometheus<br/>on monitoring VM]
   grafana[Grafana]
