@@ -1,9 +1,0 @@
-apiVersion: cilium.io/v2alpha1
-kind: CiliumL2AnnouncementPolicy
-metadata:
-  name: ingress-l2-announcement
-spec:
-  serviceSelector:
-    matchLabels:
-      networking.platform.example.com/l2-announce: "true"
-  loadBalancerIPs: true
