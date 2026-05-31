@@ -2,6 +2,28 @@
 
 > **Platform Infrastructure as Code** - Universal IaC solution for managing all virtual machines on Proxmox VE with automated provisioning, configuration management, and security hardening.
 
+## Start Here (2-minute tour)
+
+A self-built, production-like **GitOps platform** spread across three repos:
+
+- **platform-iac** (this repo) — provisioning & config: OpenTofu builds VMs on
+  Proxmox; Ansible configures them and bootstraps Kubernetes (kubeadm + Cilium),
+  Vault, Harbor, monitoring, and ArgoCD.
+- **platform-iac-gitops** — GitOps source of truth: ArgoCD app-of-apps,
+  External Secrets Operator + Vault, Kyverno policies. *(publishing soon, sanitized)*
+- **democicd** — demo app through the full supply chain: GitLab CI builds →
+  cosign signs → deploy by digest → ArgoCD syncs. *(publishing soon, sanitized)*
+
+```mermaid
+flowchart LR
+  iac["platform-iac<br/>OpenTofu + Ansible"] -->|provisions| k8s[(Kubernetes)]
+  app["democicd<br/>signed image"] -->|"CI: build + sign"| gitops["platform-iac-gitops<br/>ArgoCD app-of-apps"]
+  gitops -->|ArgoCD sync| k8s
+  k8s --> obs["Prometheus / Grafana"]
+```
+
+**Flow:** `OpenTofu/Ansible → Kubernetes → ArgoCD ← Git (gitops) ← signed CI (app)`
+
 ## Executive Summary
 
 `platform-iac` is a production-like Platform Engineering lab that
