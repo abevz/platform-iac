@@ -16,16 +16,16 @@
   "graphTooltip": 1,
   "panels": [
     {
-      "title": "Discovered Targets (up/down)",
+      "title": "Routable Targets (up/down)",
       "type": "stat",
       "datasource": { "type": "prometheus", "uid": "prometheus" },
       "targets": [
         {
-          "expr": "count(up{job=~\".*k8s-pods|.*k8s-endpoints\"} == 1)",
+          "expr": "count(up{job=~\".*k8s-pods|.*k8s-endpoints\", instance!~\"10\\\\.0\\\\..*\"} == 1)",
           "legendFormat": "UP"
         },
         {
-          "expr": "count(up{job=~\".*k8s-pods|.*k8s-endpoints\"} == 0) or vector(0)",
+          "expr": "count(up{job=~\".*k8s-pods|.*k8s-endpoints\", instance!~\"10\\\\.0\\\\..*\"} == 0) or vector(0)",
           "legendFormat": "DOWN"
         }
       ],
@@ -51,12 +51,48 @@
       "options": { "graphMode": "none", "colorMode": "background", "textMode": "auto" }
     },
     {
+      "title": "Pod CIDR Targets (informational)",
+      "type": "stat",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        {
+          "expr": "count(up{job=~\".*k8s-pods|.*k8s-endpoints\", instance=~\"10\\\\.0\\\\..*\"}) or vector(0)",
+          "legendFormat": "DISCOVERED"
+        },
+        {
+          "expr": "count(up{job=~\".*k8s-pods|.*k8s-endpoints\", instance=~\"10\\\\.0\\\\..*\"} == 0) or vector(0)",
+          "legendFormat": "DOWN"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "blue", "value": null }
+            ]
+          }
+        },
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "DOWN" },
+            "properties": [
+              { "id": "thresholds", "value": { "mode": "absolute", "steps": [{ "color": "yellow", "value": null }] } }
+            ]
+          }
+        ]
+      },
+      "description": "Targets on the pod CIDR are discovered correctly, but may be unreachable from the monitoring VM unless the pod network is routed outside the cluster.",
+      "gridPos": { "h": 4, "w": 6, "x": 6, "y": 0 },
+      "options": { "graphMode": "none", "colorMode": "background", "textMode": "auto" }
+    },
+    {
       "title": "Targets by Job",
       "type": "stat",
       "datasource": { "type": "prometheus", "uid": "prometheus" },
       "targets": [
         {
-          "expr": "count by (job) (up{job=~\".*k8s-pods|.*k8s-endpoints\"})",
+          "expr": "count by (job) (up{job=~\".*k8s-pods|.*k8s-endpoints\", instance!~\"10\\\\.0\\\\..*\"})",
           "legendFormat": "{{ '{{' }}job{{ '}}' }}"
         }
       ],
@@ -71,30 +107,30 @@
         },
         "overrides": []
       },
-      "gridPos": { "h": 4, "w": 6, "x": 6, "y": 0 },
+      "gridPos": { "h": 4, "w": 6, "x": 12, "y": 0 },
       "options": { "graphMode": "none", "colorMode": "background", "textMode": "auto" }
     },
     {
-      "title": "Targets by Namespace",
+      "title": "Routable Targets by Namespace",
       "type": "piechart",
       "datasource": { "type": "prometheus", "uid": "prometheus" },
       "targets": [
         {
-          "expr": "count by (namespace) (up{job=~\".*k8s-pods|.*k8s-endpoints\"} == 1)",
+          "expr": "count by (namespace) (up{job=~\".*k8s-pods|.*k8s-endpoints\", instance!~\"10\\\\.0\\\\..*\"} == 1)",
           "legendFormat": "{{ '{{' }}namespace{{ '}}' }}"
         }
       ],
       "fieldConfig": { "defaults": {}, "overrides": [] },
-      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+      "gridPos": { "h": 8, "w": 6, "x": 18, "y": 0 },
       "options": { "legend": { "displayMode": "table", "placement": "right" } }
     },
     {
-      "title": "All Discovered Targets",
+      "title": "Routable Discovered Targets",
       "type": "table",
       "datasource": { "type": "prometheus", "uid": "prometheus" },
       "targets": [
         {
-          "expr": "up{job=~\".*k8s-pods|.*k8s-endpoints\"}",
+          "expr": "up{job=~\".*k8s-pods|.*k8s-endpoints\", instance!~\"10\\\\.0\\\\..*\"}",
           "format": "table",
           "instant": true
         }
@@ -147,12 +183,71 @@
       ]
     },
     {
+      "title": "Pod CIDR Targets",
+      "type": "table",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        {
+          "expr": "up{job=~\".*k8s-pods|.*k8s-endpoints\", instance=~\"10\\\\.0\\\\..*\"}",
+          "format": "table",
+          "instant": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "Value" },
+            "properties": [
+              {
+                "id": "mappings",
+                "value": [
+                  { "type": "value", "options": { "0": { "text": "DOWN", "color": "yellow" }, "1": { "text": "UP", "color": "green" } } }
+                ]
+              },
+              { "id": "custom.displayMode", "value": "color-background" }
+            ]
+          },
+          {
+            "matcher": { "id": "byName", "options": "Time" },
+            "properties": [{ "id": "custom.hidden", "value": true }]
+          },
+          {
+            "matcher": { "id": "byName", "options": "__name__" },
+            "properties": [{ "id": "custom.hidden", "value": true }]
+          }
+        ]
+      },
+      "description": "Informational discovery entries on the pod CIDR. If these stay down while host-network targets are up, the monitoring VM likely does not route the pod network.",
+      "gridPos": { "h": 12, "w": 24, "x": 0, "y": 20 },
+      "options": {
+        "showHeader": true,
+        "sortBy": [{ "displayName": "namespace", "desc": false }]
+      },
+      "transformations": [
+        {
+          "id": "organize",
+          "options": {
+            "includeByName": {
+              "cluster": true,
+              "namespace": true,
+              "pod": true,
+              "service": true,
+              "job": true,
+              "instance": true,
+              "Value": true
+            }
+          }
+        }
+      ]
+    },
+    {
       "title": "Scrape Duration by Target (top 20)",
       "type": "timeseries",
       "datasource": { "type": "prometheus", "uid": "prometheus" },
       "targets": [
         {
-          "expr": "topk(20, scrape_duration_seconds{job=~\".*k8s-pods|.*k8s-endpoints\"})",
+          "expr": "topk(20, scrape_duration_seconds{job=~\".*k8s-pods|.*k8s-endpoints\", instance!~\"10\\\\.0\\\\..*\"})",
           "legendFormat": "{{ '{{' }}namespace{{ '}}' }}/{{ '{{' }}pod{{ '}}' }}"
         }
       ],
@@ -170,25 +265,25 @@
         },
         "overrides": []
       },
-      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 20 },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 32 },
       "options": { "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["mean", "max"] } }
     },
     {
-      "title": "Scrape Errors",
+      "title": "Routable Scrape Errors",
       "type": "timeseries",
       "datasource": { "type": "prometheus", "uid": "prometheus" },
       "targets": [
         {
-          "expr": "sum by (job) (rate(prometheus_target_scrape_pool_sync_total{job=~\".*k8s-pods|.*k8s-endpoints\"}[5m]))",
+          "expr": "sum by (job) (rate(prometheus_target_scrape_pool_sync_total{job=~\".*k8s-pods|.*k8s-endpoints\", instance!~\"10\\\\.0\\\\..*\"}[5m]))",
           "legendFormat": "sync {{ '{{' }}job{{ '}}' }}"
         },
         {
-          "expr": "count(up{job=~\".*k8s-pods|.*k8s-endpoints\"} == 0)",
+          "expr": "count(up{job=~\".*k8s-pods|.*k8s-endpoints\", instance!~\"10\\\\.0\\\\..*\"} == 0)",
           "legendFormat": "targets down"
         }
       ],
       "fieldConfig": { "defaults": {}, "overrides": [] },
-      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 20 },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 32 },
       "options": { "legend": { "displayMode": "table", "placement": "bottom" } }
     }
   ],
@@ -198,7 +293,7 @@
         "name": "cluster",
         "type": "query",
         "datasource": { "type": "prometheus", "uid": "prometheus" },
-        "query": "label_values(up{job=~\".*k8s-pods|.*k8s-endpoints\"}, cluster)",
+        "query": "label_values(up{job=~\".*k8s-pods|.*k8s-endpoints\", instance!~\"10\\\\.0\\\\..*\"}, cluster)",
         "refresh": 2,
         "includeAll": true,
         "current": { "text": "All", "value": "$__all" }
@@ -207,7 +302,7 @@
         "name": "namespace",
         "type": "query",
         "datasource": { "type": "prometheus", "uid": "prometheus" },
-        "query": "label_values(up{job=~\".*k8s-pods|.*k8s-endpoints\", cluster=~\"$cluster\"}, namespace)",
+        "query": "label_values(up{job=~\".*k8s-pods|.*k8s-endpoints\", instance!~\"10\\\\.0\\\\..*\", cluster=~\"$cluster\"}, namespace)",
         "refresh": 2,
         "includeAll": true,
         "current": { "text": "All", "value": "$__all" }
