@@ -1,0 +1,29 @@
+vault {
+  address = "{{ monitoring_vault_agent_vault_addr | default(vault_addr | default('https://vault.bevz.net')) }}"
+}
+
+auto_auth {
+  method "approle" {
+    config = {
+      role_id_file_path   = "/vault/config/role-id"
+      secret_id_file_path = "/vault/config/secret-id"
+      remove_secret_id_file_after_reading = false
+    }
+  }
+
+  sink "file" {
+    config = {
+      path = "/vault/tokens/.vault-token"
+    }
+  }
+}
+
+{% for cluster in monitoring_k8s_clusters %}
+{% if cluster.vault_k8s_role is defined %}
+template {
+  contents    = "{{ '{{' }} with secret \"{{ monitoring_vault_k8s_secrets_path | default('kubernetes') }}/creds/{{ cluster.vault_k8s_role }}\" {{ '}}' }}{{ '{{' }} .Data.service_account_token {{ '}}' }}{{ '{{' }} end {{ '}}' }}"
+  destination = "/vault/tokens/{{ cluster.name }}.token"
+  perms       = 0644
+}
+{% endif %}
+{% endfor %}

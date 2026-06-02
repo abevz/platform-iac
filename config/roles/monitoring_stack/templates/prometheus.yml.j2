@@ -49,6 +49,62 @@ scrape_configs:
         labels:
           cluster: {{ cluster.name }}
 
+{% if cluster.vault_k8s_role is defined and cluster.api_server is defined %}
+  - job_name: {{ cluster.name }}-k8s-pods
+    kubernetes_sd_configs:
+      - role: pod
+        api_server: https://{{ cluster.api_server }}:6443
+        bearer_token_file: /etc/prometheus/k8s-tokens/{{ cluster.name }}.token
+        tls_config:
+          insecure_skip_verify: true
+    relabel_configs:
+      - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_scrape]
+        action: keep
+        regex: "true"
+      - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_path]
+        action: replace
+        target_label: __metrics_path__
+        regex: (.+)
+      - source_labels: [__address__, __meta_kubernetes_pod_annotation_prometheus_io_port]
+        action: replace
+        regex: ([^:]+)(?::\d+)?;(\d+)
+        replacement: $1:$2
+        target_label: __address__
+      - source_labels: [__meta_kubernetes_namespace]
+        target_label: namespace
+      - source_labels: [__meta_kubernetes_pod_name]
+        target_label: pod
+      - target_label: cluster
+        replacement: {{ cluster.name }}
+
+  - job_name: {{ cluster.name }}-k8s-endpoints
+    kubernetes_sd_configs:
+      - role: endpoints
+        api_server: https://{{ cluster.api_server }}:6443
+        bearer_token_file: /etc/prometheus/k8s-tokens/{{ cluster.name }}.token
+        tls_config:
+          insecure_skip_verify: true
+    relabel_configs:
+      - source_labels: [__meta_kubernetes_service_annotation_prometheus_io_scrape]
+        action: keep
+        regex: "true"
+      - source_labels: [__meta_kubernetes_service_annotation_prometheus_io_path]
+        action: replace
+        target_label: __metrics_path__
+        regex: (.+)
+      - source_labels: [__address__, __meta_kubernetes_service_annotation_prometheus_io_port]
+        action: replace
+        regex: ([^:]+)(?::\d+)?;(\d+)
+        replacement: $1:$2
+        target_label: __address__
+      - source_labels: [__meta_kubernetes_namespace]
+        target_label: namespace
+      - source_labels: [__meta_kubernetes_service_name]
+        target_label: service
+      - target_label: cluster
+        replacement: {{ cluster.name }}
+{% endif %}
+
 {% endfor %}
   - job_name: alertmanager
     static_configs:

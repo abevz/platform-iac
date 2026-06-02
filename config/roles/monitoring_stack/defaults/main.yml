@@ -63,3 +63,15 @@ monitoring_alert_thresholds:
   nvme_temp_crit_c: 78
 
 monitoring_false_sensor_regex: '.*(AUXTIN|temp[0-9]+).*'
+
+# Vault Agent sidecar for dynamic K8s bearer tokens.
+# When enabled, Vault Agent runs alongside Prometheus in docker-compose,
+# authenticates via AppRole, and renders K8s SA tokens from the
+# Vault Kubernetes Secrets Engine into a shared volume.
+monitoring_vault_agent_enabled: false
+monitoring_vault_agent_image: "hashicorp/vault:1.17"
+monitoring_vault_agent_role_id: ""
+monitoring_vault_agent_secret_id: ""
+monitoring_vault_agent_vault_addr: ""
+monitoring_vault_k8s_secrets_path: "kubernetes"
+monitoring_vault_k8s_default_role: "prometheus-external"

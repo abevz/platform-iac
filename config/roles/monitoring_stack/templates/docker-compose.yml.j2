@@ -14,6 +14,9 @@ services:
       - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
       - ./prometheus/alerts.yml:/etc/prometheus/alerts.yml:ro
       - prometheus-data:/prometheus
+{% if monitoring_vault_agent_enabled | default(false) %}
+      - vault-agent-tokens:/etc/prometheus/k8s-tokens:ro
+{% endif %}
     networks:
       - monitoring
 
@@ -100,10 +103,28 @@ services:
     networks:
       - monitoring
 
+{% if monitoring_vault_agent_enabled | default(false) %}
+  vault-agent:
+    image: {{ monitoring_vault_agent_image }}
+    container_name: monitoring-vault-agent
+    restart: unless-stopped
+    command: ["agent", "-config=/vault/config/agent.hcl"]
+    volumes:
+      - ./vault-agent/agent.hcl:/vault/config/agent.hcl:ro
+      - ./vault-agent/role-id:/vault/config/role-id:ro
+      - ./vault-agent/secret-id:/vault/config/secret-id:ro
+      - vault-agent-tokens:/vault/tokens
+    networks:
+      - monitoring
+{% endif %}
+
 volumes:
   prometheus-data:
   alertmanager-data:
   grafana-data:
+{% if monitoring_vault_agent_enabled | default(false) %}
+  vault-agent-tokens:
+{% endif %}
 
 networks:
   monitoring:
