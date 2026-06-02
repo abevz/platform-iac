@@ -7,3 +7,15 @@ vault_jwt_gitlab_url: "https://gitlab.bevz.net"
 vault_ci_policy_name: "ci-cosign"
 vault_ci_jwt_role_name: "ci-cosign"
 vault_ci_project_path: "abevz/democicd"
+
+# Kubernetes Secrets Engine (generates short-lived K8s SA tokens)
+vault_k8s_secrets_enabled: false
+vault_k8s_secrets_path: "kubernetes"
+vault_k8s_secrets_host: ""
+vault_k8s_secrets_ca_cert: ""
+vault_k8s_secrets_service_account_jwt: ""
+vault_k8s_secrets_roles: []
+
+# AppRole auth for machine clients (monitoring VM, etc.)
+vault_approle_enabled: false
+vault_approle_roles: []

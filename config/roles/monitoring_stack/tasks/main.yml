@@ -15,7 +15,9 @@
       {{ monitoring_k8s_clusters + [{
         'name': (item.item | regex_replace('/', '-')),
         'node_ips': ((item.stdout | from_json)._meta.hostvars.values()
-                     | map(attribute='ansible_host') | list)
+                     | map(attribute='ansible_host') | list),
+        'api_server': ((item.stdout | from_json)._meta.hostvars.values()
+                       | map(attribute='ansible_host') | list | first)
       }] }}
   loop: "{{ monitoring_k8s_tofu_outputs.results | default([]) }}"
   loop_control:
@@ -23,6 +25,16 @@
   when:
     - monitoring_k8s_environments | length > 0
     - item.stdout is defined
+
+- name: Enrich k8s clusters with Vault K8s secrets role
+  ansible.builtin.set_fact:
+    monitoring_k8s_clusters: >-
+      {{ monitoring_k8s_clusters | map('combine',
+         {'vault_k8s_role': monitoring_vault_k8s_default_role})
+         | list }}
+  when:
+    - monitoring_vault_agent_enabled | default(false)
+    - monitoring_vault_k8s_default_role | default('') | length > 0
 
 - name: Resolve monitoring secrets from flat or nested vars
   ansible.builtin.set_fact:
@@ -50,6 +62,10 @@
       {{ monitoring_jenkins_metrics_path | default((monitoring | default({})).get('jenkins_metrics_path', '/prometheus/'), true) }}
     monitoring_jenkins_metrics_namespace_resolved: >-
       {{ monitoring_jenkins_metrics_namespace | default((monitoring | default({})).get('jenkins_metrics_namespace', 'default'), true) }}
+    monitoring_vault_agent_role_id_resolved: >-
+      {{ monitoring_vault_agent_role_id | default((monitoring | default({})).get('vault_agent_role_id', ''), true) }}
+    monitoring_vault_agent_secret_id_resolved: >-
+      {{ monitoring_vault_agent_secret_id | default((monitoring | default({})).get('vault_agent_secret_id', ''), true) }}
 
 - name: Validate required monitoring variables
   ansible.builtin.assert:
@@ -136,6 +152,45 @@
     - { path: "{{ monitoring_install_dir }}/pve-exporter", mode: "0750" }
     - { path: "{{ monitoring_install_dir }}/blackbox", mode: "0755" }
   become: true
+
+- name: Ensure Vault Agent directory exists
+  ansible.builtin.file:
+    path: "{{ monitoring_install_dir }}/vault-agent"
+    state: directory
+    owner: root
+    group: root
+    mode: "0750"
+  become: true
+  when: monitoring_vault_agent_enabled | default(false)
+
+- name: Render Vault Agent config
+  ansible.builtin.template:
+    src: vault-agent.hcl.j2
+    dest: "{{ monitoring_install_dir }}/vault-agent/agent.hcl"
+    mode: "0644"
+  notify: Restart monitoring stack
+  become: true
+  when: monitoring_vault_agent_enabled | default(false)
+
+- name: Write Vault Agent AppRole role-id
+  ansible.builtin.copy:
+    dest: "{{ monitoring_install_dir }}/vault-agent/role-id"
+    content: "{{ monitoring_vault_agent_role_id_resolved }}"
+    mode: "0600"
+  notify: Restart monitoring stack
+  become: true
+  no_log: true
+  when: monitoring_vault_agent_enabled | default(false)
+
+- name: Write Vault Agent AppRole secret-id
+  ansible.builtin.copy:
+    dest: "{{ monitoring_install_dir }}/vault-agent/secret-id"
+    content: "{{ monitoring_vault_agent_secret_id_resolved }}"
+    mode: "0600"
+  notify: Restart monitoring stack
+  become: true
+  no_log: true
+  when: monitoring_vault_agent_enabled | default(false)
 
 - name: Render Prometheus config
   ansible.builtin.template:
