@@ -274,6 +274,15 @@
   become: true
   when: monitoring_jenkins_metrics_target_resolved | default('') | length > 0
 
+- name: Render K8s pod discovery dashboard
+  ansible.builtin.template:
+    src: grafana-dashboard-k8s-pod-discovery.json.j2
+    dest: "{{ monitoring_install_dir }}/grafana/dashboards/k8s-pod-discovery.json"
+    mode: "0644"
+  notify: Restart monitoring stack
+  become: true
+  when: monitoring_vault_agent_enabled | default(false)
+
 - name: Download Grafana dashboards from grafana.com
   ansible.builtin.get_url:
     url: "https://grafana.com/api/dashboards/{{ item.id }}/revisions/latest/download"

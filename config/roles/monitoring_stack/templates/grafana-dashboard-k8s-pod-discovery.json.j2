@@ -1,0 +1,221 @@
+{
+  "annotations": {
+    "list": [
+      {
+        "builtIn": 1,
+        "datasource": { "type": "grafana", "uid": "-- Grafana --" },
+        "enable": true,
+        "hide": true,
+        "iconColor": "rgba(0, 211, 255, 1)",
+        "name": "Annotations & Alerts",
+        "type": "dashboard"
+      }
+    ]
+  },
+  "editable": true,
+  "graphTooltip": 1,
+  "panels": [
+    {
+      "title": "Discovered Targets (up/down)",
+      "type": "stat",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        {
+          "expr": "count(up{job=~\".*k8s-pods|.*k8s-endpoints\"} == 1)",
+          "legendFormat": "UP"
+        },
+        {
+          "expr": "count(up{job=~\".*k8s-pods|.*k8s-endpoints\"} == 0) or vector(0)",
+          "legendFormat": "DOWN"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null }
+            ]
+          }
+        },
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "DOWN" },
+            "properties": [
+              { "id": "thresholds", "value": { "mode": "absolute", "steps": [{ "color": "red", "value": null }] } }
+            ]
+          }
+        ]
+      },
+      "gridPos": { "h": 4, "w": 6, "x": 0, "y": 0 },
+      "options": { "graphMode": "none", "colorMode": "background", "textMode": "auto" }
+    },
+    {
+      "title": "Targets by Job",
+      "type": "stat",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        {
+          "expr": "count by (job) (up{job=~\".*k8s-pods|.*k8s-endpoints\"})",
+          "legendFormat": "{{ '{{' }}job{{ '}}' }}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "blue", "value": null }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 4, "w": 6, "x": 6, "y": 0 },
+      "options": { "graphMode": "none", "colorMode": "background", "textMode": "auto" }
+    },
+    {
+      "title": "Targets by Namespace",
+      "type": "piechart",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        {
+          "expr": "count by (namespace) (up{job=~\".*k8s-pods|.*k8s-endpoints\"} == 1)",
+          "legendFormat": "{{ '{{' }}namespace{{ '}}' }}"
+        }
+      ],
+      "fieldConfig": { "defaults": {}, "overrides": [] },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+      "options": { "legend": { "displayMode": "table", "placement": "right" } }
+    },
+    {
+      "title": "All Discovered Targets",
+      "type": "table",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        {
+          "expr": "up{job=~\".*k8s-pods|.*k8s-endpoints\"}",
+          "format": "table",
+          "instant": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "Value" },
+            "properties": [
+              {
+                "id": "mappings",
+                "value": [
+                  { "type": "value", "options": { "0": { "text": "DOWN", "color": "red" }, "1": { "text": "UP", "color": "green" } } }
+                ]
+              },
+              { "id": "custom.displayMode", "value": "color-background" }
+            ]
+          },
+          {
+            "matcher": { "id": "byName", "options": "Time" },
+            "properties": [{ "id": "custom.hidden", "value": true }]
+          },
+          {
+            "matcher": { "id": "byName", "options": "__name__" },
+            "properties": [{ "id": "custom.hidden", "value": true }]
+          }
+        ]
+      },
+      "gridPos": { "h": 12, "w": 24, "x": 0, "y": 8 },
+      "options": {
+        "showHeader": true,
+        "sortBy": [{ "displayName": "namespace", "desc": false }]
+      },
+      "transformations": [
+        {
+          "id": "organize",
+          "options": {
+            "includeByName": {
+              "cluster": true,
+              "namespace": true,
+              "pod": true,
+              "service": true,
+              "job": true,
+              "instance": true,
+              "Value": true
+            }
+          }
+        }
+      ]
+    },
+    {
+      "title": "Scrape Duration by Target (top 20)",
+      "type": "timeseries",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        {
+          "expr": "topk(20, scrape_duration_seconds{job=~\".*k8s-pods|.*k8s-endpoints\"})",
+          "legendFormat": "{{ '{{' }}namespace{{ '}}' }}/{{ '{{' }}pod{{ '}}' }}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 1 },
+              { "color": "red", "value": 5 }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 20 },
+      "options": { "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["mean", "max"] } }
+    },
+    {
+      "title": "Scrape Errors",
+      "type": "timeseries",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        {
+          "expr": "sum by (job) (rate(prometheus_target_scrape_pool_sync_total{job=~\".*k8s-pods|.*k8s-endpoints\"}[5m]))",
+          "legendFormat": "sync {{ '{{' }}job{{ '}}' }}"
+        },
+        {
+          "expr": "count(up{job=~\".*k8s-pods|.*k8s-endpoints\"} == 0)",
+          "legendFormat": "targets down"
+        }
+      ],
+      "fieldConfig": { "defaults": {}, "overrides": [] },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 20 },
+      "options": { "legend": { "displayMode": "table", "placement": "bottom" } }
+    }
+  ],
+  "templating": {
+    "list": [
+      {
+        "name": "cluster",
+        "type": "query",
+        "datasource": { "type": "prometheus", "uid": "prometheus" },
+        "query": "label_values(up{job=~\".*k8s-pods|.*k8s-endpoints\"}, cluster)",
+        "refresh": 2,
+        "includeAll": true,
+        "current": { "text": "All", "value": "$__all" }
+      },
+      {
+        "name": "namespace",
+        "type": "query",
+        "datasource": { "type": "prometheus", "uid": "prometheus" },
+        "query": "label_values(up{job=~\".*k8s-pods|.*k8s-endpoints\", cluster=~\"$cluster\"}, namespace)",
+        "refresh": 2,
+        "includeAll": true,
+        "current": { "text": "All", "value": "$__all" }
+      }
+    ]
+  },
+  "time": { "from": "now-1h", "to": "now" },
+  "title": "K8s Pod Discovery Overview",
+  "uid": "k8s-pod-discovery",
+  "version": 1
+}
