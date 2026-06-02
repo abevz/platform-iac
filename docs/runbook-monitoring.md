@@ -39,6 +39,74 @@ Look for `receiver: telegram` and `telegram_configs`.
 
 ## Common Incidents
 
+### 0) Vault Agent for Kubernetes discovery tokens
+
+The monitoring VM uses Vault Agent to render short-lived Kubernetes
+service-account tokens for Prometheus pod and endpoints discovery.
+
+Split of responsibilities:
+
+- `platform-iac-gitops` manages Kubernetes objects:
+  `prometheus-external` ServiceAccount, its RBAC, and
+  `vault-token-creator-rbac`.
+- `platform-iac` manages Vault and the monitoring VM:
+  Kubernetes secrets engine config, AppRole policy, Vault Agent config,
+  and Prometheus mounts.
+
+Required Ansible vars in `config/secrets/ansible/extra_vars.sops.yml`:
+
+```yaml
+monitoring:
+  vault_agent_enabled: true
+  vault_agent_role_id: "<approle-role-id>"
+  vault_agent_secret_id: "<approle-secret-id>"
+  vault_agent_vault_addr: "https://vault.bevz.net"
+
+vault_k8s_secrets_enabled: true
+vault_k8s_secrets_path: "kubernetes"
+vault_k8s_secrets_host: "https://10.10.10.200:6443"
+vault_k8s_secrets_ca_cert: |
+  -----BEGIN CERTIFICATE-----
+  ...
+  -----END CERTIFICATE-----
+vault_k8s_secrets_service_account_jwt: "<vault-auth-jwt>"
+vault_k8s_secrets_roles:
+  - name: prometheus-external
+    allowed_namespaces: "monitoring"
+    service_account_name: "prometheus-external"
+    token_ttl: "1h"
+    token_max_ttl: "4h"
+
+vault_approle_enabled: true
+vault_approle_roles:
+  - name: monitoring-k8s-read
+    policy: |
+      path "kubernetes/creds/prometheus-external" {
+        capabilities = ["create", "update"]
+      }
+```
+
+Apply order:
+
+```bash
+./tools/iac-wrapper.sh run-playbook dev vault setup_vault_config.yml all
+./tools/iac-wrapper.sh configure dev monitoring
+```
+
+Verify live state:
+
+```bash
+ssh 192.0.2.108 "sudo docker logs --tail 60 monitoring-vault-agent"
+ssh 192.0.2.108 "sudo ls -la /srv/monitoring/vault-agent/tokens"
+ssh 192.0.2.108 "sudo docker exec monitoring-prometheus ls -la /etc/prometheus/k8s-tokens"
+```
+
+Expected:
+
+- `monitoring-vault-agent` is `Up`
+- `.vault-token` exists
+- `dev-k8s-lab-01.token` exists both on the host and inside Prometheus
+
 ### 1) Grafana returns 502/Bad Gateway
 
 Checks:

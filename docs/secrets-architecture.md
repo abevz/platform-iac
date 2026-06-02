@@ -163,6 +163,80 @@ Runtime requirement:
 - `apply_external_secrets.yml` needs `vault_eso_admin_token` because it writes
   Vault auth config, Vault policy, Vault role, and the initial sandbox secret.
 
+## Monitoring Vault Agent Flow
+
+The monitoring stack uses a different Vault integration path than ESO.
+
+Split of responsibilities:
+
+- `platform-iac-gitops` owns Kubernetes manifests for:
+  - `monitoring/prometheus-external` ServiceAccount
+  - `prometheus-external` ClusterRole and ClusterRoleBinding
+  - `vault-token-creator` RBAC for the `vault-auth` service account
+- `platform-iac` owns:
+  - Vault Kubernetes secrets engine configuration
+  - Vault AppRole policy and role for the monitoring VM
+  - Vault Agent and Prometheus configuration on the monitoring VM
+
+The live flow is:
+
+```text
+Prometheus on monitoring VM
+  -> reads token file from /etc/prometheus/k8s-tokens/dev-k8s-lab-01.token
+Vault Agent on monitoring VM
+  -> authenticates with AppRole
+  -> requests kubernetes/creds/prometheus-external in namespace monitoring
+Vault Kubernetes secrets engine
+  -> asks the cluster to mint a short-lived SA token
+Kubernetes RBAC in platform-iac-gitops
+  -> allows the generated token to watch pods/endpoints/services/nodes
+```
+
+Required Vault policy for the monitoring AppRole:
+
+```hcl
+path "kubernetes/creds/prometheus-external" {
+  capabilities = ["create", "update"]
+}
+```
+
+Required `vault_config` vars:
+
+```yaml
+vault_k8s_secrets_enabled: true
+vault_k8s_secrets_path: "kubernetes"
+vault_k8s_secrets_host: "https://10.10.10.200:6443"
+vault_k8s_secrets_ca_cert: |
+  -----BEGIN CERTIFICATE-----
+  ...
+  -----END CERTIFICATE-----
+vault_k8s_secrets_service_account_jwt: "<vault-auth-jwt>"
+vault_k8s_secrets_roles:
+  - name: prometheus-external
+    allowed_namespaces: "monitoring"
+    service_account_name: "prometheus-external"
+    token_ttl: "1h"
+    token_max_ttl: "4h"
+
+vault_approle_enabled: true
+vault_approle_roles:
+  - name: monitoring-k8s-read
+    policy: |
+      path "kubernetes/creds/prometheus-external" {
+        capabilities = ["create", "update"]
+      }
+```
+
+Required monitoring vars:
+
+```yaml
+monitoring:
+  vault_agent_enabled: true
+  vault_agent_role_id: "<approle-role-id>"
+  vault_agent_secret_id: "<approle-secret-id>"
+  vault_agent_vault_addr: "https://vault.bevz.net"
+```
+
 Example:
 
 ```bash
