@@ -1,0 +1,35 @@
+import hudson.security.FullControlOnceLoggedInAuthorizationStrategy
+import hudson.security.HudsonPrivateSecurityRealm
+import jenkins.model.JenkinsLocationConfiguration
+import jenkins.install.InstallState
+import jenkins.model.Jenkins
+import org.jenkinsci.plugins.prometheus.config.PrometheusConfiguration
+
+def instance = Jenkins.get()
+
+if (!(instance.getSecurityRealm() instanceof HudsonPrivateSecurityRealm)) {
+  instance.setSecurityRealm(new HudsonPrivateSecurityRealm(false))
+}
+
+def realm = instance.getSecurityRealm()
+if (realm.getUser("{{ jenkins_admin_user }}") == null) {
+  realm.createAccount("{{ jenkins_admin_user }}", "{{ jenkins_admin_password }}")
+}
+
+def strategy = new FullControlOnceLoggedInAuthorizationStrategy()
+strategy.setAllowAnonymousRead(true)
+instance.setAuthorizationStrategy(strategy)
+
+def prometheus = PrometheusConfiguration.get()
+prometheus.setDefaultNamespace("{{ jenkins_metrics_namespace }}")
+prometheus.setPath("{{ jenkins_metrics_endpoint | regex_replace('^/', '') | regex_replace('/$', '') }}")
+prometheus.setUseAuthenticatedEndpoint(false)
+prometheus.setCollectDiskUsage(false)
+prometheus.save()
+
+def location = JenkinsLocationConfiguration.get()
+location.setUrl("{{ jenkins_external_url }}")
+location.save()
+
+instance.setInstallState(InstallState.INITIAL_SETUP_COMPLETED)
+instance.save()

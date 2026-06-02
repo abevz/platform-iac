@@ -3,7 +3,7 @@
 server {
     listen 80;
     listen [::]:80;
-    server_name homelab.{{ primary_domain | default("<your-domain>.com") }} harbor.{{ primary_domain | default("<your-domain>.com") }} wiki.{{ dev_domain | default("<your-dev-domain>.dev") }} gitlab.{{ primary_domain | default("<your-domain>.com") }} s3.minio.{{ primary_domain | default("<your-domain>.com") }} minio.{{ primary_domain | default("<your-domain>.com") }} plantuml.{{ dev_domain | default("<your-dev-domain>.dev") }} grafana.{{ primary_domain | default("<your-domain>.com") }} vault.{{ primary_domain | default("<your-domain>.com") }};
+    server_name homelab.{{ primary_domain | default("<your-domain>.com") }} harbor.{{ primary_domain | default("<your-domain>.com") }} wiki.{{ dev_domain | default("<your-dev-domain>.dev") }} gitlab.{{ primary_domain | default("<your-domain>.com") }} s3.minio.{{ primary_domain | default("<your-domain>.com") }} minio.{{ primary_domain | default("<your-domain>.com") }} plantuml.{{ dev_domain | default("<your-dev-domain>.dev") }} grafana.{{ primary_domain | default("<your-domain>.com") }} jenkins.{{ primary_domain | default("<your-domain>.com") }} vault.{{ primary_domain | default("<your-domain>.com") }};
 
     location /.well-known/acme-challenge/ {
         root /var/www/html;
@@ -221,5 +221,30 @@ server {
 
         proxy_read_timeout 3600;
         proxy_send_timeout 3600;
+    }
+}
+
+server {
+    listen 127.0.0.1:1443 ssl http2 proxy_protocol;
+    server_name jenkins.{{ primary_domain | default("<your-domain>.com") }};
+
+    ssl_certificate /etc/letsencrypt/live/{{ primary_domain | default("<your-domain>.com") | replace('.', '-') }}-wildcard/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/{{ primary_domain | default("<your-domain>.com") | replace('.', '-') }}-wildcard/privkey.pem;
+    ssl_trusted_certificate /etc/letsencrypt/live/{{ primary_domain | default("<your-domain>.com") | replace('.', '-') }}-wildcard/chain.pem;
+    include conf.d/ssl-params.conf;
+
+    location / {
+        proxy_pass {{ nginx_proxy_upstreams.jenkins_http }};
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Forwarded-Port 443;
+        proxy_set_header X-Forwarded-Ssl on;
+
+        proxy_read_timeout 3600;
+        proxy_send_timeout 3600;
+        proxy_request_buffering off;
     }
 }

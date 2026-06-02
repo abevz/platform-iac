@@ -93,6 +93,10 @@ services:
       - "9115:9115"
     volumes:
       - ./blackbox/blackbox.yml:/etc/blackbox_exporter/config.yml:ro
+{% if monitoring_dns_server_resolved | default('') | length > 0 %}
+    dns:
+      - {{ monitoring_dns_server_resolved }}
+{% endif %}
     networks:
       - monitoring
 

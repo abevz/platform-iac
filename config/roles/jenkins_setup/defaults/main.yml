@@ -2,3 +2,17 @@
 ---
 jenkins_root_dir: "/srv/jenkins"
 jenkins_home_dir: "/srv/jenkins-home"
+jenkins_vm_user: "{{ vm_user | default(ansible_user) }}"
+jenkins_image: "jenkins/jenkins:2.555.2-lts-jdk21"
+jenkins_prometheus_plugin: "prometheus:852.v317db_5d17a_b_0"
+jenkins_metrics_namespace: "default"
+jenkins_metrics_endpoint: "/prometheus/"
+jenkins_external_url: 'https://jenkins.{{ primary_domain | default("<your-domain>.com") }}/'
+jenkins_admin_user: "admin"
+jenkins_admin_password_file: "{{ lookup('env', 'HOME') }}/.jenkins_admin_password"
+jenkins_http_port: 8080
+jenkins_agent_port: 50000
+jenkins_healthcheck_interval: "30s"
+jenkins_healthcheck_timeout: "10s"
+jenkins_healthcheck_retries: 5
+jenkins_healthcheck_start_period: "90s"

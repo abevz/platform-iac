@@ -39,6 +39,17 @@
       {{ monitoring_telegram_bot_token | default((monitoring | default({})).get('telegram_bot_token', ''), true) }}
     monitoring_telegram_chat_id_resolved: >-
       {{ monitoring_telegram_chat_id | default((monitoring | default({})).get('telegram_chat_id', ''), true) }}
+    monitoring_dns_server_resolved: >-
+      {{ (dns | default({})).get('server', {}).get('ip_address',
+         (pihole | default({})).get('ip_address', '')) }}
+    monitoring_jenkins_url_resolved: >-
+      {{ monitoring_jenkins_url | default((monitoring | default({})).get('jenkins_url', ''), true) }}
+    monitoring_jenkins_metrics_target_resolved: >-
+      {{ monitoring_jenkins_metrics_target | default((monitoring | default({})).get('jenkins_metrics_target', ''), true) }}
+    monitoring_jenkins_metrics_path_resolved: >-
+      {{ monitoring_jenkins_metrics_path | default((monitoring | default({})).get('jenkins_metrics_path', '/prometheus/'), true) }}
+    monitoring_jenkins_metrics_namespace_resolved: >-
+      {{ monitoring_jenkins_metrics_namespace | default((monitoring | default({})).get('jenkins_metrics_namespace', 'default'), true) }}
 
 - name: Validate required monitoring variables
   ansible.builtin.assert:
@@ -50,6 +61,15 @@
     fail_msg: >-
       primary domain and monitoring Proxmox token variables must be provided
       via encrypted Ansible vars.
+
+- name: Build effective blackbox targets
+  ansible.builtin.set_fact:
+    monitoring_blackbox_targets_effective: >-
+      {{ (monitoring_blackbox_targets | default([])) +
+         ([monitoring_jenkins_url_resolved] if
+         ((monitoring_jenkins_url_resolved | default('') | length > 0) and
+          (monitoring_jenkins_url_resolved not in (monitoring_blackbox_targets | default([]))))
+         else []) }}
 
 - name: Ensure monitoring apt dependencies are installed
   ansible.builtin.apt:
@@ -180,6 +200,24 @@
     mode: "0644"
   notify: Restart monitoring stack
   become: true
+
+- name: Render Jenkins dashboard
+  ansible.builtin.template:
+    src: grafana-dashboard-jenkins.json.j2
+    dest: "{{ monitoring_install_dir }}/grafana/dashboards/jenkins-overview.json"
+    mode: "0644"
+  notify: Restart monitoring stack
+  become: true
+  when: monitoring_jenkins_url_resolved | default('') | length > 0
+
+- name: Render Jenkins metrics dashboard
+  ansible.builtin.template:
+    src: grafana-dashboard-jenkins-metrics.json.j2
+    dest: "{{ monitoring_install_dir }}/grafana/dashboards/jenkins-metrics.json"
+    mode: "0644"
+  notify: Restart monitoring stack
+  become: true
+  when: monitoring_jenkins_metrics_target_resolved | default('') | length > 0
 
 - name: Download Grafana dashboards from grafana.com
   ansible.builtin.get_url:

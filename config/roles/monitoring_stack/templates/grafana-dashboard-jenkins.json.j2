@@ -1,0 +1,123 @@
+{
+  "annotations": {
+    "list": [
+      {
+        "builtIn": 1,
+        "datasource": {
+          "type": "grafana",
+          "uid": "-- Grafana --"
+        },
+        "enable": true,
+        "hide": true,
+        "iconColor": "rgba(0, 211, 255, 1)",
+        "name": "Annotations & Alerts",
+        "type": "dashboard"
+      }
+    ]
+  },
+  "editable": true,
+  "graphTooltip": 1,
+  "panels": [
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [{ "type": "value", "options": { "0": { "text": "DOWN" }, "1": { "text": "UP" } } }],
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "red", "value": null }, { "color": "green", "value": 1 }] }
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 4, "w": 6, "x": 0, "y": 0 },
+      "id": 1,
+      "options": { "colorMode": "background", "graphMode": "none", "justifyMode": "center", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false } },
+      "targets": [{ "expr": "max(probe_success{job=\"blackbox-ssl\",instance=\"{{ monitoring_jenkins_url_resolved }}\"}) or vector(0)", "refId": "A" }],
+      "title": "Jenkins UI",
+      "type": "stat"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ms",
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }, { "color": "orange", "value": 750 }, { "color": "red", "value": 2000 }] }
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 4, "w": 6, "x": 6, "y": 0 },
+      "id": 2,
+      "options": { "colorMode": "value", "graphMode": "area", "justifyMode": "center", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false } },
+      "targets": [{ "expr": "max(probe_duration_seconds{job=\"blackbox-ssl\",instance=\"{{ monitoring_jenkins_url_resolved }}\"}) * 1000", "refId": "A" }],
+      "title": "Probe Duration",
+      "type": "stat"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "red", "value": null }, { "color": "green", "value": 200 }, { "color": "orange", "value": 300 }] }
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 4, "w": 6, "x": 12, "y": 0 },
+      "id": 3,
+      "options": { "colorMode": "background", "graphMode": "none", "justifyMode": "center", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false } },
+      "targets": [{ "expr": "max(probe_http_status_code{job=\"blackbox-ssl\",instance=\"{{ monitoring_jenkins_url_resolved }}\"}) or vector(0)", "refId": "A" }],
+      "title": "HTTP Status",
+      "type": "stat"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "d",
+          "mappings": [{ "type": "value", "options": { "-1": { "text": "N/A" } } }],
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "red", "value": null }, { "color": "orange", "value": 7 }, { "color": "green", "value": 21 }] }
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 4, "w": 6, "x": 18, "y": 0 },
+      "id": 4,
+      "options": { "colorMode": "value", "graphMode": "none", "justifyMode": "center", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false } },
+      "targets": [{ "expr": "max((probe_ssl_earliest_cert_expiry{job=\"blackbox-ssl\",instance=\"{{ monitoring_jenkins_url_resolved }}\"} - time()) / 86400) or vector(-1)", "refId": "A" }],
+      "title": "TLS Days Left",
+      "type": "stat"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "ms" }, "overrides": [] },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 4 },
+      "id": 5,
+      "targets": [{ "expr": "probe_duration_seconds{job=\"blackbox-ssl\",instance=\"{{ monitoring_jenkins_url_resolved }}\"} * 1000", "legendFormat": "Probe", "refId": "A" }],
+      "title": "Probe Duration Trend",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 4 },
+      "id": 6,
+      "targets": [{ "expr": "probe_http_status_code{job=\"blackbox-ssl\",instance=\"{{ monitoring_jenkins_url_resolved }}\"}", "legendFormat": "HTTP", "refId": "A" }],
+      "title": "HTTP Status Trend",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] },
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 12 },
+      "id": 7,
+      "targets": [{ "expr": "probe_success{job=\"blackbox-ssl\",instance=\"{{ monitoring_jenkins_url_resolved }}\"}", "legendFormat": "Availability", "refId": "A" }],
+      "title": "Availability Trend",
+      "type": "timeseries"
+    }
+  ],
+  "refresh": "30s",
+  "schemaVersion": 39,
+  "style": "dark",
+  "tags": ["jenkins", "blackbox"],
+  "templating": { "list": [] },
+  "time": { "from": "now-24h", "to": "now" },
+  "timezone": "browser",
+  "title": "Jenkins Overview",
+  "uid": "jenkins-overview",
+  "version": 1
+}
