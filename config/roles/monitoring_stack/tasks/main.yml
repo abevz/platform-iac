@@ -26,6 +26,11 @@
     - monitoring_k8s_environments | length > 0
     - item.stdout is defined
 
+- name: Resolve Vault Agent flag from flat or nested vars
+  ansible.builtin.set_fact:
+    monitoring_vault_agent_enabled: >-
+      {{ monitoring_vault_agent_enabled | default((monitoring | default({})).get('vault_agent_enabled', false), true) }}
+
 - name: Enrich k8s clusters with Vault K8s secrets role
   ansible.builtin.set_fact:
     monitoring_k8s_clusters: >-
