@@ -42,6 +42,10 @@ monitoring_node_exporter_targets:
 monitoring_blackbox_targets:
   - https://grafana.example.com/login
   - https://homelab.example.com
+monitoring_jenkins_url: ""
+monitoring_jenkins_metrics_target: ""
+monitoring_jenkins_metrics_path: "/prometheus/"
+monitoring_jenkins_metrics_namespace: "default"
 monitoring_proxmox_token_id: ""
 monitoring_proxmox_token_name: ""
 monitoring_proxmox_token_secret: ""

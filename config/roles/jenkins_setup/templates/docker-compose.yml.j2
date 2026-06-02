@@ -1,20 +1,29 @@
 # File managed by Ansible
 services:
   jenkins:
-    image: jenkins/jenkins:lts-jdk17
+    image: {{ jenkins_image }}
     container_name: jenkins
     restart: unless-stopped
     # ❗️ IMPORTANT: Run as root inside container
     # to have access to host docker.sock.
     user: "root"
+    environment:
+      - PROMETHEUS_NAMESPACE={{ jenkins_metrics_namespace }}
+      - PROMETHEUS_ENDPOINT={{ jenkins_metrics_endpoint }}
     ports:
-      - "8080:8080" # Web UI
-      - "50000:50000" # Agents
+      - "{{ jenkins_http_port }}:8080" # Web UI
+      - "{{ jenkins_agent_port }}:50000" # Agents
     volumes:
       # /srv/jenkins-home on host will belong to user 1000 (jenkins)
       - "{{ jenkins_home_dir }}:/var/jenkins_home"
       # Connect Docker host
       - "/var/run/docker.sock:/var/run/docker.sock"
+    healthcheck:
+      test: ["CMD-SHELL", "bash -c '</dev/tcp/127.0.0.1/8080'"]
+      interval: "{{ jenkins_healthcheck_interval }}"
+      timeout: "{{ jenkins_healthcheck_timeout }}"
+      retries: {{ jenkins_healthcheck_retries }}
+      start_period: "{{ jenkins_healthcheck_start_period }}"
     networks:
       - jenkins-net
 

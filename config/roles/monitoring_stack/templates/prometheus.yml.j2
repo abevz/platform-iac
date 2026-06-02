@@ -54,12 +54,19 @@ scrape_configs:
     static_configs:
       - targets: ["alertmanager:9093"]
 
+{% if monitoring_jenkins_metrics_target_resolved | default('') | length > 0 %}
+  - job_name: jenkins
+    metrics_path: "{{ monitoring_jenkins_metrics_path_resolved }}"
+    static_configs:
+      - targets: ["{{ monitoring_jenkins_metrics_target_resolved }}"]
+{% endif %}
+
   - job_name: blackbox-ssl
     metrics_path: /probe
     params:
       module: ["https_2xx"]
     static_configs:
-{% for target in monitoring_blackbox_targets %}
+{% for target in monitoring_blackbox_targets_effective | default(monitoring_blackbox_targets) %}
       - targets: ["{{ target }}"]
 {% endfor %}
     relabel_configs:

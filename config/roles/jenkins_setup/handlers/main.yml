@@ -4,3 +4,10 @@
   ansible.builtin.systemd:
     daemon_reload: yes
   become: yes
+
+- name: Restart Jenkins stack
+  community.docker.docker_compose_v2:
+    project_src: "{{ jenkins_root_dir }}"
+    state: restarted
+    pull: missing
+  become: yes

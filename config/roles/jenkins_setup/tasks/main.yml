@@ -46,7 +46,7 @@
 
 - name: Add VM user to docker group
   ansible.builtin.user:
-    name: "{{ vm_user }}"
+    name: "{{ jenkins_vm_user }}"
     groups: docker
     append: yes
   become: yes
@@ -60,6 +60,7 @@
   loop:
     - "{{ jenkins_root_dir }}"
     - "{{ jenkins_home_dir }}"
+    - "{{ jenkins_home_dir }}/init.groovy.d"
 
 - name: Set owner for jenkins_home
   ansible.builtin.file:
@@ -70,19 +71,51 @@
     recurse: yes
   become: yes
 
+- name: Load or generate Jenkins admin password on control node
+  ansible.builtin.set_fact:
+    jenkins_admin_password: "{{ lookup('password', jenkins_admin_password_file + ' length=32 chars=ascii_letters,digits') }}"
+  delegate_to: localhost
+  become: false
+
+- name: Copy Jenkins bootstrap Groovy
+  ansible.builtin.template:
+    src: bootstrap-security.groovy.j2
+    dest: "{{ jenkins_home_dir }}/init.groovy.d/bootstrap-security.groovy"
+    mode: "0644"
+  become: yes
+  notify: Restart Jenkins stack
+
 - name: Copy docker-compose.yml for Jenkins
   ansible.builtin.template:
     src: docker-compose.yml.j2
     dest: "{{ jenkins_root_dir }}/docker-compose.yml"
     mode: "0644"
   become: yes
-  register: compose_file
+  notify: Restart Jenkins stack
 
 - name: Start Jenkins (Docker Compose)
   community.docker.docker_compose_v2:
     project_src: "{{ jenkins_root_dir }}"
     state: present
+    pull: missing
   become: yes
+
+- name: Check Jenkins Prometheus plugin installation
+  ansible.builtin.stat:
+    path: "{{ jenkins_home_dir }}/plugins/prometheus.jpi"
+  register: jenkins_prometheus_plugin_stat
+  become: yes
+
+- name: Install Jenkins Prometheus plugin
+  ansible.builtin.command:
+    cmd: >-
+      docker exec jenkins
+      jenkins-plugin-cli
+      --plugin-download-directory /var/jenkins_home/plugins
+      --plugins {{ jenkins_prometheus_plugin }}
+  become: yes
+  when: not jenkins_prometheus_plugin_stat.stat.exists
+  notify: Restart Jenkins stack
 
 # --- Autostart block ---
 - name: Copy systemd unit file for Jenkins
