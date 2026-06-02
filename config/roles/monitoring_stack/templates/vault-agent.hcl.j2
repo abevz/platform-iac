@@ -1,5 +1,5 @@
 vault {
-  address = "{{ monitoring_vault_agent_vault_addr | default(vault_addr | default('https://vault.bevz.net')) }}"
+  address = "{{ monitoring_vault_agent_vault_addr_resolved }}"
 }
 
 auto_auth {
@@ -21,7 +21,7 @@ auto_auth {
 {% for cluster in monitoring_k8s_clusters %}
 {% if cluster.vault_k8s_role is defined %}
 template {
-  contents    = "{{ '{{' }} with secret \"{{ monitoring_vault_k8s_secrets_path | default('kubernetes') }}/creds/{{ cluster.vault_k8s_role }}\" {{ '}}' }}{{ '{{' }} .Data.service_account_token {{ '}}' }}{{ '{{' }} end {{ '}}' }}"
+  contents    = "{{ '{{' }} with secret \"{{ monitoring_vault_k8s_secrets_path | default('kubernetes') }}/creds/{{ cluster.vault_k8s_role }}\" \"kubernetes_namespace=monitoring\" {{ '}}' }}{{ '{{' }} .Data.service_account_token {{ '}}' }}{{ '{{' }} end {{ '}}' }}"
   destination = "/vault/tokens/{{ cluster.name }}.token"
   perms       = 0644
 }

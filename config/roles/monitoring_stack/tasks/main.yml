@@ -71,6 +71,8 @@
       {{ monitoring_vault_agent_role_id | default((monitoring | default({})).get('vault_agent_role_id', ''), true) }}
     monitoring_vault_agent_secret_id_resolved: >-
       {{ monitoring_vault_agent_secret_id | default((monitoring | default({})).get('vault_agent_secret_id', ''), true) }}
+    monitoring_vault_agent_vault_addr_resolved: >-
+      {{ monitoring_vault_agent_vault_addr | default((monitoring | default({})).get('vault_agent_vault_addr', vault_addr | default('https://vault.bevz.net', true)), true) }}
 
 - name: Validate required monitoring variables
   ansible.builtin.assert:
@@ -82,6 +84,14 @@
     fail_msg: >-
       primary domain and monitoring Proxmox token variables must be provided
       via encrypted Ansible vars.
+
+- name: Validate Vault Agent variables when enabled
+  ansible.builtin.assert:
+    that:
+      - monitoring_vault_agent_vault_addr_resolved | length > 0
+    fail_msg: >-
+      monitoring.vault_agent_vault_addr must be provided when Vault Agent is enabled.
+  when: monitoring_vault_agent_enabled | default(false)
 
 - name: Build effective blackbox targets
   ansible.builtin.set_fact:
@@ -164,7 +174,17 @@
     state: directory
     owner: root
     group: root
-    mode: "0750"
+    mode: "0755"
+  become: true
+  when: monitoring_vault_agent_enabled | default(false)
+
+- name: Ensure Vault Agent token directory exists
+  ansible.builtin.file:
+    path: "{{ monitoring_install_dir }}/vault-agent/tokens"
+    state: directory
+    owner: root
+    group: root
+    mode: "0777"
   become: true
   when: monitoring_vault_agent_enabled | default(false)
 
@@ -181,7 +201,7 @@
   ansible.builtin.copy:
     dest: "{{ monitoring_install_dir }}/vault-agent/role-id"
     content: "{{ monitoring_vault_agent_role_id_resolved }}"
-    mode: "0600"
+    mode: "0644"
   notify: Restart monitoring stack
   become: true
   no_log: true
@@ -191,7 +211,7 @@
   ansible.builtin.copy:
     dest: "{{ monitoring_install_dir }}/vault-agent/secret-id"
     content: "{{ monitoring_vault_agent_secret_id_resolved }}"
-    mode: "0600"
+    mode: "0644"
   notify: Restart monitoring stack
   become: true
   no_log: true
