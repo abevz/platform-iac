@@ -167,6 +167,63 @@ Runtime requirement:
 
 The monitoring stack uses a different Vault integration path than ESO.
 
+### Why use Vault here at all?
+
+Short answer: mostly for runtime isolation and operational hygiene, not
+because the homelab suddenly became a high-security environment.
+
+What Vault improves here:
+
+- Prometheus no longer needs a long-lived Kubernetes bearer token stored
+  as a static file in the repo or hand-copied onto the monitoring VM.
+- The monitoring VM gets a short-lived token on demand via AppRole and
+  the Kubernetes secrets engine.
+- The Kubernetes-side permissions stay attached to
+  `monitoring/prometheus-external` in `platform-iac-gitops`, while the
+  monitoring VM only gets the ability to ask Vault for that token.
+- Token rotation becomes automatic at the Vault/Agent layer instead of
+  a manual “replace the file and restart Prometheus” workflow.
+
+What Vault does not magically solve:
+
+- It does not make the homelab “secure by default”.
+- If the monitoring VM is fully compromised, an attacker can still use
+  the rendered short-lived token while it is valid.
+- It adds complexity: AppRole, Vault policy, Kubernetes secrets engine,
+  monitoring VM runtime config, and docs all have to line up.
+
+Honest tradeoff for this homelab:
+
+- Security improvement: moderate
+- Operational complexity increase: high
+- Main practical value: reproducible token issuance, smaller blast radius
+  than a permanent static cluster token, and a closer-to-production flow
+  for learning and future reuse
+
+Simple architecture view:
+
+```text
+platform-iac-gitops
+  -> creates monitoring/prometheus-external ServiceAccount + RBAC
+  -> grants vault-auth the ability to mint SA tokens
+
+platform-iac
+  -> configures Vault Kubernetes secrets engine
+  -> configures AppRole policy for monitoring VM
+  -> configures Vault Agent and Prometheus on monitoring VM
+
+monitoring VM
+  Vault Agent -> AppRole login to Vault
+              -> request kubernetes/creds/prometheus-external
+              -> write short-lived token to local file
+  Prometheus  -> reads local token file
+              -> scrapes kube pod/endpoints discovery targets
+```
+
+In other words: `platform-iac-gitops` defines what the cluster allows,
+and `platform-iac` defines how the external monitoring VM gets and uses
+that access at runtime.
+
 Split of responsibilities:
 
 - `platform-iac-gitops` owns Kubernetes manifests for:
