@@ -44,8 +44,6 @@ server {
     ssl_certificate_key /etc/letsencrypt/live/{{ primary_domain | default("<your-domain>.com") | replace('.', '-') }}-wildcard/privkey.pem;
     ssl_trusted_certificate /etc/letsencrypt/live/{{ primary_domain | default("<your-domain>.com") | replace('.', '-') }}-wildcard/chain.pem;
 
-    limit_req zone=mylimit burst=10 nodelay;
-
     location / {
         proxy_pass http://{{ nginx_proxy_upstreams.gitlab_http }};
         proxy_set_header Host $http_host;
