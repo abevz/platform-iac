@@ -55,6 +55,12 @@ config/secrets/*/*.sops.yaml
 # Legacy decrypted file
 config/secrets/certbot/dns-multi.ini
 
+# --- Private keys and certificates ---
+*.key
+*.pem
+*.p12
+*.pfx
+
 # --- General ---
 # Editor temp files and backups
 *.bak
