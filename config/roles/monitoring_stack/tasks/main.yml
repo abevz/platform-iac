@@ -72,7 +72,7 @@
     monitoring_vault_agent_secret_id_resolved: >-
       {{ monitoring_vault_agent_secret_id | default((monitoring | default({})).get('vault_agent_secret_id', ''), true) }}
     monitoring_vault_agent_vault_addr_resolved: >-
-      {{ monitoring_vault_agent_vault_addr | default((monitoring | default({})).get('vault_agent_vault_addr', vault_addr | default('https://vault.bevz.net', true)), true) }}
+      {{ monitoring_vault_agent_vault_addr | default((monitoring | default({})).get('vault_agent_vault_addr', vault_addr | default('https://vault.example.com', true)), true) }}
 
 - name: Validate required monitoring variables
   ansible.builtin.assert:

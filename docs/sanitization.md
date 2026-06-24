@@ -16,12 +16,12 @@
 
 | Private value | Public placeholder |
 |---------------|-------------------|
-| `bevz.net` | `example.com` |
-| `bevz.dev` | `example.com` |
-| `gitlab.bevz.net` | `gitlab.example.com` |
-| `s3.minio.bevz.net` | `s3.minio.example.com` |
-| `minio.bevz.net` | `minio.example.com` |
-| `10.10.10.x` | `192.0.2.x` (RFC 5737) |
+| `example.com` | `example.com` |
+| `example.com` | `example.com` |
+| `gitlab.example.com` | `gitlab.example.com` |
+| `s3.minio.example.com` | `s3.minio.example.com` |
+| `minio.example.com` | `minio.example.com` |
+| `192.0.2.x` | `192.0.2.x` (RFC 5737) |
 
 ## Publishing Workflow
 

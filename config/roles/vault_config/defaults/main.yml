@@ -1,8 +1,8 @@
 ---
-vault_addr: "https://vault.bevz.net"
+vault_addr: "https://vault.example.com"
 
 vault_jwt_auth_path: "jwt"
-vault_jwt_gitlab_url: "https://gitlab.bevz.net"
+vault_jwt_gitlab_url: "https://gitlab.example.com"
 
 vault_ci_policy_name: "ci-cosign"
 vault_ci_jwt_role_name: "ci-cosign"

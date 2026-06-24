@@ -60,11 +60,11 @@ monitoring:
   vault_agent_enabled: true
   vault_agent_role_id: "<approle-role-id>"
   vault_agent_secret_id: "<approle-secret-id>"
-  vault_agent_vault_addr: "https://vault.bevz.net"
+  vault_agent_vault_addr: "https://vault.example.com"
 
 vault_k8s_secrets_enabled: true
 vault_k8s_secrets_path: "kubernetes"
-vault_k8s_secrets_host: "https://10.10.10.200:6443"
+vault_k8s_secrets_host: "https://192.0.2.200:6443"
 vault_k8s_secrets_ca_cert: |
   -----BEGIN CERTIFICATE-----
   ...
