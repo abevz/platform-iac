@@ -82,9 +82,10 @@ config/group_vars/k8s_master.yml
 # Local experimentation directory - not for production use
 playground/
 
+# task tracking (local only)
+.beads/
+
 # security checks
 .gemini_security/
-
 .memsearch/
-
 .codex
