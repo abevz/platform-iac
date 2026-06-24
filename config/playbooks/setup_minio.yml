@@ -1,7 +1,7 @@
 # config/playbooks/setup_minio.yml
 ---
 # /config/playbooks/setup_minio.yml
-- name: Setup MinIO Server
+- name: Setup S3-compatible object storage server
   hosts: minio_servers # (Group name from Tofu outputs.tf)
   become: yes
 
@@ -12,5 +12,5 @@
     # 1. Set timezone
     - role: set_timezone
 
-    # 2. Install MinIO
+    # 2. Install RustFS as the MinIO-compatible replacement
     - role: minio_setup

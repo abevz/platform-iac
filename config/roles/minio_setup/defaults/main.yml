@@ -4,3 +4,13 @@
 minio_root_dir: "/srv/minio"
 minio_data_dir: "/srv/minio/data"
 minio_config_dir: "/srv/minio/config"
+
+# Compatibility deployment: the role name and paths stay MinIO-shaped so the
+# existing VM, DNS, and state backend can be migrated with minimal churn.
+rustfs_image: "rustfs/rustfs:1.0.0-beta.8"
+rustfs_logs_dir: "/srv/minio/logs"
+rustfs_address: "0.0.0.0:9000"
+rustfs_console_address: "0.0.0.0:9001"
+rustfs_container_uid: "10001"
+rustfs_container_gid: "10001"
+rustfs_manage_data_ownership: true

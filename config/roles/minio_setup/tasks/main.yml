@@ -38,7 +38,7 @@
     update_cache: yes
   become: yes
 
-- name: Ensure MinIO directories exist
+- name: Ensure object storage directories exist
   ansible.builtin.file:
     path: "{{ item }}"
     state: directory
@@ -48,8 +48,23 @@
     - "{{ minio_root_dir }}"
     - "{{ minio_data_dir }}"
     - "{{ minio_config_dir }}"
+    - "{{ rustfs_logs_dir }}"
 
-- name: Copy docker-compose.yml for MinIO
+- name: Ensure RustFS can write migrated MinIO data paths
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ rustfs_container_uid }}"
+    group: "{{ rustfs_container_gid }}"
+    recurse: true
+  become: yes
+  loop:
+    - "{{ minio_data_dir }}"
+    - "{{ minio_config_dir }}"
+    - "{{ rustfs_logs_dir }}"
+  when: rustfs_manage_data_ownership | bool
+
+- name: Copy docker-compose.yml for S3-compatible storage
   ansible.builtin.template:
     src: docker-compose.yml.j2
     dest: "{{ minio_root_dir }}/docker-compose.yml"
@@ -57,7 +72,7 @@
   become: yes
   notify: Restart minio-server
 
-- name: Ensure MinIO is running (Docker Compose)
+- name: Ensure S3-compatible storage is running (Docker Compose)
   community.docker.docker_compose_v2:
     project_src: "{{ minio_root_dir }}"
     state: present

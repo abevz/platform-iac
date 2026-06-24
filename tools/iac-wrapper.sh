@@ -255,7 +255,7 @@ tofu_cache_outputs() {
 
 print_usage() {
   echo "Usage: $0 <action> [options]"
-  echo "Actions: deploy, apply, configure, run-playbook, run-static, plan, destroy, start, stop, get-inventory, print-envs"
+  echo "Actions: deploy, apply, configure, run-playbook, run-static, plan, destroy, start, stop, get-inventory, s3-benchmark, print-envs"
 }
 
 # ---
@@ -733,6 +733,26 @@ get-inventory)
   # Output inventory JSON to stdout
   "${INVENTORY_SCRIPT}" --list
   # --------------------------------------------------------
+  ;;
+
+s3-benchmark)
+  if [ "$#" -ne 2 ]; then
+    log "Error: 's3-benchmark' requires <env> <component>"
+    print_usage
+    exit 1
+  fi
+  ENV="$1"
+  COMPONENT="$2"
+
+  # Reuse the same SOPS-backed MinIO/S3 secrets and endpoint resolution as
+  # OpenTofu backend operations, but do not run any infrastructure changes.
+  load_tofu_secrets_to_temp_file "$COMPONENT"
+
+  log "Starting S3 benchmark against configured endpoint: ${S3_BENCH_ENDPOINT:-$MINIO_ENDPOINT}"
+  S3_BENCH_ENDPOINT="${S3_BENCH_ENDPOINT:-$MINIO_ENDPOINT}" \
+    S3_BENCH_ACCESS_KEY="${S3_BENCH_ACCESS_KEY:-$AWS_ACCESS_KEY_ID}" \
+    S3_BENCH_SECRET_KEY="${S3_BENCH_SECRET_KEY:-$AWS_SECRET_ACCESS_KEY}" \
+    python3 "${REPO_ROOT}/tools/s3_benchmark.py"
   ;;
 
 print-envs)

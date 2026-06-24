@@ -2,18 +2,21 @@
 # File managed by Ansible.
 services:
   minio:
-    image: minio/minio:RELEASE.2025-04-22T22-12-26Z
+    image: {{ rustfs_image }}
     container_name: minio-server
     restart: unless-stopped
-    command: server /data --console-address ":9001"
 
     # NOTE:
     # These variables should be defined in your file
     # config/secrets/ansible/extra_vars.sops.yml
-    # (similar to harbor, cloudflare and pihole)
+    # The minio.* names are kept as compatibility inputs for this replacement.
     environment:
-      MINIO_ROOT_USER: "{{ minio.root_user | default('minioadmin') }}"
-      MINIO_ROOT_PASSWORD: "{{ minio.root_password | default('minioadmin') }}"
+      RUSTFS_VOLUMES: "/data"
+      RUSTFS_ADDRESS: "{{ rustfs_address }}"
+      RUSTFS_CONSOLE_ENABLE: "true"
+      RUSTFS_CONSOLE_ADDRESS: "{{ rustfs_console_address }}"
+      RUSTFS_ACCESS_KEY: "{{ minio.root_user | default('minioadmin') }}"
+      RUSTFS_SECRET_KEY: "{{ minio.root_password | default('minioadmin') }}"
 
     ports:
       - "9000:9000" # S3 API
@@ -21,7 +24,8 @@ services:
 
     volumes:
       - "{{ minio_data_dir }}:/data"
-      - "{{ minio_config_dir }}:/root/.minio"
+      - "{{ minio_config_dir }}:/config"
+      - "{{ rustfs_logs_dir }}:/logs"
 
     networks:
       - app-network
