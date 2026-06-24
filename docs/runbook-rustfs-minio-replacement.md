@@ -72,8 +72,12 @@ environment that can reach that endpoint.
 3. Apply the updated Ansible role:
 
    ```bash
-   ./tools/iac-wrapper.sh configure dev minio
+   ./tools/iac-wrapper.sh run-static setup_minio.yml minio_servers
    ```
+
+   `minio` is a bootstrap component in this repo, so its Ansible inventory is
+   local static inventory rather than the dynamic OpenTofu output cache used by
+   normal service components.
 
 4. Verify RustFS is running:
 
