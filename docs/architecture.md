@@ -63,6 +63,25 @@ Visual overview of the universal Platform Infrastructure as Code for managing al
          └────────────────────────────────────────────────────────┘
 ```
 
+## Object Storage Component
+
+RustFS is the current S3-compatible object-storage implementation. It replaced
+MinIO on 2026-06-24 while preserving the VM, bucket names, `/srv/minio/*` data
+paths, and public S3/console endpoints. The historical `minio` role,
+inventory group, domains, and secret file paths are compatibility names only.
+
+Current consumers:
+
+- OpenTofu remote state through the S3 backend.
+- Vault snapshot uploads to the `vault-backups` bucket.
+- Any existing S3-compatible clients that use the preserved endpoint.
+
+Harbor is intentionally not part of this object-storage migration in this repo:
+the managed Harbor configuration uses local `/data` storage.
+
+Operational details and rollback steps are documented in
+[RustFS Binary Replacement Runbook](runbook-rustfs-minio-replacement.md).
+
 ## 🔄 Deployment Workflow
 
 ```

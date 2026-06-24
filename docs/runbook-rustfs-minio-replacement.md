@@ -19,6 +19,41 @@ paths so rollback and existing automation stay simple.
 - The old `minio_*` role variables and `/srv/minio/*` paths are compatibility
   names, not an indication that MinIO is still running.
 
+## Post-Migration Validation
+
+Completed checks:
+
+- Applied the storage role with
+  `./tools/iac-wrapper.sh run-static setup_minio.yml minio_servers`.
+- Confirmed the live container is `rustfs/rustfs:1.0.0-beta.8` and still named
+  `minio-server`.
+- Confirmed RustFS runs as UID/GID `10001` and can read the preserved bucket
+  directories under `/srv/minio/data`.
+- Re-ran the S3 benchmark through the preserved external endpoint.
+- Confirmed the OpenTofu S3 backend can initialize and read state through
+  RustFS with `./tools/iac-wrapper.sh plan dev vault`.
+- Fixed the RustFS console black-screen issue by removing `limit_req` from the
+  `minio.example.com` console vhost; RustFS console loads many JS chunks in
+  parallel and nginx returned `503` for some chunks under the old rate limit.
+
+The `vault` plan succeeded as a backend read check but showed unrelated Vault
+VM drift. Do not apply that plan without a separate review.
+
+Benchmark summary from the external endpoint:
+
+| Operation | Size | MinIO avg | RustFS avg | Result |
+|-----------|------|-----------|------------|--------|
+| PUT | 4 KiB | 0.0262s | 0.0202s | Faster |
+| GET | 4 KiB | 0.0184s | 0.0212s | Slower |
+| PUT | 1 MiB | 0.0709s | 0.0671s | Slightly faster |
+| GET | 1 MiB | 0.0539s | 0.0562s | Slightly slower |
+| PUT | 64 MiB | 1.2412s | 1.8516s | Slower |
+| GET | 64 MiB | 1.0144s | 1.1633s | Slower |
+
+Interpret these numbers as the observed external-path baseline, not as a pure
+storage-engine benchmark; proxy, TLS, client location, and transient lab load
+all contribute.
+
 ## Scope
 
 - Replace the Docker Compose service image with pinned `rustfs/rustfs`.

@@ -255,6 +255,11 @@ The `iac-wrapper.sh` script requires these tools on your local machine:
    state.
 6. **SSH Key:** An SSH key pair for Ansible access (e.g., `<ssh-private-key>`).
 
+Object-storage operational notes, migration evidence, and rollback steps live
+in [docs/runbook-rustfs-minio-replacement.md](docs/runbook-rustfs-minio-replacement.md).
+The platform intentionally keeps historical `minio` paths, domains, and secret
+file names for compatibility even though the live implementation is RustFS.
+
 ---
 
 ## Directory Structure
