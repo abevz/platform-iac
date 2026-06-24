@@ -1,9 +1,23 @@
 # RustFS Binary Replacement Runbook
 
-This runbook replaces the existing MinIO container with RustFS while preserving
-the VM, S3 endpoint, bucket names, and data directory. It intentionally keeps
-the `minio_servers` inventory group and `/srv/minio/*` paths for the first
-migration so rollback stays simple.
+This runbook documents the completed binary replacement from MinIO to RustFS.
+The migration preserved the VM, S3 endpoint, bucket names, and data directory.
+It intentionally keeps the `minio_servers` inventory group and `/srv/minio/*`
+paths so rollback and existing automation stay simple.
+
+## Current State
+
+- Migration completed on 2026-06-24.
+- The live object-storage service is RustFS, deployed as
+  `rustfs/rustfs:1.0.0-beta.8`.
+- The container name remains `minio-server` for compatibility with existing
+  Docker Compose, proxy, and inventory references.
+- Existing endpoints remain stable:
+  `s3.minio.example.com` for S3 API and `minio.example.com` for the console.
+- OpenTofu state buckets and Vault backup buckets stay on the same
+  S3-compatible service.
+- The old `minio_*` role variables and `/srv/minio/*` paths are compatibility
+  names, not an indication that MinIO is still running.
 
 ## Scope
 

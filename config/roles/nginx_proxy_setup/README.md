@@ -276,8 +276,8 @@ This role is designed to proxy the following services:
 | Harbor | harbor.<your-domain>.com | <HARBOR-IP>:80 | 443 |
 | Wiki.js | wiki.<your-domain>.com | 10.<OTHER-LAN-IP>:3000 | 443 |
 | PlantUML | plantuml.<your-domain>.com | 10.<OTHER-LAN-IP>:18080 | 443 |
-| MinIO S3 | s3.<your-domain>.com | <MINIO-IP>:9000 | 443 |
-| MinIO Console | minio.<your-domain>.com | <MINIO-IP>:9001 | 443 |
+| RustFS S3 | s3.<your-domain>.com | <RUSTFS-IP>:9000 | 443 |
+| RustFS Console | minio.<your-domain>.com | <RUSTFS-IP>:9001 | 443 |
 | Proxmox | pve.<your-domain>.com | <PROXMOX-HOST-IP>:8006 | 443 |
 | Kubernetes | *.<your-domain>.com | <K8S-INGRESS-IP>:443 | 443 |
 

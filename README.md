@@ -251,7 +251,8 @@ The `iac-wrapper.sh` script requires these tools on your local machine:
 2. **VM Template:** A prepared Ubuntu Cloud-Init VM template (e.g., ID `9420` as referenced in `variables.tf`).
 3. **Pi-hole:** A running Pi-hole instance (e.g., at `<PIHOLE-IP>`) for internal DNS.
 4. **Harbor:** A running Harbor instance (e.g., at `harbor.<your-domain>.com`) for container proxy caching.
-5. **S3 Backend:** An S3-compatible bucket (like MinIO) for storing Tofu state.
+5. **S3 Backend:** RustFS-backed S3-compatible buckets for storing OpenTofu
+   state.
 6. **SSH Key:** An SSH key pair for Ansible access (e.g., `<ssh-private-key>`).
 
 ---
@@ -266,7 +267,7 @@ platform-iac/
 │   ├── inventory/             # Static inventory definitions
 │   ├── playbooks/             # Playbooks for all infrastructure types
 │   ├── roles/                 # Reusable Ansible roles (K8s, databases, apps, etc.)
-│   └── secrets/               # SOPS-encrypted secrets (Proxmox, MinIO, Harbor, etc.)
+│   └── secrets/               # SOPS-encrypted secrets (Proxmox, S3 backend, Harbor, etc.)
 ├── infra/                     # Terraform/OpenTofu projects
 │   ├── dev/                   # Development environment
 │   │   └── k8s-lab-01/       # Kubernetes cluster infrastructure
@@ -308,7 +309,9 @@ vim config/platform.conf
 All secrets are managed by `sops` and stored in `config/secrets/`. The `iac-wrapper.sh` script automatically decrypts them in-memory for Tofu and Ansible.
 
 - `config/secrets/proxmox/provider.sops.yml`: Holds Proxmox API and SSH credentials for Tofu.
-- `config/secrets/minio/backend.sops.yml`: Holds AWS keys for the MinIO S3 Tofu state backend.
+- `config/secrets/minio/backend.sops.yml`: Holds AWS-compatible keys for the
+  RustFS-backed S3 OpenTofu state backend. The path keeps the historical
+  `minio` name for compatibility.
 - `config/secrets/ansible/extra_vars.sops.yml`: Holds credentials and custom environment variables (domains, IPs for proxy, tokens).
 - `config/group_vars/all.yml`: Global variable mapping that connects SOPS secrets to roles.
 
@@ -320,7 +323,7 @@ Before first deployment, you must create your encrypted secrets from the provide
 
 1. **Copy example files to real secrets:**
    ```bash
-   # MinIO/S3 Backend Credentials (for Terraform state storage)
+   # RustFS/S3 Backend Credentials (for OpenTofu state storage)
    cp config/secrets/minio/backend.sops.yml.example \
       config/secrets/minio/backend.sops.yml
 

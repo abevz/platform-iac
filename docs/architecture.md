@@ -57,7 +57,7 @@ Visual overview of the universal Platform Infrastructure as Code for managing al
          │              Shared Infrastructure Services            │
          │                                                        │
          │  ┌──────────┐  ┌──────────┐  ┌──────────────────┐   │
-         │  │ Pi-hole  │  │  Harbor  │  │      MinIO       │   │
+         │  │ Pi-hole  │  │  Harbor  │  │      RustFS      │   │
          │  │   DNS    │  │ Registry │  │   S3 Storage     │   │
          │  └──────────┘  └──────────┘  └──────────────────┘   │
          └────────────────────────────────────────────────────────┘
@@ -345,7 +345,7 @@ External Network (192.168.1.0/24)
 ┌─────────────────────────────────────────────────────────────────────┐
 │                                                                      │
 │  ┌──────────┐     ┌──────────┐     ┌──────────┐                   │
-│  │ Pi-hole  │     │  Harbor  │     │  MinIO   │                   │
+│  │ Pi-hole  │     │  Harbor  │     │  RustFS  │                   │
 │  │   DNS    │     │ Registry │     │(S3 State)│                   │
 │  │<YOUR-LAN-IP>│     │192.168.x.x│     │192.168.x.x│                   │
 │  └──────────┘     └──────────┘     └──────────┘                   │

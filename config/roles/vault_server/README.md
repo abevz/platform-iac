@@ -7,7 +7,8 @@ Installs a single-node Vault server for the homelab MVP.
 - Storage: integrated Raft on the Vault VM.
 - Seal: manual Shamir unseal.
 - Init: run manually with 5 shares and threshold 3.
-- Backups: local Raft snapshots every 6 hours, with optional MinIO and rclone copy.
+- Backups: local Raft snapshots every 6 hours, with optional RustFS/S3 and
+  rclone copy.
 
 ## Bootstrap
 
@@ -61,9 +62,9 @@ sudo install -o root -g vault -m 0640 /dev/stdin /etc/vault.d/snapshot-token
 
 Then paste the token and press `Ctrl-D`.
 
-## MinIO Snapshot Upload
+## RustFS Snapshot Upload
 
-Local snapshots are created first. MinIO upload is enabled by SOPS-managed
+Local snapshots are created first. RustFS upload is enabled by SOPS-managed
 Ansible variables:
 
 ```yaml
@@ -84,7 +85,7 @@ Flat `vault_backup_*` keys still work for backward compatibility.
 The role renders these values to `/etc/vault.d/snapshot-s3.env` with mode
 `0640` and group `vault`. The snapshot service uses `rclone` with an ephemeral
 S3 remote from environment variables, optionally creates the bucket, uploads the
-snapshot, and checks that the object is visible in MinIO.
+snapshot, and checks that the object is visible in RustFS.
 
 Verify after configuration:
 
@@ -97,7 +98,7 @@ sudo bash -lc 'set -a; source /etc/vault.d/snapshot-s3.env; set +a; rclone --con
 Verified on 2026-05-19:
 
 ```text
-Uploaded snapshot to MinIO: vaults3:vault-backups/raft/vault-raft-20260519T060919Z.snap
+Uploaded snapshot to RustFS: vaults3:vault-backups/raft/vault-raft-20260519T060919Z.snap
 ```
 
 ## Optional AWS CLI
@@ -117,7 +118,7 @@ repositories.
 
 ## Encrypted Offsite Copy
 
-MinIO is the fast local restore target. The offsite copy must be encrypted
+RustFS is the fast local restore target. The offsite copy must be encrypted
 before it leaves the homelab. Enable it with an rclone config stored in SOPS:
 
 ```yaml

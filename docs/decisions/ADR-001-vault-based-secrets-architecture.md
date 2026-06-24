@@ -4,9 +4,14 @@
 
 Accepted — 2026-05-12
 
-Updated — 2026-05-18: MVP uses manual Shamir unseal and
-MinIO + encrypted Google Drive backups. Cloud KMS auto-unseal and
-cloud S3 backups are optional hardening, not the first implementation.
+Updated — 2026-05-18: MVP uses manual Shamir unseal and originally used
+MinIO + encrypted Google Drive backups. Cloud KMS auto-unseal and cloud S3
+backups are optional hardening, not the first implementation.
+
+Updated — 2026-06-24: the local S3-compatible object store was migrated
+from MinIO to RustFS. The backup and OpenTofu state architecture stays the
+same; only the object-storage implementation changed. Legacy `minio` names in
+paths and secrets remain compatibility names.
 
 ## Context
 
@@ -23,7 +28,7 @@ consumers grow, the platform needs a consistent runtime secrets layer:
 
 Current Day-0 secrets already live in SOPS under `config/secrets/`.
 Those SOPS files are required before Vault exists: Proxmox provider
-credentials, MinIO backend credentials, and Ansible extra vars. Vault
+credentials, RustFS/S3 backend credentials, and Ansible extra vars. Vault
 must not replace that bootstrap layer during the MVP.
 
 The first concrete runtime consumer is `hybrid-cloud-optimizer` (HCRO).
@@ -46,11 +51,11 @@ MVP architecture:
   `platform-iac`.
 - **Raft integrated storage** on the Vault VM.
 - **Manual Shamir unseal**, initialized as 5 shares / threshold 3.
-- **SOPS remains the Day-0 bootstrap store** for Proxmox, MinIO,
+- **SOPS remains the Day-0 bootstrap store** for Proxmox, RustFS/S3,
   Ansible, and any values required before Vault exists.
 - **ESO in Kubernetes** materializes selected Vault paths into
   Kubernetes Secrets.
-- **Raft snapshots** are written on a timer, uploaded to MinIO, and
+- **Raft snapshots** are written on a timer, uploaded to RustFS, and
   copied offsite to Google Drive through `rclone crypt`.
 - **Vault telemetry and audit logs** are integrated into the
   Kubernetes-native observability layer from ADR-002 when that layer is
@@ -109,7 +114,7 @@ Positive:
   and dynamic engines.
 - **Git-safe consumer workflow.** Applications commit `ExternalSecret`
   resources with no secret values; ESO materializes Kubernetes Secrets.
-- **Recoverable backups.** MinIO provides quick local restore; encrypted
+- **Recoverable backups.** RustFS provides quick local restore; encrypted
   Google Drive copies provide offsite disaster backup.
 
 Trade-offs:
@@ -118,7 +123,7 @@ Trade-offs:
   until the operator enters 3 unseal keys.
 - **Unseal keys are critical.** Recovery requires both a usable snapshot
   and enough Shamir shares.
-- **MinIO is not enough by itself.** If MinIO lives on the same lab
+- **Local S3 is not enough by itself.** If RustFS lives on the same lab
   hardware, it is quick restore only. Offsite encrypted Google Drive
   copy is part of the MVP backup policy.
 - **Dynamic AWS credentials wait.** HCRO can start with static or
@@ -160,7 +165,7 @@ the first implementation small enough to operate and restore.
 
 - **Phase A** — Vault/OpenBao VM with Raft storage and manual Shamir
   unseal.
-- **Phase B** — Snapshot timer, MinIO upload, encrypted Google Drive
+- **Phase B** — Snapshot timer, RustFS upload, encrypted Google Drive
   offsite copy, and restore drill.
 - **Phase C** — Kubernetes auth method and ESO with a sandbox
   `ExternalSecret`.

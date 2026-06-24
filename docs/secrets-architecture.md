@@ -18,7 +18,7 @@ Proxmox VM "vault"
   Prometheus telemetry
   snapshot timer
         |
-        +--> MinIO bucket "vault-backups"       # quick local restore
+        +--> RustFS bucket "vault-backups"      # quick local restore
         |
         +--> rclone crypt -> Google Drive       # encrypted offsite copy
 
@@ -38,8 +38,9 @@ Existing encrypted files:
 
 - `config/secrets/proxmox/provider.sops.yml`: Proxmox API and SSH
   bootstrap credentials.
-- `config/secrets/minio/backend.sops.yml`: MinIO endpoint and
-  credentials for OpenTofu state.
+- `config/secrets/minio/backend.sops.yml`: RustFS/S3 endpoint and credentials
+  for OpenTofu state. The path keeps the historical `minio` name for
+  compatibility.
 - `config/secrets/ansible/extra_vars.sops.yml`: current Ansible
   service secrets.
 
@@ -69,7 +70,7 @@ Wrapper path:
 ```
 
 By default, Proxmox allocates the next available VMID and OpenTofu stores
-that value in the MinIO-backed state. To pin a specific VMID, copy
+that value in the RustFS-backed S3 state. To pin a specific VMID, copy
 `infra/dev/vault/terraform.tfvars.example` to `terraform.tfvars` and set
 `vm_id` explicitly before `apply`.
 
@@ -425,7 +426,7 @@ MVP backup flow:
 ```text
 vault operator raft snapshot save
   -> local protected directory on Vault VM
-  -> MinIO bucket vault-backups
+  -> RustFS bucket vault-backups
   -> rclone crypt remote backed by Google Drive
 ```
 
@@ -443,8 +444,8 @@ Manual snapshot:
 vault operator raft snapshot save /var/backups/vault/manual.snap
 ```
 
-MinIO upload is implemented in `config/roles/vault_server` with `rclone`
-using an environment-only S3 remote. The role writes the MinIO settings to
+RustFS upload is implemented in `config/roles/vault_server` with `rclone`
+using an environment-only S3 remote. The role writes the S3 settings to
 `/etc/vault.d/snapshot-s3.env`, keeps that file readable only by `root:vault`,
 and the snapshot service verifies that the uploaded object is visible in the
 `vault-backups` bucket.
@@ -479,7 +480,7 @@ Quarterly drill:
 
 1. Provision a fresh Vault VM.
 2. Install Vault/OpenBao with the same role.
-3. Copy a snapshot from MinIO or encrypted Google Drive restore path.
+3. Copy a snapshot from RustFS or encrypted Google Drive restore path.
 4. Restore:
    ```bash
    vault operator raft snapshot restore /path/to/snapshot.snap
@@ -532,7 +533,7 @@ working.
 - [ ] Reboot leaves Vault sealed until manual unseal
 - [ ] Manual unseal with 3 shares works
 - [ ] ESO syncs one sandbox `ExternalSecret`
-- [ ] Snapshot exists in MinIO
+- [ ] Snapshot exists in RustFS
 - [ ] Encrypted offsite copy exists in Google Drive via `rclone crypt`
 - [ ] Restore drill completed and logged
 
