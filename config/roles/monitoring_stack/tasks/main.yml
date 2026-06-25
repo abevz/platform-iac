@@ -74,11 +74,11 @@
     monitoring_vault_agent_vault_addr_resolved: >-
       {{ monitoring_vault_agent_vault_addr | default((monitoring | default({})).get('vault_agent_vault_addr', vault_addr | default('https://vault.bevz.net', true)), true) }}
     monitoring_proxmox_api_url_resolved: >-
-      {{ monitoring_proxmox_api_url | default((monitoring | default({})).get('proxmox_api_url', 'https://192.0.2.101:8006/api2/json'), true) }}
+      {{ (monitoring | default({})).get('proxmox_api_url', '') | default(monitoring_proxmox_api_url, true) }}
     monitoring_proxmox_target_resolved: >-
-      {{ monitoring_proxmox_target | default((monitoring | default({})).get('proxmox_target', '192.0.2.101'), true) }}
+      {{ (monitoring | default({})).get('proxmox_target', '') | default(monitoring_proxmox_target, true) }}
     monitoring_node_exporter_targets_resolved: >-
-      {{ monitoring_node_exporter_targets | default((monitoring | default({})).get('node_exporter_targets', ['node-exporter:9100']), true) }}
+      {{ (monitoring | default({})).get('node_exporter_targets', []) | default(monitoring_node_exporter_targets, true) }}
 
 - name: Validate required monitoring variables
   ansible.builtin.assert:
