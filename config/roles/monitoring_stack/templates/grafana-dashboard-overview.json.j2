@@ -30,7 +30,7 @@
       "gridPos": { "h": 4, "w": 3, "x": 0, "y": 0 },
       "id": 1,
       "options": { "colorMode": "background", "graphMode": "none", "justifyMode": "center", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false } },
-      "targets": [{ "expr": "max(up{job=\"node-exporter\",instance=\"192.0.2.101:9100\"})", "refId": "A" }],
+      "targets": [{ "expr": "max(up{job=\"node-exporter\",instance=\"{{ monitoring_proxmox_target_resolved }}:9100\"})", "refId": "A" }],
       "title": "Host",
       "type": "stat"
     },
@@ -56,7 +56,7 @@
       "gridPos": { "h": 4, "w": 3, "x": 6, "y": 0 },
       "id": 3,
       "options": { "colorMode": "background", "graphMode": "none", "justifyMode": "center", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false } },
-      "targets": [{ "expr": "sum(node_systemd_unit_state{instance=\"192.0.2.101:9100\",state=\"failed\"} > 0) or vector(0)", "refId": "A" }],
+      "targets": [{ "expr": "sum(node_systemd_unit_state{instance=\"{{ monitoring_proxmox_target_resolved }}:9100\",state=\"failed\"} > 0) or vector(0)", "refId": "A" }],
       "title": "Failed Units",
       "type": "stat"
     },
@@ -79,7 +79,7 @@
       "gridPos": { "h": 4, "w": 3, "x": 9, "y": 0 },
       "id": 16,
       "options": { "colorMode": "value", "graphMode": "area", "justifyMode": "center", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false } },
-      "targets": [{ "expr": "100 - (avg(rate(node_cpu_seconds_total{instance=\"192.0.2.101:9100\",mode=\"idle\"}[5m])) * 100)", "refId": "A" }],
+      "targets": [{ "expr": "100 - (avg(rate(node_cpu_seconds_total{instance=\"{{ monitoring_proxmox_target_resolved }}:9100\",mode=\"idle\"}[5m])) * 100)", "refId": "A" }],
       "title": "CPU Used",
       "type": "stat"
     },
@@ -102,7 +102,7 @@
       "gridPos": { "h": 4, "w": 3, "x": 12, "y": 0 },
       "id": 17,
       "options": { "colorMode": "value", "graphMode": "area", "justifyMode": "center", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false } },
-      "targets": [{ "expr": "(1 - (node_memory_MemAvailable_bytes{instance=\"192.0.2.101:9100\"} / node_memory_MemTotal_bytes{instance=\"192.0.2.101:9100\"})) * 100", "refId": "A" }],
+      "targets": [{ "expr": "(1 - (node_memory_MemAvailable_bytes{instance=\"{{ monitoring_proxmox_target_resolved }}:9100\"} / node_memory_MemTotal_bytes{instance=\"{{ monitoring_proxmox_target_resolved }}:9100\"})) * 100", "refId": "A" }],
       "title": "RAM Used",
       "type": "stat"
     },
@@ -118,7 +118,7 @@
       "gridPos": { "h": 4, "w": 3, "x": 15, "y": 0 },
       "id": 4,
       "options": { "colorMode": "value", "graphMode": "area", "justifyMode": "center", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false } },
-      "targets": [{ "expr": "max(100 * (1 - (node_filesystem_avail_bytes{instance=\"192.0.2.101:9100\",fstype!~\"tmpfs|overlay\",mountpoint=\"/\"} / node_filesystem_size_bytes{instance=\"192.0.2.101:9100\",fstype!~\"tmpfs|overlay\",mountpoint=\"/\"})))", "refId": "A" }],
+      "targets": [{ "expr": "max(100 * (1 - (node_filesystem_avail_bytes{instance=\"{{ monitoring_proxmox_target_resolved }}:9100\",fstype!~\"tmpfs|overlay\",mountpoint=\"/\"} / node_filesystem_size_bytes{instance=\"{{ monitoring_proxmox_target_resolved }}:9100\",fstype!~\"tmpfs|overlay\",mountpoint=\"/\"})))", "refId": "A" }],
       "title": "Disk Used /",
       "type": "stat"
     },
@@ -160,7 +160,7 @@
       "fieldConfig": { "defaults": { "unit": "percent" }, "overrides": [] },
       "gridPos": { "h": 8, "w": 12, "x": 0, "y": 4 },
       "id": 7,
-      "targets": [{ "expr": "100 - (avg(rate(node_cpu_seconds_total{instance=\"192.0.2.101:9100\",mode=\"idle\"}[5m])) * 100)", "legendFormat": "homelab", "refId": "A" }],
+      "targets": [{ "expr": "100 - (avg(rate(node_cpu_seconds_total{instance=\"{{ monitoring_proxmox_target_resolved }}:9100\",mode=\"idle\"}[5m])) * 100)", "legendFormat": "homelab", "refId": "A" }],
       "title": "CPU Trend",
       "type": "timeseries"
     },
@@ -169,7 +169,7 @@
       "fieldConfig": { "defaults": { "unit": "percent" }, "overrides": [] },
       "gridPos": { "h": 8, "w": 12, "x": 12, "y": 4 },
       "id": 8,
-      "targets": [{ "expr": "(1 - (node_memory_MemAvailable_bytes{instance=\"192.0.2.101:9100\"} / node_memory_MemTotal_bytes{instance=\"192.0.2.101:9100\"})) * 100", "legendFormat": "homelab", "refId": "A" }],
+      "targets": [{ "expr": "(1 - (node_memory_MemAvailable_bytes{instance=\"{{ monitoring_proxmox_target_resolved }}:9100\"} / node_memory_MemTotal_bytes{instance=\"{{ monitoring_proxmox_target_resolved }}:9100\"})) * 100", "legendFormat": "homelab", "refId": "A" }],
       "title": "RAM Trend",
       "type": "timeseries"
     },
@@ -179,8 +179,8 @@
       "gridPos": { "h": 8, "w": 12, "x": 0, "y": 12 },
       "id": 9,
       "targets": [
-        { "expr": "sum(rate(node_network_receive_bytes_total{instance=\"192.0.2.101:9100\",device!~\"lo|docker.*|veth.*\"}[5m]))", "legendFormat": "RX", "refId": "A" },
-        { "expr": "sum(rate(node_network_transmit_bytes_total{instance=\"192.0.2.101:9100\",device!~\"lo|docker.*|veth.*\"}[5m]))", "legendFormat": "TX", "refId": "B" }
+        { "expr": "sum(rate(node_network_receive_bytes_total{instance=\"{{ monitoring_proxmox_target_resolved }}:9100\",device!~\"lo|docker.*|veth.*\"}[5m]))", "legendFormat": "RX", "refId": "A" },
+        { "expr": "sum(rate(node_network_transmit_bytes_total{instance=\"{{ monitoring_proxmox_target_resolved }}:9100\",device!~\"lo|docker.*|veth.*\"}[5m]))", "legendFormat": "TX", "refId": "B" }
       ],
       "title": "Network I/O",
       "type": "timeseries"
@@ -191,8 +191,8 @@
       "gridPos": { "h": 8, "w": 12, "x": 12, "y": 12 },
       "id": 10,
       "targets": [
-        { "expr": "sum(rate(node_disk_read_bytes_total{instance=\"192.0.2.101:9100\",device!~\"loop.*|ram.*\"}[5m]))", "legendFormat": "Read", "refId": "A" },
-        { "expr": "sum(rate(node_disk_written_bytes_total{instance=\"192.0.2.101:9100\",device!~\"loop.*|ram.*\"}[5m]))", "legendFormat": "Write", "refId": "B" }
+        { "expr": "sum(rate(node_disk_read_bytes_total{instance=\"{{ monitoring_proxmox_target_resolved }}:9100\",device!~\"loop.*|ram.*\"}[5m]))", "legendFormat": "Read", "refId": "A" },
+        { "expr": "sum(rate(node_disk_written_bytes_total{instance=\"{{ monitoring_proxmox_target_resolved }}:9100\",device!~\"loop.*|ram.*\"}[5m]))", "legendFormat": "Write", "refId": "B" }
       ],
       "title": "Disk I/O",
       "type": "timeseries"
@@ -203,7 +203,7 @@
       "gridPos": { "h": 8, "w": 8, "x": 0, "y": 20 },
       "id": 11,
       "targets": [
-        { "expr": "avg by(chip, sensor) ((node_hwmon_temp_celsius{instance=\"192.0.2.101:9100\",sensor!~\"fan.*\"} > 0) and (node_hwmon_temp_celsius{instance=\"192.0.2.101:9100\",sensor!~\"fan.*\"} < 120))", "legendFormat": "{% raw %}{{chip}}{% endraw %} / {% raw %}{{sensor}}{% endraw %}", "refId": "A" }
+        { "expr": "avg by(chip, sensor) ((node_hwmon_temp_celsius{instance=\"{{ monitoring_proxmox_target_resolved }}:9100\",sensor!~\"fan.*\"} > 0) and (node_hwmon_temp_celsius{instance=\"{{ monitoring_proxmox_target_resolved }}:9100\",sensor!~\"fan.*\"} < 120))", "legendFormat": "{% raw %}{{chip}}{% endraw %} / {% raw %}{{sensor}}{% endraw %}", "refId": "A" }
       ],
       "title": "Temperatures",
       "type": "timeseries"
@@ -214,7 +214,7 @@
       "gridPos": { "h": 8, "w": 8, "x": 16, "y": 20 },
       "id": 12,
       "targets": [
-        { "expr": "100 * pve_cpu_usage_ratio{instance=\"192.0.2.101\",id=~\"(qemu|lxc)/.*\"} * on(instance,id) group_left(name,type) pve_guest_info{instance=\"192.0.2.101\"}", "legendFormat": "{% raw %}{{name}}{% endraw %}", "refId": "A" }
+        { "expr": "100 * pve_cpu_usage_ratio{instance=\"{{ monitoring_proxmox_target_resolved }}\",id=~\"(qemu|lxc)/.*\"} * on(instance,id) group_left(name,type) pve_guest_info{instance=\"{{ monitoring_proxmox_target_resolved }}\"}", "legendFormat": "{% raw %}{{name}}{% endraw %}", "refId": "A" }
       ],
       "title": "Proxmox VM CPU %",
       "type": "timeseries"
@@ -225,7 +225,7 @@
       "gridPos": { "h": 8, "w": 12, "x": 0, "y": 36 },
       "id": 13,
       "targets": [
-        { "expr": "sum(node_systemd_unit_state{instance=\"192.0.2.101:9100\",state=\"failed\"} > 0) or vector(0)", "legendFormat": "failed units", "refId": "A" },
+        { "expr": "sum(node_systemd_unit_state{instance=\"{{ monitoring_proxmox_target_resolved }}:9100\",state=\"failed\"} > 0) or vector(0)", "legendFormat": "failed units", "refId": "A" },
         { "expr": "max(up{job=\"pve-exporter\"})", "legendFormat": "pve target", "refId": "B" }
       ],
       "title": "Operator Signals",
@@ -252,10 +252,10 @@
       "gridPos": { "h": 8, "w": 8, "x": 8, "y": 20 },
       "id": 15,
       "targets": [
-        { "expr": "node_hwmon_fan_rpm{instance=\"192.0.2.101:9100\",chip=\"platform_asus_ec_sensors\",sensor=\"fan1\"}", "legendFormat": "VRM HS fan", "refId": "A" },
-        { "expr": "node_hwmon_fan_rpm{instance=\"192.0.2.101:9100\",chip=\"platform_asus_ec_sensors\",sensor=\"fan2\"}", "legendFormat": "Chipset fan", "refId": "B" },
-        { "expr": "node_hwmon_fan_rpm{instance=\"192.0.2.101:9100\",chip=\"platform_nct6775_656\",sensor=\"fan1\"}", "legendFormat": "NCT fan1", "refId": "C" },
-        { "expr": "node_hwmon_fan_rpm{instance=\"192.0.2.101:9100\",chip=\"platform_nct6775_656\",sensor=\"fan2\"}", "legendFormat": "NCT fan2", "refId": "D" }
+        { "expr": "node_hwmon_fan_rpm{instance=\"{{ monitoring_proxmox_target_resolved }}:9100\",chip=\"platform_asus_ec_sensors\",sensor=\"fan1\"}", "legendFormat": "VRM HS fan", "refId": "A" },
+        { "expr": "node_hwmon_fan_rpm{instance=\"{{ monitoring_proxmox_target_resolved }}:9100\",chip=\"platform_asus_ec_sensors\",sensor=\"fan2\"}", "legendFormat": "Chipset fan", "refId": "B" },
+        { "expr": "node_hwmon_fan_rpm{instance=\"{{ monitoring_proxmox_target_resolved }}:9100\",chip=\"platform_nct6775_656\",sensor=\"fan1\"}", "legendFormat": "NCT fan1", "refId": "C" },
+        { "expr": "node_hwmon_fan_rpm{instance=\"{{ monitoring_proxmox_target_resolved }}:9100\",chip=\"platform_nct6775_656\",sensor=\"fan2\"}", "legendFormat": "NCT fan2", "refId": "D" }
       ],
       "title": "Fan RPM",
       "type": "timeseries"
@@ -275,7 +275,7 @@
       },
       "targets": [
         {
-          "expr": "node_systemd_unit_state{instance=\"192.0.2.101:9100\",state=\"failed\"} > 0",
+          "expr": "node_systemd_unit_state{instance=\"{{ monitoring_proxmox_target_resolved }}:9100\",state=\"failed\"} > 0",
           "format": "table",
           "instant": true,
           "refId": "A"
@@ -312,7 +312,7 @@
       "gridPos": { "h": 8, "w": 12, "x": 12, "y": 28 },
       "id": 19,
       "targets": [
-        { "expr": "100 * (pve_memory_usage_bytes{instance=\"192.0.2.101\",id=~\"(qemu|lxc)/.*\"} / pve_memory_size_bytes{instance=\"192.0.2.101\",id=~\"(qemu|lxc)/.*\"}) * on(instance,id) group_left(name,type) pve_guest_info{instance=\"192.0.2.101\"}", "legendFormat": "{% raw %}{{name}}{% endraw %}", "refId": "A" }
+        { "expr": "100 * (pve_memory_usage_bytes{instance=\"{{ monitoring_proxmox_target_resolved }}\",id=~\"(qemu|lxc)/.*\"} / pve_memory_size_bytes{instance=\"{{ monitoring_proxmox_target_resolved }}\",id=~\"(qemu|lxc)/.*\"}) * on(instance,id) group_left(name,type) pve_guest_info{instance=\"{{ monitoring_proxmox_target_resolved }}\"}", "legendFormat": "{% raw %}{{name}}{% endraw %}", "refId": "A" }
       ],
       "title": "Proxmox VM RAM %",
       "type": "timeseries"
@@ -324,12 +324,12 @@
       "id": 20,
       "targets": [
         {
-          "expr": "node_hwmon_temp_celsius{instance=\"192.0.2.101:9100\",chip=\"platform_asus_ec_sensors\",sensor=\"temp1\"}",
+          "expr": "node_hwmon_temp_celsius{instance=\"{{ monitoring_proxmox_target_resolved }}:9100\",chip=\"platform_asus_ec_sensors\",sensor=\"temp1\"}",
           "legendFormat": "Chipset temp (C)",
           "refId": "A"
         },
         {
-          "expr": "node_hwmon_fan_rpm{instance=\"192.0.2.101:9100\",chip=\"platform_asus_ec_sensors\",sensor=\"fan2\"}",
+          "expr": "node_hwmon_fan_rpm{instance=\"{{ monitoring_proxmox_target_resolved }}:9100\",chip=\"platform_asus_ec_sensors\",sensor=\"fan2\"}",
           "legendFormat": "Chipset fan RPM",
           "refId": "B"
         }
@@ -344,7 +344,7 @@
       "id": 21,
       "targets": [
         {
-          "expr": "100 * (pve_disk_usage_bytes{instance=\"192.0.2.101\",id=~\"(qemu|lxc)/.*\"} / pve_disk_size_bytes{instance=\"192.0.2.101\",id=~\"(qemu|lxc)/.*\"}) * on(instance,id) group_left(name,type) pve_guest_info{instance=\"192.0.2.101\"}",
+          "expr": "100 * (pve_disk_usage_bytes{instance=\"{{ monitoring_proxmox_target_resolved }}\",id=~\"(qemu|lxc)/.*\"} / pve_disk_size_bytes{instance=\"{{ monitoring_proxmox_target_resolved }}\",id=~\"(qemu|lxc)/.*\"}) * on(instance,id) group_left(name,type) pve_guest_info{instance=\"{{ monitoring_proxmox_target_resolved }}\"}",
           "legendFormat": "{% raw %}{{name}}{% endraw %}",
           "refId": "A"
         }
@@ -359,7 +359,7 @@
       "id": 22,
       "targets": [
         {
-          "expr": "topk(5, 100 * (pve_disk_usage_bytes{instance=\"192.0.2.101\",id=~\"(qemu|lxc)/.*\"} / pve_disk_size_bytes{instance=\"192.0.2.101\",id=~\"(qemu|lxc)/.*\"}) * on(instance,id) group_left(name,type) pve_guest_info{instance=\"192.0.2.101\"})",
+          "expr": "topk(5, 100 * (pve_disk_usage_bytes{instance=\"{{ monitoring_proxmox_target_resolved }}\",id=~\"(qemu|lxc)/.*\"} / pve_disk_size_bytes{instance=\"{{ monitoring_proxmox_target_resolved }}\",id=~\"(qemu|lxc)/.*\"}) * on(instance,id) group_left(name,type) pve_guest_info{instance=\"{{ monitoring_proxmox_target_resolved }}\"})",
           "legendFormat": "{% raw %}{{name}}{% endraw %}",
           "refId": "A"
         }
