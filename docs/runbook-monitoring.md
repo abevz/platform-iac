@@ -4,7 +4,7 @@ Operational runbook for the Homelab monitoring stack:
 
 - VM: `192.0.2.108` (`monitoring`)
 - Components: Prometheus, Grafana, Alertmanager, Node Exporter, Proxmox Exporter, Blackbox Exporter
-- Public UI: `https://grafana.example.com`
+- Public UI: `https://grafana.bevz.net`
 
 ## Quick Health Checks
 
@@ -113,7 +113,7 @@ Checks:
 
 ```bash
 ssh 192.0.2.105 "sudo docker ps --format 'table {{.Names}}\t{{.Status}}'"
-ssh 192.0.2.105 "sudo docker exec reverseproxy nginx -T | grep -n 'grafana.example.com'"
+ssh 192.0.2.105 "sudo docker exec reverseproxy nginx -T | grep -n 'grafana.bevz.net'"
 ssh 192.0.2.108 "curl -s -o /dev/null -w '%{http_code}\n' http://127.0.0.1:3000/login"
 ```
 

@@ -79,6 +79,8 @@
       {{ (monitoring | default({})).get('proxmox_target', '') | default(monitoring_proxmox_target, true) }}
     monitoring_node_exporter_targets_resolved: >-
       {{ (monitoring | default({})).get('node_exporter_targets', []) | default(monitoring_node_exporter_targets, true) }}
+    monitoring_blackbox_targets_resolved: >-
+      {{ (monitoring | default({})).get('blackbox_targets', []) | default(monitoring_blackbox_targets, true) }}
 
 - name: Validate required monitoring variables
   ansible.builtin.assert:
@@ -101,11 +103,21 @@
 
 - name: Build effective blackbox targets
   ansible.builtin.set_fact:
+    monitoring_blackbox_targets_base: >-
+      {{ (monitoring_blackbox_targets_resolved | default([]))
+         if (monitoring_blackbox_targets_resolved | default([]) | length > 0)
+         else [
+           'https://grafana.' ~ monitoring_domain_resolved ~ '/login',
+           'https://homelab.' ~ monitoring_domain_resolved
+         ] }}
+
+- name: Add Jenkins URL to effective blackbox targets when configured
+  ansible.builtin.set_fact:
     monitoring_blackbox_targets_effective: >-
-      {{ (monitoring_blackbox_targets | default([])) +
+      {{ monitoring_blackbox_targets_base +
          ([monitoring_jenkins_url_resolved] if
          ((monitoring_jenkins_url_resolved | default('') | length > 0) and
-          (monitoring_jenkins_url_resolved not in (monitoring_blackbox_targets | default([]))))
+          (monitoring_jenkins_url_resolved not in monitoring_blackbox_targets_base))
          else []) }}
 
 - name: Ensure monitoring apt dependencies are installed
