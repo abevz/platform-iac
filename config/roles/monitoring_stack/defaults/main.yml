@@ -39,9 +39,7 @@ monitoring_proxmox_target: 192.0.2.101
 monitoring_node_exporter_targets:
   - node-exporter:9100
   - 192.0.2.101:9100
-monitoring_blackbox_targets:
-  - https://grafana.example.com/login
-  - https://homelab.example.com
+monitoring_blackbox_targets: []
 monitoring_jenkins_url: ""
 monitoring_jenkins_metrics_target: ""
 monitoring_jenkins_metrics_path: "/prometheus/"
