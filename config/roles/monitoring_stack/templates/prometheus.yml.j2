@@ -50,6 +50,50 @@ scrape_configs:
           cluster: {{ cluster.name }}
 
 {% if cluster.vault_k8s_role is defined and cluster.api_server is defined %}
+  - job_name: {{ cluster.name }}-kubelet
+    kubernetes_sd_configs:
+      - role: node
+        api_server: https://{{ cluster.api_server }}:6443
+        bearer_token_file: /etc/prometheus/k8s-tokens/{{ cluster.name }}.token
+        tls_config:
+          insecure_skip_verify: true
+    scheme: https
+    tls_config:
+      insecure_skip_verify: true
+    bearer_token_file: /etc/prometheus/k8s-tokens/{{ cluster.name }}.token
+    relabel_configs:
+      - source_labels: [__meta_kubernetes_node_name]
+        action: replace
+        regex: (.+)
+        replacement: /api/v1/nodes/$1/proxy/metrics
+        target_label: __metrics_path__
+      - target_label: __address__
+        replacement: {{ cluster.api_server }}:6443
+      - target_label: cluster
+        replacement: {{ cluster.name }}
+
+  - job_name: {{ cluster.name }}-cadvisor
+    kubernetes_sd_configs:
+      - role: node
+        api_server: https://{{ cluster.api_server }}:6443
+        bearer_token_file: /etc/prometheus/k8s-tokens/{{ cluster.name }}.token
+        tls_config:
+          insecure_skip_verify: true
+    scheme: https
+    tls_config:
+      insecure_skip_verify: true
+    bearer_token_file: /etc/prometheus/k8s-tokens/{{ cluster.name }}.token
+    relabel_configs:
+      - source_labels: [__meta_kubernetes_node_name]
+        action: replace
+        regex: (.+)
+        replacement: /api/v1/nodes/$1/proxy/metrics/cadvisor
+        target_label: __metrics_path__
+      - target_label: __address__
+        replacement: {{ cluster.api_server }}:6443
+      - target_label: cluster
+        replacement: {{ cluster.name }}
+
   - job_name: {{ cluster.name }}-k8s-pods
     kubernetes_sd_configs:
       - role: pod

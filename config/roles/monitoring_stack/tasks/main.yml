@@ -337,6 +337,17 @@
   notify: Restart monitoring stack
   become: true
 
+- name: Strip origin_prometheus filter from downloaded dashboards
+  ansible.builtin.replace:
+    path: "{{ monitoring_install_dir }}/grafana/dashboards/{{ item.name }}.json"
+    regexp: 'origin_prometheus=~\\"[^"]*\\",?'
+    replace: ""
+  loop: "{{ monitoring_grafana_dashboards }}"
+  loop_control:
+    label: "{{ item.name }}"
+  notify: Restart monitoring stack
+  become: true
+
 - name: Render monitoring docker compose file
   ansible.builtin.template:
     src: docker-compose.yml.j2
