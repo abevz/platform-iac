@@ -166,49 +166,30 @@ Required tools: `tofu`, `ansible-playbook`, `sops`, `yq`, `jq`, `nc`, `python3`,
 - `tools/iac-wrapper.sh` - Main orchestration script
 - `docs/` - Full documentation
 
-<!-- BEGIN BEADS INTEGRATION v:1 profile:minimal hash:ca08a54f -->
-## Beads Issue Tracker
+Task tracking goes through `afctl` — Beads (`bd`) is decommissioned, do
+not use it. The protocol lives in the managed block below; update it by
+re-running `afctl init` after upgrading `afctl`. Use your stable tool
+name as identity: `claude-code`, `codex`, `codewhale-<n>`. Always ensure
+you append a unique session identifier (like `-$$`) to avoid lock
+contention!
 
-This project uses **bd (beads)** for issue tracking. Run `bd prime` to see full workflow context and commands.
+## Session completion
 
-### Quick Reference
+Work is NOT complete until `git push` succeeds:
 
-```bash
-bd ready              # Find available work
-bd show <id>          # View issue details
-bd update <id> --claim  # Claim work
-bd close <id>         # Complete work
-```
+1. File issues for remaining work (`afctl issue create`)
+2. Run quality gates if code changed (tests, linters, builds)
+3. Close or release your claim; leave a `HANDOFF:` note if unfinished
+4. `git pull --rebase && git push` — verify "up to date with origin"
 
-### Rules
+<!-- BEGIN AF-COORDINATOR INTEGRATION v:1 -->
+This repo is coordinated by [af-coordinator](https://github.com/abevz/af-coordinator).
 
-- Use `bd` for ALL task tracking — do NOT use TodoWrite, TaskCreate, or markdown TODO lists
-- Run `bd prime` for detailed command reference and session close protocol
-- Use `bd remember` for persistent knowledge — do NOT use MEMORY.md files
-
-## Session Completion
-
-**When ending a work session**, you MUST complete ALL steps below. Work is NOT complete until `git push` succeeds.
-
-**MANDATORY WORKFLOW:**
-
-1. **File issues for remaining work** - Create issues for anything that needs follow-up
-2. **Run quality gates** (if code changed) - Tests, linters, builds
-3. **Update issue status** - Close finished work, update in-progress items
-4. **PUSH TO REMOTE** - This is MANDATORY:
-   ```bash
-   git pull --rebase
-   bd dolt push
-   git push
-   git status  # MUST show "up to date with origin"
-   ```
-5. **Clean up** - Clear stashes, prune remote branches
-6. **Verify** - All changes committed AND pushed
-7. **Hand off** - Provide context for next session
-
-**CRITICAL RULES:**
-- Work is NOT complete until `git push` succeeds
-- NEVER stop before pushing - that leaves work stranded locally
-- NEVER say "ready to push when you are" - YOU must push
-- If push fails, resolve and retry until it succeeds
-<!-- END BEADS INTEGRATION -->
+- **Read the protocol**: `afctl protocol` (or `~/github/af-coordinator/main/docs/agent-protocol-v1.md`)
+- **Identity**: `afctl` automatically infers your agent name and process PID from the process tree. You may optionally override this by exporting `AF_COORDINATOR_ACTOR=<agent-name>`.
+- **Session cycle**: `ready → claim → heartbeat → note → close`
+- **Never** edit files without an active claim.
+- **Never** touch the coordinator database.
+- **Never** restate specs in issue descriptions — link them.
+- **Never** close an issue without a note (`--note`) — the audit trail is for whoever comes after you.
+<!-- END AF-COORDINATOR INTEGRATION -->
