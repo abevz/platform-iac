@@ -10,9 +10,9 @@ A self-built, production-like **GitOps platform** spread across three repos:
   Proxmox; Ansible configures them and bootstraps Kubernetes (kubeadm + Cilium),
   Vault, Harbor, monitoring, and ArgoCD.
 - **platform-iac-gitops** — GitOps source of truth: ArgoCD app-of-apps,
-  External Secrets Operator + Vault, Kyverno policies. *(publishing soon, sanitized)*
+  External Secrets Operator + Vault, Kyverno policies.
 - **democicd** — demo app through the full supply chain: GitLab CI builds →
-  cosign signs → deploy by digest → ArgoCD syncs. *(publishing soon, sanitized)*
+  cosign signs → deploy by digest → ArgoCD syncs.
 
 ```mermaid
 flowchart LR
@@ -150,22 +150,22 @@ This project uses a hybrid approach:
 - **[OpenTofu](https://opentofu.org/)** (Terraform) provisions the virtual machines, storage, and networking on Proxmox.
 - **[Ansible](https://www.ansible.com/)** performs the complete system configuration, from bootstrapping nodes to deploying security tooling.
 
-The entire process is orchestrated by a master wrapper script (`tools/iac-wrapper.sh`) for seamless, one-command deployment.
+The entire process is orchestrated by a master wrapper script (`tools/iac-wrapper.sh`) for one-command deployment.
 
-## 📚 Documentation
+## Documentation
 
-> **4,297 lines** of comprehensive documentation covering all aspects of the platform
+**4,297 lines** of documentation covering the platform.
 
-### 🎯 Quick Access
+### Quick access
 
-- **[📖 Complete Documentation](docs/README.md)** - Full platform guide with workflows
-- **[🛠️ IAC Wrapper Guide](docs/iac-wrapper.md)** ⭐ - Central orchestration script reference
-- **[⚡ Quick Reference](docs/cheatsheet.md)** - Command cheat sheet for daily use
-- **[🏗️ Architecture](docs/architecture.md)** - Visual diagrams and system design
-- **[📑 Documentation Index](docs/index.md)** - Complete documentation catalog
-- **[🔐 Secrets Architecture](docs/secrets-architecture.md)** - Vault/ESO runtime secrets and backup model
+- **[Complete Documentation](docs/README.md)** - Full platform guide with workflows
+- **[IAC Wrapper Guide](docs/iac-wrapper.md)** - Central orchestration script reference
+- **[Quick Reference](docs/cheatsheet.md)** - Command cheat sheet for daily use
+- **[Architecture](docs/architecture.md)** - Visual diagrams and system design
+- **[Documentation Index](docs/index.md)** - Complete documentation catalog
+- **[Secrets Architecture](docs/secrets-architecture.md)** - Vault/ESO runtime secrets and backup model
 
-### 🎭 Role Documentation
+### Role documentation
 
 - **[All Roles Overview](config/roles/README.md)** - Complete role catalog
 - **[Quick Reference](config/roles/QUICK_REFERENCE.md)** - Fast role lookup
