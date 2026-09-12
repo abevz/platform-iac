@@ -11,9 +11,12 @@ vault_backup_dir: /var/backups/vault
 vault_api_port: 8200
 vault_cluster_port: 8201
 vault_listener_address: "0.0.0.0"
-vault_tls_disable: true
-vault_api_addr: "http://{{ ansible_host | default(ansible_default_ipv4.address) }}:{{ vault_api_port }}"
-vault_cluster_addr: "http://{{ ansible_host | default(ansible_default_ipv4.address) }}:{{ vault_cluster_port }}"
+vault_tls_disable: false
+vault_tls_dir: "{{ vault_config_dir }}/tls"
+vault_tls_cert_file: "{{ vault_tls_dir }}/fullchain.pem"
+vault_tls_key_file: "{{ vault_tls_dir }}/privkey.pem"
+vault_api_addr: "https://{{ ansible_host | default(ansible_default_ipv4.address) }}:{{ vault_api_port }}"
+vault_cluster_addr: "https://{{ ansible_host | default(ansible_default_ipv4.address) }}:{{ vault_cluster_port }}"
 
 vault_snapshot_enabled: true
 vault_snapshot_on_calendar: "*-*-* 00/6:00:00"

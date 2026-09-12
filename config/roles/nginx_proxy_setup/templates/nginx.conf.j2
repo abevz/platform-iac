@@ -37,6 +37,13 @@ http {
     include       /etc/nginx/mime.types;
     default_type  application/octet-stream;
 
+    # The stream block terminates external connections and relays them to
+    # 127.0.0.1:1443 wrapped in a PROXY protocol header carrying the real
+    # client address. Without this, $remote_addr here would be 127.0.0.1
+    # for every request, defeating any allow/deny IP restrictions below.
+    real_ip_header proxy_protocol;
+    set_real_ip_from 127.0.0.1;
+
     log_format  main  '$remote_addr - $remote_user [$time_local] "$request" '
                       '$status $body_bytes_sent "$http_referer" '
                       '"$http_user_agent" "$http_x_forwarded_for"';

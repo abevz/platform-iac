@@ -118,6 +118,11 @@
     - { path: "{{ vault_config_dir }}", owner: root, group: vault, mode: "0750" }
     - { path: "{{ vault_data_dir }}", owner: vault, group: vault, mode: "0750" }
     - { path: "{{ vault_backup_dir }}", owner: vault, group: vault, mode: "0750" }
+    - { path: "{{ vault_tls_dir }}", owner: vault, group: vault, mode: "0750" }
+
+# NOTE: this role does not distribute the TLS cert/key bytes into
+# vault_tls_dir -- placing them is a manual/external prerequisite until
+# the sync from the certbot-owning host is automated (piac-7).
 
 - name: Render Vault server configuration
   ansible.builtin.template:
