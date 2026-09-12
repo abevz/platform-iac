@@ -1,0 +1,11 @@
+[Unit]
+Description=Retry Vault certificate sync
+
+[Timer]
+OnCalendar={{ certbot_vault_cert_sync_on_calendar }}
+RandomizedDelaySec={{ certbot_vault_cert_sync_randomized_delay_sec }}
+Persistent=true
+Unit={{ certbot_vault_cert_sync_service }}
+
+[Install]
+WantedBy=timers.target

@@ -1,0 +1,11 @@
+#!/bin/bash
+set -euo pipefail
+
+readonly PROTOCOL="vault-cert-sync-v1"
+
+if [[ "${SSH_ORIGINAL_COMMAND:-}" != "$PROTOCOL" ]]; then
+  printf '%s\n' "vault-cert-sync: rejected SSH command" >&2
+  exit 64
+fi
+
+exec {{ vault_cert_sync_receiver_sudo_path | quote }} -n {{ vault_cert_sync_receiver_script_path | quote }} "$PROTOCOL"

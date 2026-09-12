@@ -1,0 +1,87 @@
+---
+- name: Configure restricted Vault certificate sync receiver
+  when: vault_cert_sync_receiver_enabled | bool
+  become: true
+  block:
+    - name: Validate Vault certificate sync receiver configuration
+      ansible.builtin.assert:
+        that:
+          - vault_cert_sync_receiver_authorized_key is match('^ssh-ed25519 [A-Za-z0-9+/=]+$')
+          - vault_cert_sync_receiver_source_address is match('^[0-9A-Fa-f:.]+(/[0-9]{1,3})?$')
+          - vault_cert_sync_receiver_expected_hostname is match('^[A-Za-z0-9][A-Za-z0-9.-]*$')
+          - vault_cert_sync_receiver_tls_cert_file is match('^/\\S+$')
+          - vault_cert_sync_receiver_tls_key_file is match('^/\\S+$')
+          - vault_cert_sync_receiver_sudo_path == '/usr/bin/sudo'
+          - vault_cert_sync_receiver_vault_port | int > 0
+          - vault_cert_sync_receiver_vault_port | int < 65536
+          - vault_cert_sync_receiver_min_validity_seconds | int > 0
+        fail_msg: "Vault certificate sync needs one ed25519 source key, source address, hostname, and fixed TLS paths."
+
+    - name: Create restricted Vault certificate sync account
+      ansible.builtin.user:
+        name: "{{ vault_cert_sync_receiver_user }}"
+        system: true
+        home: "{{ vault_cert_sync_receiver_home }}"
+        shell: /bin/sh
+        create_home: false
+        password_lock: true
+
+    - name: Make restricted Vault certificate sync home root-owned
+      ansible.builtin.file:
+        path: "{{ vault_cert_sync_receiver_home }}"
+        state: directory
+        owner: root
+        group: root
+        mode: "0755"
+
+    - name: Create root-owned SSH authorization directory
+      ansible.builtin.file:
+        path: "{{ vault_cert_sync_receiver_home }}/.ssh"
+        state: directory
+        owner: root
+        group: root
+        mode: "0755"
+
+    - name: Create root-owned Vault certificate sync program directories
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: directory
+        owner: root
+        group: root
+        mode: "0755"
+      loop:
+        - "{{ vault_cert_sync_receiver_script_path | dirname }}"
+        - "{{ vault_cert_sync_receiver_wrapper_path | dirname }}"
+
+    - name: Install Vault certificate sync receiver
+      ansible.builtin.template:
+        src: vault-cert-sync-receive.sh.j2
+        dest: "{{ vault_cert_sync_receiver_script_path }}"
+        owner: root
+        group: root
+        mode: "0700"
+
+    - name: Install Vault certificate sync SSH wrapper
+      ansible.builtin.template:
+        src: vault-cert-sync-ssh-wrapper.sh.j2
+        dest: "{{ vault_cert_sync_receiver_wrapper_path }}"
+        owner: root
+        group: root
+        mode: "0755"
+
+    - name: Install restricted Vault certificate sync SSH key
+      ansible.builtin.template:
+        src: authorized_keys.j2
+        dest: "{{ vault_cert_sync_receiver_home }}/.ssh/authorized_keys"
+        owner: root
+        group: "{{ vault_cert_sync_receiver_user }}"
+        mode: "0640"
+
+    - name: Allow only the fixed receiver command through sudo
+      ansible.builtin.template:
+        src: sudoers.j2
+        dest: /etc/sudoers.d/vault-cert-sync
+        owner: root
+        group: root
+        mode: "0440"
+        validate: /usr/sbin/visudo -cf %s

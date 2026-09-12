@@ -39,6 +39,18 @@
   become: yes
   when: addon_state == "present"
 
+- name: Configure optional Vault certificate sync sender
+  ansible.builtin.import_tasks: vault_cert_sync.yml
+  when:
+    - addon_state == "present"
+    - certbot_vault_cert_sync_enabled | bool
+
+- name: Disable optional Vault certificate sync sender
+  ansible.builtin.import_tasks: vault_cert_sync_disabled.yml
+  when:
+    - addon_state == "present"
+    - not (certbot_vault_cert_sync_enabled | bool)
+
 - name: Remove certbot renew deploy hook script
   ansible.builtin.file:
     path: "{{ certbot_renew_hook_path }}"

@@ -1,0 +1,41 @@
+---
+- name: Configure the Certbot sender for Vault TLS sync
+  hosts: nginx_proxies
+  become: true
+  tasks:
+    - name: Require one Certbot source for this point-to-point sync
+      ansible.builtin.assert:
+        that:
+          - groups['nginx_proxies'] | length == 1
+          - certbot_vault_cert_sync_enabled | bool
+        fail_msg: "Vault certificate sync requires exactly one enabled nginx_proxies source."
+    - name: Configure restricted Vault certificate sync sender
+      ansible.builtin.include_role:
+        name: certbot_setup
+        tasks_from: vault_cert_sync
+
+- name: Configure the restricted Vault TLS receiver
+  hosts: vault_servers
+  become: true
+  vars:
+    vault_cert_sync_receiver_authorized_key: "{{ hostvars[groups['nginx_proxies'] | first].certbot_vault_cert_sync_public_key }}"
+  tasks:
+    - name: Require enabled Vault certificate sync receiver
+      ansible.builtin.assert:
+        that:
+          - groups['vault_servers'] | length == 1
+          - vault_cert_sync_receiver_enabled | bool
+        fail_msg: "Vault certificate sync requires exactly one enabled vault_servers receiver."
+
+    - name: Configure restricted Vault certificate sync receiver
+      ansible.builtin.include_role:
+        name: vault_cert_sync_receiver
+
+- name: Push the current configured certificate after receiver setup
+  hosts: nginx_proxies
+  become: true
+  tasks:
+    - name: Push current certificate through the restricted receiver
+      ansible.builtin.include_role:
+        name: certbot_setup
+        tasks_from: vault_cert_sync_run

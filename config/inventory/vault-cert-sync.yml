@@ -1,0 +1,16 @@
+---
+# Point-to-point, non-secret configuration for nginx-proxy (10.10.10.105) to
+# Vault (10.10.10.109). Keep this file loaded on every nginx-proxy role run.
+certbot_vault_cert_sync_enabled: true
+certbot_vault_cert_sync_lineage: "bevz-net-wildcard"
+certbot_vault_cert_sync_expected_hostname: "vault.bevz.net"
+certbot_vault_cert_sync_target_host: "10.10.10.109"
+certbot_vault_cert_sync_target_port: 22
+certbot_vault_cert_sync_target_user: "vault-cert-sync"
+certbot_vault_cert_sync_target_host_key: "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIP3XibF9pMX7Vg7q2sfXnb4C9Yfv6Zc26qSd2NlUtz9d root@vault"
+
+vault_cert_sync_receiver_enabled: true
+vault_cert_sync_receiver_source_address: "10.10.10.105"
+vault_cert_sync_receiver_expected_hostname: "vault.bevz.net"
+vault_cert_sync_receiver_tls_cert_file: "/etc/vault.d/tls/fullchain.pem"
+vault_cert_sync_receiver_tls_key_file: "/etc/vault.d/tls/privkey.pem"

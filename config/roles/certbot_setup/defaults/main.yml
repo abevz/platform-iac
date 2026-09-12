@@ -11,6 +11,26 @@ certbot_renew_systemd_timer: "certbot-renew.timer"
 certbot_renew_on_calendar: "*-*-* 03,15:00:00"
 certbot_renew_randomized_delay_sec: "15m"
 
+# Optional one-way delivery of one renewed lineage to a Vault TLS listener.
+# Keep disabled unless both the source and the Vault receiver are configured.
+certbot_vault_cert_sync_enabled: false
+certbot_vault_cert_sync_lineage: ""
+certbot_vault_cert_sync_expected_hostname: ""
+certbot_vault_cert_sync_target_host: ""
+certbot_vault_cert_sync_target_port: 22
+certbot_vault_cert_sync_target_user: "vault-cert-sync"
+certbot_vault_cert_sync_target_host_key: ""
+certbot_vault_cert_sync_identity_path: "/root/.ssh/vault_cert_push_ed25519"
+certbot_vault_cert_sync_known_hosts_path: "/etc/letsencrypt/vault-cert-sync-known-hosts"
+certbot_vault_cert_sync_ssh_config_path: "/etc/letsencrypt/vault-cert-sync-ssh-config"
+certbot_vault_cert_sync_helper_path: "/usr/local/sbin/certbot-vault-cert-sync"
+certbot_vault_cert_sync_service: "certbot-vault-cert-sync.service"
+certbot_vault_cert_sync_timer: "certbot-vault-cert-sync.timer"
+certbot_vault_cert_sync_on_calendar: "hourly"
+certbot_vault_cert_sync_randomized_delay_sec: "10m"
+certbot_vault_cert_sync_min_validity_seconds: 86400
+certbot_vault_cert_sync_timeout_seconds: 30
+
 # REQUIRED VARIABLES (must be defined in config/secrets/ansible/extra_vars.sops.yml):
 # certbot_email: "admin@example.com"
 # certbot_domains_to_create:

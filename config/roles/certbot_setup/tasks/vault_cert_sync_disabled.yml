@@ -1,0 +1,25 @@
+---
+- name: Stop and disable Vault certificate sync retry timer
+  ansible.builtin.systemd:
+    name: "{{ certbot_vault_cert_sync_timer }}"
+    enabled: false
+    state: stopped
+  become: true
+  failed_when: false
+
+- name: Remove disabled Vault certificate sync runtime files
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: absent
+  loop:
+    - "{{ certbot_vault_cert_sync_helper_path }}"
+    - "{{ certbot_vault_cert_sync_known_hosts_path }}"
+    - "{{ certbot_vault_cert_sync_ssh_config_path }}"
+    - "/etc/systemd/system/{{ certbot_vault_cert_sync_service }}"
+    - "/etc/systemd/system/{{ certbot_vault_cert_sync_timer }}"
+  become: true
+
+- name: Reload systemd after disabling Vault certificate sync
+  ansible.builtin.systemd:
+    daemon_reload: true
+  become: true
