@@ -24,14 +24,12 @@ nginx_proxy_upstreams:
   # Stream (TCP/UDP) upstreams - no http:// prefix
   k8s_ingress: "<K8S-INGRESS-IP>:443"
   gitlab_ssh: "<GITLAB-IP>:22"
-  proxmox_ssh: "<PROXMOX-HOST-IP>:22"
 
   # HTTP upstreams - with http:// prefix
   wiki_http: "http://10.<OTHER-LAN-IP>:3000"
   plantuml_http: "http://10.<OTHER-LAN-IP>:18080"
   minio_s3_api: "http://minio.<your-domain>.com:9000"
   minio_console: "http://minio.<your-domain>.com:9001"
-  proxmox_https: "https://<PROXMOX-HOST-IP>:8006"
 
   # HTTP upstreams - without prefix (added in template)
   gitlab_http: "<GITLAB-IP>:80"
