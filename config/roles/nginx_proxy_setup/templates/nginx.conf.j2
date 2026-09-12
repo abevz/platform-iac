@@ -31,13 +31,6 @@ stream {
         proxy_timeout 3600s;
         proxy_connect_timeout 60s;
     }
-
-    server {
-        listen 22006;
-        proxy_pass {{ nginx_proxy_upstreams.proxmox_ssh }};
-        proxy_timeout 3600s;
-        proxy_connect_timeout 60s;
-    }
 }
 
 http {
