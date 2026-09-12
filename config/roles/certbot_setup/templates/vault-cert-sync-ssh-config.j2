@@ -1,0 +1,17 @@
+Host vault-cert-sync-target
+    HostName {{ certbot_vault_cert_sync_target_host }}
+    HostKeyAlias vault-cert-sync-target
+    Port {{ certbot_vault_cert_sync_target_port }}
+    User {{ certbot_vault_cert_sync_target_user }}
+    IdentityFile {{ certbot_vault_cert_sync_identity_path }}
+    IdentitiesOnly yes
+    BatchMode yes
+    PasswordAuthentication no
+    KbdInteractiveAuthentication no
+    RequestTTY no
+    ClearAllForwardings yes
+    PermitLocalCommand no
+    StrictHostKeyChecking yes
+    UserKnownHostsFile {{ certbot_vault_cert_sync_known_hosts_path }}
+    GlobalKnownHostsFile /dev/null
+    LogLevel ERROR

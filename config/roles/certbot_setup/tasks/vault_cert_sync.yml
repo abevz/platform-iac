@@ -1,0 +1,133 @@
+---
+- name: Validate Vault certificate sync sender configuration
+  ansible.builtin.assert:
+    that:
+      - certbot_vault_cert_sync_lineage is match('^[A-Za-z0-9][A-Za-z0-9._-]*$')
+      - certbot_vault_cert_sync_expected_hostname is match('^[A-Za-z0-9][A-Za-z0-9.-]*$')
+      - certbot_vault_cert_sync_target_host is match('^[A-Za-z0-9][A-Za-z0-9.-]*$')
+      - certbot_vault_cert_sync_target_user is match('^[a-z_][a-z0-9_-]*$')
+      - certbot_vault_cert_sync_target_host_key is match('^ssh-(ed25519|rsa) [A-Za-z0-9+/=]+( .*)?$')
+      - certbot_vault_cert_sync_target_port | int > 0
+      - certbot_vault_cert_sync_target_port | int < 65536
+      - certbot_vault_cert_sync_min_validity_seconds | int > 0
+      - certbot_vault_cert_sync_timeout_seconds | int > 0
+    fail_msg: "Vault certificate sync needs a fixed lineage, hostname, target, and pinned SSH host key."
+
+- name: Ensure source SSH directory exists for Vault certificate sync
+  ansible.builtin.file:
+    path: "{{ certbot_vault_cert_sync_identity_path | dirname }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0700"
+  become: true
+
+- name: Create dedicated source-only Vault certificate sync key
+  ansible.builtin.command:
+    argv:
+      - ssh-keygen
+      - -q
+      - -t
+      - ed25519
+      - -N
+      - ""
+      - -C
+      - certbot-vault-cert-sync
+      - -f
+      - "{{ certbot_vault_cert_sync_identity_path }}"
+    creates: "{{ certbot_vault_cert_sync_identity_path }}"
+  become: true
+  no_log: true
+
+- name: Set source-only Vault certificate sync key permissions
+  ansible.builtin.file:
+    path: "{{ certbot_vault_cert_sync_identity_path }}"
+    owner: root
+    group: root
+    mode: "0600"
+    state: file
+  become: true
+
+- name: Read source-only Vault certificate sync public key
+  ansible.builtin.command:
+    argv:
+      - ssh-keygen
+      - -y
+      - -f
+      - "{{ certbot_vault_cert_sync_identity_path }}"
+  become: true
+  register: certbot_vault_cert_sync_public_key_command
+  changed_when: false
+  check_mode: false
+
+- name: Validate source-only Vault certificate sync public key
+  ansible.builtin.assert:
+    that:
+      - certbot_vault_cert_sync_public_key_command.stdout is match('^ssh-ed25519 [A-Za-z0-9+/=]+( \\S+)?$')
+    fail_msg: "The dedicated Vault certificate sync key is not an ed25519 public key."
+
+- name: Expose source-only Vault certificate sync public key to this play
+  ansible.builtin.set_fact:
+    certbot_vault_cert_sync_public_key: "{{ certbot_vault_cert_sync_public_key_command.stdout.split()[:2] | join(' ') }}"
+
+- name: Install pinned Vault SSH host key
+  ansible.builtin.template:
+    src: vault-cert-sync-known-hosts.j2
+    dest: "{{ certbot_vault_cert_sync_known_hosts_path }}"
+    owner: root
+    group: root
+    mode: "0600"
+  become: true
+
+- name: Install restricted Vault SSH client configuration
+  ansible.builtin.template:
+    src: vault-cert-sync-ssh-config.j2
+    dest: "{{ certbot_vault_cert_sync_ssh_config_path }}"
+    owner: root
+    group: root
+    mode: "0600"
+  become: true
+
+- name: Install Vault certificate sync sender helper
+  ansible.builtin.template:
+    src: certbot-vault-cert-sync.sh.j2
+    dest: "{{ certbot_vault_cert_sync_helper_path }}"
+    owner: root
+    group: root
+    mode: "0700"
+  become: true
+
+- name: Update Certbot deploy hook with Vault certificate sync
+  ansible.builtin.template:
+    src: certbot-renew-hook.sh.j2
+    dest: "{{ certbot_renew_hook_path }}"
+    owner: root
+    group: root
+    mode: "0750"
+  become: true
+
+- name: Install Vault certificate sync retry service
+  ansible.builtin.template:
+    src: certbot-vault-cert-sync.service.j2
+    dest: "/etc/systemd/system/{{ certbot_vault_cert_sync_service }}"
+    owner: root
+    group: root
+    mode: "0644"
+  become: true
+
+- name: Install Vault certificate sync retry timer
+  ansible.builtin.template:
+    src: certbot-vault-cert-sync.timer.j2
+    dest: "/etc/systemd/system/{{ certbot_vault_cert_sync_timer }}"
+    owner: root
+    group: root
+    mode: "0644"
+  become: true
+
+- name: Enable Vault certificate sync retry timer
+  ansible.builtin.systemd:
+    name: "{{ certbot_vault_cert_sync_timer }}"
+    enabled: true
+    state: started
+    daemon_reload: true
+  become: true

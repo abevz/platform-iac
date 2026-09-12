@@ -63,6 +63,62 @@ certbot_domains_to_create:
       - "example.com"
 ```
 
+### Optional one-way Vault TLS sync
+
+`setup_vault_cert_sync.yml` configures a single Certbot source and a single
+Vault receiver. It is disabled by default. The source creates a dedicated
+ed25519 key locally with mode `0600`; only its public key is installed on the
+receiver. Do not put the private key, a Vault token, or an SSH password in
+Ansible variables.
+
+```yaml
+# On the Certbot host
+certbot_vault_cert_sync_enabled: true
+certbot_vault_cert_sync_lineage: "bevz-net-wildcard"
+certbot_vault_cert_sync_expected_hostname: "vault.bevz.net"
+certbot_vault_cert_sync_target_host: "10.10.10.109"
+certbot_vault_cert_sync_target_port: 22
+certbot_vault_cert_sync_target_user: "vault-cert-sync"
+# Copy this exact public host-key line from an already trusted connection.
+# Never obtain it with ssh-keyscan or accept a new key during renewal.
+certbot_vault_cert_sync_target_host_key: "ssh-ed25519 AAAA..."
+
+# On the Vault host
+vault_cert_sync_receiver_enabled: true
+vault_cert_sync_receiver_source_address: "10.10.10.105"
+vault_cert_sync_receiver_expected_hostname: "vault.bevz.net"
+vault_cert_sync_receiver_tls_cert_file: "/etc/vault.d/tls/fullchain.pem"
+vault_cert_sync_receiver_tls_key_file: "/etc/vault.d/tls/privkey.pem"
+```
+
+The deploy hook runs only when Certbot reports the exact configured
+`RENEWED_LINEAGE`; it never turns Certbot environment data into a path. The
+same fixed lineage is retried hourly so a transient receiver outage does not
+wait until the next real renewal. Both sender and receiver validate the CA
+chain, hostname, validity, and key match. The receiver stages the pair,
+reloads Vault with `HUP`, and verifies the served fingerprint and unsealed
+health endpoint; it restores the prior pair if that verification fails.
+
+Apply both ends in order with the checked point-to-point variables:
+
+```bash
+ansible-playbook -i config/inventory/vault-cert-sync.ini \
+  config/playbooks/setup_vault_cert_sync.yml \
+  -e @config/inventory/vault-cert-sync.yml
+```
+
+This playbook requires exactly one `nginx_proxies` host. It installs no
+firewall rule and does not request a certificate. The Vault SSH account has an
+executable shell only because sshd uses it to start a forced command; its
+password is locked, its home and `authorized_keys` are root-owned, and the key
+cannot allocate a TTY or forward connections.
+
+Keep `config/inventory/vault-cert-sync.yml` loaded for every later
+`setup_nginx-proxy.yml` run. Omitting it intentionally renders a hook without
+the sync call and disables/removes the retry timer and sender runtime files;
+the source private key is retained locally but is never copied or used by that
+disabled configuration.
+
 ### Required Secrets (via SOPS)
 
 In `config/secrets/ansible/extra_vars.sops.yml`:
