@@ -75,7 +75,12 @@ variable "ip_prefix_length" {
 
 variable "vm_started" {
   type    = bool
-  default = true
+  default = false
+}
+
+variable "vm_on_boot" {
+  type    = bool
+  default = false
 }
 
 variable "vm_dns_server" {

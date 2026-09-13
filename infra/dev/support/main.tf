@@ -45,5 +45,6 @@ resource "proxmox_virtual_environment_vm" "vm" {
     }
     user_data_file_id = proxmox_virtual_environment_file.user_data.id
   }
+  on_boot = var.vm_on_boot
   started = var.vm_started
 }
