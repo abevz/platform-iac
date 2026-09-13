@@ -1,6 +1,19 @@
 # /config/roles/nginx_proxy_setup/templates/default.conf.j2
 # File managed by Ansible. DO NOT EDIT MANUALLY.
 server {
+    listen 80 default_server;
+    listen [::]:80 default_server;
+    server_name _;
+    return 444;
+}
+
+server {
+    listen 127.0.0.1:1443 ssl http2 proxy_protocol default_server;
+    server_name _;
+    ssl_reject_handshake on;
+}
+
+server {
     listen 80;
     listen [::]:80;
     server_name harbor.{{ primary_domain | default("<your-domain>.com") }} gitlab.{{ primary_domain | default("<your-domain>.com") }} s3.minio.{{ primary_domain | default("<your-domain>.com") }} minio.{{ primary_domain | default("<your-domain>.com") }} grafana.{{ primary_domain | default("<your-domain>.com") }} jenkins.{{ primary_domain | default("<your-domain>.com") }} vault.{{ primary_domain | default("<your-domain>.com") }};
