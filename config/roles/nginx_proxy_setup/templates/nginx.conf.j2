@@ -50,11 +50,13 @@ http {
 
     access_log  /var/log/nginx/access.log  main;
 
-    limit_req_zone $binary_remote_addr zone=mylimit:10m rate=5r/s;
-
     sendfile        on;
     tcp_nopush      on;
     keepalive_timeout  65;
 
-    include /etc/nginx/conf.d/*.conf;
+    # These snippets are global HTTP defaults. TLS settings stay per-vhost so
+    # upstream HSTS can be hidden and the edge sends one canonical value.
+    include /etc/nginx/conf.d/gzip.conf;
+    include /etc/nginx/conf.d/proxy-params-websockets.conf;
+    include /etc/nginx/conf.d/default.conf;
 }
