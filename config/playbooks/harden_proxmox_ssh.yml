@@ -1,0 +1,6 @@
+---
+- name: Harden SSH access on Proxmox nodes
+  hosts: proxmox_nodes
+  become: true
+  roles:
+    - role: proxmox_ssh_hardening
