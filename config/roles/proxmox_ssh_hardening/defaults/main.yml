@@ -1,0 +1,7 @@
+---
+proxmox_ssh_hardening_allowed_groups:
+  - sudo
+  - terraform
+
+proxmox_ssh_hardening_config_file: /etc/ssh/sshd_config
+proxmox_ssh_hardening_drop_in_file: /etc/ssh/sshd_config.d/99-platform-iac.conf
