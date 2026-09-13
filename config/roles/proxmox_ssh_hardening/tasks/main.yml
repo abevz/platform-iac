@@ -12,13 +12,16 @@
     database: group
     key: "{{ item }}"
   loop: "{{ proxmox_ssh_hardening_allowed_groups }}"
+  register: proxmox_ssh_hardening_group_lookup
 
 - name: Require the SSH access groups to exist
   ansible.builtin.assert:
     that:
-      - "ansible_facts.getent_group[item] is defined"
-    fail_msg: "Refusing to change AllowGroups because {{ item }} does not exist."
-  loop: "{{ proxmox_ssh_hardening_allowed_groups }}"
+      - "item.ansible_facts.getent_group[item.item] is defined"
+    fail_msg: "Refusing to change AllowGroups because {{ item.item }} does not exist."
+  loop: "{{ proxmox_ssh_hardening_group_lookup.results }}"
+  loop_control:
+    label: "{{ item.item }}"
 
 - name: Find SSH daemon configuration fragments
   ansible.builtin.find:
