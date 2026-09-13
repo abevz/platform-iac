@@ -10,8 +10,6 @@ nginx_proxy_upstreams:
   gitlab_ssh: '{{ nginx_proxy_ips.gitlab_ssh | default("192.0.2.104:22") }}'
 
   # Used in 'http', prefix required in variable
-  wiki_http: '{{ nginx_proxy_ips.wiki_http | default("http://192.0.2.5:3000") }}'
-  plantuml_http: '{{ nginx_proxy_ips.plantuml_http | default("http://192.0.2.5:18080") }}'
   grafana_http: '{{ nginx_proxy_ips.grafana_http | default("http://192.0.2.108:3000") }}'
   jenkins_http: '{{ nginx_proxy_ips.jenkins_http | default("http://192.0.2.110:8080") }}'
   vault_http: '{{ nginx_proxy_ips.vault_http | default("https://192.0.2.109:8200") }}'

@@ -26,8 +26,6 @@ nginx_proxy_upstreams:
   gitlab_ssh: "<GITLAB-IP>:22"
 
   # HTTP upstreams - with http:// prefix
-  wiki_http: "http://10.<OTHER-LAN-IP>:3000"
-  plantuml_http: "http://10.<OTHER-LAN-IP>:18080"
   minio_s3_api: "http://minio.<your-domain>.com:9000"
   minio_console: "http://minio.<your-domain>.com:9001"
 
@@ -83,7 +81,6 @@ nginx_proxy_upstreams:
     nginx_proxy_upstreams:
       gitlab_http: "<GITLAB-IP>:80"
       harbor_http: "<HARBOR-IP>:80"
-      wiki_http: "http://10.<OTHER-LAN-IP>:3000"
   roles:
     - nginx_proxy_setup
 ```
@@ -190,13 +187,13 @@ server {
 
 ### 3. ssl-params.conf - SSL/TLS Hardening
 
-Modern SSL/TLS configuration with strong ciphers and HSTS.
+Per-vhost SSL/TLS configuration with strong ciphers and edge-owned HSTS.
 
 **Features:**
 - TLS 1.2+ only
 - Strong cipher suites
 - OCSP stapling
-- Security headers (HSTS, X-Frame-Options, etc.)
+- A single HSTS value emitted by the proxy for each TLS-terminating vhost
 
 ### 4. gzip.conf - Compression
 
@@ -272,8 +269,6 @@ This role is designed to proxy the following services:
 |---------|--------|----------|------|
 | GitLab | gitlab.<your-domain>.com | <GITLAB-IP>:80 | 443 |
 | Harbor | harbor.<your-domain>.com | <HARBOR-IP>:80 | 443 |
-| Wiki.js | wiki.<your-domain>.com | 10.<OTHER-LAN-IP>:3000 | 443 |
-| PlantUML | plantuml.<your-domain>.com | 10.<OTHER-LAN-IP>:18080 | 443 |
 | RustFS S3 | s3.<your-domain>.com | <RUSTFS-IP>:9000 | 443 |
 | RustFS Console | minio.<your-domain>.com | <RUSTFS-IP>:9001 | 443 |
 | Proxmox | pve.<your-domain>.com | <PROXMOX-HOST-IP>:8006 | 443 |
@@ -393,20 +388,8 @@ location / {
 
 - TLS 1.2+ only (configured in ssl-params.conf)
 - Strong cipher suites (ECDHE, AES-GCM)
-- HSTS enabled (365 days)
+- HSTS enabled (two years)
 - OCSP stapling enabled
-
-### Rate Limiting
-
-Consider adding rate limiting for public endpoints:
-
-```nginx
-# In nginx.conf http block
-limit_req_zone $binary_remote_addr zone=general:10m rate=10r/s;
-
-# In default.conf location block
-limit_req zone=general burst=20 nodelay;
-```
 
 ### Monitoring
 

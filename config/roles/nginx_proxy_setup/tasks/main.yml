@@ -55,7 +55,7 @@
   become: yes
   notify: Restart nginx-proxy
 
-- name: Copy Nginx snippets (gzip, ssl, websockets)
+- name: Copy Nginx snippets (gzip, TLS, and websockets)
   ansible.builtin.copy:
     src: "{{ item }}"
     dest: "{{ nginx_proxy_root_dir }}/nginx-conf/{{ item }}"
