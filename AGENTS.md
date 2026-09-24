@@ -166,9 +166,9 @@ Required tools: `tofu`, `ansible-playbook`, `sops`, `yq`, `jq`, `nc`, `python3`,
 - `tools/iac-wrapper.sh` - Main orchestration script
 - `docs/` - Full documentation
 
-Task tracking goes through `afctl` — Beads (`bd`) is decommissioned, do
+Task tracking goes through `dibs` — Beads (`bd`) is decommissioned, do
 not use it. The protocol lives in the managed block below; update it by
-re-running `afctl init` after upgrading `afctl`. Use your stable tool
+re-running `dibs init` after upgrading `dibs`. Use your stable tool
 name as identity: `claude-code`, `codex`, `codewhale-<n>`. Always ensure
 you append a unique session identifier (like `-$$`) to avoid lock
 contention!
@@ -177,18 +177,19 @@ contention!
 
 Work is NOT complete until `git push` succeeds:
 
-1. File issues for remaining work (`afctl issue create`)
+1. File issues for remaining work (`dibs issue create`)
 2. Run quality gates if code changed (tests, linters, builds)
 3. Close or release your claim; leave a `HANDOFF:` note if unfinished
 4. `git pull --rebase && git push` — verify "up to date with origin"
 
 <!-- BEGIN AF-COORDINATOR INTEGRATION v:1 -->
-This repo is coordinated by [af-coordinator](https://github.com/abevz/af-coordinator).
+This repo is coordinated by [dibs](https://github.com/abevz/dibs).
 
-- **Canonical protocol**: run `afctl protocol`; source: `~/github/af-coordinator/main/docs/agent-protocol-v1.md`
-- **Identity**: `afctl` automatically infers your agent name and process PID from the process tree. You may optionally override this by exporting `AF_COORDINATOR_ACTOR=<agent-name>`.
+- **Canonical protocol**: run `dibs protocol`; source: `https://github.com/abevz/dibs/blob/main/docs/agent-protocol-v1.md`
+- **Identity**: `dibs` automatically infers your agent name and process PID from the process tree. You may optionally override this by exporting `DIBS_ACTOR=<agent-name>`.
 - **Session cycle**: `ready → claim → heartbeat → handoff/close`
-- **Worktree hygiene**: implement in a sibling worktree when the coordinated checkout is a read/merge anchor; after removing a merged task worktree, use `afctl worktree prune --repo <repo-id>` (or `afctl worktree unregister --worktree <id>` for one known safe record).
+- **Lease tokens**: Agents never pass `--lease-token` on an executed command line, including shell expansion. Use `dibs issue run` for the lifecycle. For unavoidable manual steps, supply `DIBS_LEASE_TOKEN` in the environment or `DIBS_LEASE_TOKEN_FILE` pointing to a private mode-0600 file, and omit the flag.
+- **Worktree hygiene**: implement in a sibling worktree when the coordinated checkout is a read/merge anchor; after removing a merged task worktree, use `dibs worktree prune --repo <repo-id>` (or `dibs worktree unregister --worktree <id>` for one known safe record).
 - **Never** edit files without an active claim.
 - **Never** touch the coordinator database.
 - **Never** restate specs in issue descriptions — link them.
