@@ -1,5 +1,7 @@
 ---
 collections:
+  - name: ansible.posix
+    version: "2.2.2"
   - name: kubernetes.core
     version: ">=6.4.0"  # 6.4.0+ required for Helm 4.x support
   - name: community.docker
