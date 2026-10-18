@@ -1,0 +1,6 @@
+---
+- name: Configure the existing Prometheus data disk without restarting other services
+  hosts: monitoring_servers
+  become: true
+  roles:
+    - role: prometheus_storage

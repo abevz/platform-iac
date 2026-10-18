@@ -1,0 +1,47 @@
+# /config/roles/falco_install_helm/templates/values.yaml.j2
+---
+driver:
+  kind: modern_ebpf
+
+collectors:
+  containerEngine:
+    enabled: true
+    engines:
+      docker:
+        enabled: false
+      containerd:
+        enabled: true
+
+tolerations:
+  - key: node-role.kubernetes.io/master
+    effect: NoSchedule
+  - key: node-role.kubernetes.io/control-plane
+    effect: NoSchedule
+  - key: nvidia.com/gpu
+    operator: Equal
+    value: present
+    effect: NoSchedule
+
+falco:
+  # Falcosidekick consumes JSON over HTTP; gRPC is not used.
+  json_output: true
+  json_include_output_property: true
+  log_level: info
+  http_output:
+    enabled: true
+    url: "http://{{ falco_helm_release_name }}-falcosidekick:2801/"
+
+falcosidekick:
+  enabled: true
+  replicaCount: 1
+  image:
+    registry: docker.io
+    repository: falcosecurity/falcosidekick
+    tag: "{{ falco_sidekick_image_tag }}"
+  config:
+    alertmanager:
+      hostport: "{{ falco_alertmanager_url }}"
+      endpoint: /api/v2/alerts
+      minimumpriority: "{{ falco_alertmanager_minimum_priority }}"
+      expireafter: "300"
+      extralabels: "cluster:{{ falco_alertmanager_cluster }}"

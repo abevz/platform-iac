@@ -1,0 +1,67 @@
+# /config/roles/nginx_proxy_setup/defaults/main.yml
+---
+# Root directory, as in your example
+nginx_proxy_root_dir: "/srv/nginx-proxy"
+
+# Compatibility input for existing inventories; use the common name for new overrides.
+nginx_proxy_k8s_trusted_networks:
+  - "192.0.2.0/24"
+  - "100.64.0.0/10"
+
+# One policy for HTTP vhosts and Kubernetes TLS passthrough. Existing overrides
+# of the old name still apply unless the common name is explicitly supplied.
+nginx_proxy_trusted_networks: "{{ nginx_proxy_k8s_trusted_networks }}"
+
+# Exact fully qualified HTTP names deliberately exposed without source checks.
+# Vault is always LAN-only and does not participate in this override.
+nginx_proxy_public_http_names: []
+
+# Vault is narrower than the other names on purpose: LAN only, no Tailscale.
+nginx_proxy_vault_allowed_networks:
+  - "192.0.2.0/24"
+
+# Authelia in front of the proxy: the only way in for a client outside the
+# trusted networks. Off by default; with it off every name stays closed to
+# external sources exactly as before.
+nginx_proxy_authelia_enabled: false
+nginx_proxy_authelia_image: "authelia/authelia:4.39.28"
+# Host part of the login portal: <host>.<primary_domain>.
+nginx_proxy_authelia_host: "auth"
+# Short names of vhosts reachable from outside after login with a second
+# factor. vault and s3.rustfs are never eligible.
+nginx_proxy_authelia_names:
+  - gitlab
+  - grafana
+  - harbor
+  - jenkins
+  - rustfs
+# Names a guest account may be given. A guest logs in with a password only,
+# so keep this to services that are harmless to show. Must be a subset of
+# nginx_proxy_authelia_names.
+nginx_proxy_authelia_guest_names:
+  - grafana
+# Hours after which a guest account removes itself unless told otherwise.
+nginx_proxy_authelia_guest_hours: 24
+nginx_proxy_authelia_session_expiration: "1h"
+nginx_proxy_authelia_session_inactivity: "15m"
+nginx_proxy_authelia_timezone: "Europe/Warsaw"
+
+# Upstream service IP addresses
+nginx_proxy_upstreams:
+  # Used in 'stream', prefix not needed
+  k8s_ingress: '{{ nginx_proxy_ips.k8s_ingress | default("192.0.2.200:443") }}'
+  gitlab_ssh: '{{ nginx_proxy_ips.gitlab_ssh | default("192.0.2.104:22") }}'
+
+  # Used in 'http', prefix required in variable
+  grafana_http: '{{ nginx_proxy_ips.grafana_http | default("http://192.0.2.108:3000") }}'
+  jenkins_http: '{{ nginx_proxy_ips.jenkins_http | default("http://192.0.2.110:8080") }}'
+  vault_http: '{{ nginx_proxy_ips.vault_http | default("https://192.0.2.109:8200") }}'
+  rustfs_s3_api: "http://rustfs-server.example.com:9000"
+  rustfs_console: "http://rustfs-server.example.com:9001"
+
+  # Used in 'http', BUT 'http://' prefix is already in the .j2 template
+  gitlab_http: '{{ nginx_proxy_ips.gitlab_http | default("192.0.2.104:80") }}'
+  harbor_http: '{{ nginx_proxy_ips.harbor_http | default("192.0.2.103:80") }}'
+
+# Keep Host/SNI auditing to detect service-name regressions.
+nginx_proxy_name_audit_enabled: true

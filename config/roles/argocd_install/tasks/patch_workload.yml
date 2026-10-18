@@ -1,0 +1,32 @@
+---
+- name: Read workload before building guarded patch
+  kubernetes.core.k8s_info:
+    api_version: apps/v1
+    kind: "{{ argocd_workload.kind }}"
+    name: "{{ argocd_workload.name }}"
+    namespace: "{{ argocd_namespace }}"
+  register: argocd_workload_state
+  no_log: true
+
+- name: Require the expected workload
+  ansible.builtin.assert:
+    that:
+      - argocd_workload_state.resources | length == 1
+    fail_msg: Installation is incomplete; inspect it before proceeding.
+
+- name: Build image and mount patch with source-value guards
+  ansible.builtin.set_fact:
+    argocd_patch: >-
+      {{ argocd_workload_state.resources[0] | argocd_image_patch(
+          argocd_releases, argocd_target_version) }}
+  no_log: true
+
+- name: Apply guarded workload patch
+  kubernetes.core.k8s_json_patch:
+    api_version: apps/v1
+    kind: "{{ argocd_workload.kind }}"
+    name: "{{ argocd_workload.name }}"
+    namespace: "{{ argocd_namespace }}"
+    patch: "{{ argocd_patch }}"
+  no_log: true
+  when: argocd_patch | length > 0

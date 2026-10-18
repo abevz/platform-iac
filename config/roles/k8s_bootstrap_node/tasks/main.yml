@@ -1,0 +1,464 @@
+---
+- name: Wait for apt locks to be released
+  ansible.builtin.shell:
+    cmd: "while fuser /var/lib/dpkg/lock-frontend >/dev/null 2>&1; do echo 'Waiting for dpkg lock...' && sleep 10; done; while fuser /var/lib/apt/lists/lock >/dev/null 2>&1; do echo 'Waiting for apt lists lock...' && sleep 10; done;"
+  args:
+    executable: /bin/bash
+  when: ansible_os_family == "Debian"
+  changed_when: false
+  register: wait_for_lock
+  until: wait_for_lock.rc == 0
+  retries: 18 # Wait max 3 minutes (18 * 10 seconds)
+  delay: 10
+  tags: [bootstrap_prereqs]
+
+- name: Encode data for Harbor authorization
+  ansible.builtin.set_fact:
+    harbor_auth: "{{ [harbor_robot_username,harbor_robot_token] | join(':') | b64encode }}"
+  tags: [always] # Ensure variable is always available
+
+- name: Update package cache (Debian/Ubuntu)
+  ansible.builtin.apt:
+    update_cache: yes
+    cache_valid_time: 3600
+  when: ansible_os_family == "Debian"
+  changed_when: false
+  tags: [bootstrap_prereqs]
+
+- name: Ensure EPEL repo is enabled (Rocky Linux)
+  ansible.builtin.dnf:
+    name: epel-release
+    state: present
+  when: ansible_os_family == "RedHat"
+  register: epel_install
+  failed_when: "epel_install.rc != 0 and 'Nothing to do' not in epel_install.stdout and 'already installed' not in epel_install.msg"
+  tags: [bootstrap_prereqs]
+
+- name: Disable swap
+  ansible.builtin.command: swapoff -a
+  when: ansible_swaptotal_mb > 0
+  changed_when: false
+  tags: [bootstrap_prereqs]
+
+- name: Remove swap from fstab
+  ansible.builtin.replace:
+    path: /etc/fstab
+    regexp: '^([^#].*?\sswap\s+sw\s+.*)$'
+    replace: '# \1'
+  when: ansible_swaptotal_mb > 0
+  tags: [bootstrap_prereqs]
+
+- name: Load kernel modules for container runtime and networking
+  ansible.builtin.modprobe:
+    name: "{{ item }}"
+    state: present
+  loop:
+    - overlay
+    - br_netfilter
+  tags: [bootstrap_prereqs, containerd]
+
+- name: Persist kernel modules
+  ansible.builtin.copy:
+    dest: "/etc/modules-load.d/k8s.conf"
+    content: |
+      overlay
+      br_netfilter
+    mode: "0644"
+  tags: [bootstrap_prereqs, containerd]
+
+- name: Configure sysctl for Kubernetes networking
+  ansible.posix.sysctl:
+    name: "{{ item.key }}"
+    value: "{{ item.value }}"
+    sysctl_file: /etc/sysctl.d/99-kubernetes-cri.conf
+    state: present
+    reload: yes
+  loop:
+    - { key: "net.bridge.bridge-nf-call-iptables", value: "1" }
+    - { key: "net.ipv4.ip_forward", value: "1" }
+    - { key: "net.bridge.bridge-nf-call-ip6tables", value: "1" }
+  tags: [bootstrap_prereqs, containerd]
+
+- name: Check the containerd data disk
+  ansible.builtin.stat:
+    path: "{{ k8s_containerd_device }}"
+  register: containerd_disk
+  when: k8s_containerd_device | length > 0
+  tags: [containerd, containerd_disk]
+
+- name: Check whether /var/lib/containerd is already a mountpoint
+  ansible.builtin.command: findmnt -n /var/lib/containerd
+  register: containerd_mount
+  changed_when: false
+  failed_when: false
+  check_mode: false
+  when: k8s_containerd_device | length > 0
+  tags: [containerd, containerd_disk]
+
+- name: Look for existing data in /var/lib/containerd
+  ansible.builtin.find:
+    paths: /var/lib/containerd
+    file_type: any
+  register: containerd_existing
+  when: k8s_containerd_device | length > 0
+  tags: [containerd, containerd_disk]
+
+# Mounting over a populated directory would hide the images of a running node.
+- name: Refuse to mount over an unmigrated image store
+  ansible.builtin.assert:
+    that: containerd_mount.rc == 0 or containerd_existing.matched == 0
+    fail_msg: >-
+      /var/lib/containerd has data and is not on {{ k8s_containerd_device }}.
+      Migrate it first (stop kubelet and containerd, copy, mount), then re-run.
+  when: k8s_containerd_device | length > 0 and containerd_disk.stat.exists
+  tags: [containerd, containerd_disk]
+
+- name: Create filesystem on the containerd data disk
+  community.general.filesystem:
+    dev: "{{ k8s_containerd_device }}"
+    fstype: ext4
+    opts: -L containerd
+  when: k8s_containerd_device | length > 0 and containerd_disk.stat.exists
+  tags: [containerd, containerd_disk]
+
+- name: Mount the containerd data disk
+  ansible.posix.mount:
+    path: /var/lib/containerd
+    src: LABEL=containerd
+    fstype: ext4
+    opts: defaults,nofail
+    state: mounted
+  when: k8s_containerd_device | length > 0 and containerd_disk.stat.exists
+  tags: [containerd, containerd_disk]
+
+- name: Install Containerd prerequisites (common)
+  ansible.builtin.package:
+    name:
+      - ca-certificates
+      - curl
+      - gnupg
+    state: present
+  tags: [containerd]
+
+- name: Add Docker GPG key (Debian/Ubuntu)
+  ansible.builtin.get_url:
+    url: https://download.docker.com/linux/{{ ansible_distribution | lower }}/gpg
+    dest: /etc/apt/keyrings/docker.asc
+    mode: "0644"
+    force: true
+  when: ansible_os_family == "Debian"
+  tags: [containerd]
+
+- name: Add Docker repository (Debian/Ubuntu)
+  ansible.builtin.apt_repository:
+    repo: "deb [arch={{ ansible_architecture if ansible_architecture == 'aarch64' else 'amd64' }} signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/{{ ansible_distribution | lower }} {{ ansible_distribution_release }} stable"
+    state: present
+    filename: docker
+  when: ansible_os_family == "Debian"
+  notify: Update apt cache
+  tags: [containerd]
+
+- name: Add Docker CE repository (Rocky Linux)
+  ansible.builtin.get_url:
+    url: https://download.docker.com/linux/centos/docker-ce.repo
+    dest: /etc/yum.repos.d/docker-ce.repo
+  when: ansible_os_family == "RedHat"
+  tags: [containerd]
+
+- name: Install containerd.io (Debian/Ubuntu)
+  ansible.builtin.apt:
+    name: containerd.io
+    state: present
+    update_cache: yes
+  when: ansible_os_family == "Debian"
+  tags: [containerd]
+
+- name: Install containerd.io (Rocky Linux)
+  ansible.builtin.dnf:
+    name: containerd.io
+    state: present
+  when: ansible_os_family == "RedHat"
+  tags: [containerd]
+
+- name: Create containerd config directory
+  ansible.builtin.file:
+    path: /etc/containerd
+    state: directory
+    mode: "0755"
+  tags: [containerd]
+
+- name: Create containerd configuration from template
+  ansible.builtin.template:
+    src: containerd-config.toml.j2
+    dest: /etc/containerd/config.toml
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Restart containerd
+  tags: [containerd]
+
+- name: Enable and start containerd service
+  ansible.builtin.systemd:
+    name: containerd
+    state: started
+    enabled: yes
+  tags: [containerd]
+
+- name: Ensure containerd certs directory exists
+  ansible.builtin.file:
+    path: "/etc/containerd/certs.d/{{ item }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+  loop:
+    - "docker.io"
+    - "quay.io"
+    - "gcr.io"
+    - "registry.k8s.io"
+    - "k8s.gcr.io"
+    - "{{ harbor_hostname }}"
+  tags: [harbor_proxy]
+
+- name: Configure Harbor proxy for docker.io
+  ansible.builtin.template:
+    src: hosts.toml.j2
+    dest: /etc/containerd/certs.d/docker.io/hosts.toml
+    owner: root
+    group: root
+    mode: "0600"
+  vars:
+    upstream_server: "https://registry-1.docker.io"
+    proxy_project: "dockerhub-proxy"
+  # Registry host files are reloaded for new pulls without restarting containerd.
+  tags: [harbor_proxy]
+
+- name: Configure Harbor proxy for quay.io
+  ansible.builtin.template:
+    src: hosts.toml.j2
+    dest: /etc/containerd/certs.d/quay.io/hosts.toml
+    owner: root
+    group: root
+    mode: "0600"
+  vars:
+    upstream_server: "https://quay.io"
+    proxy_project: "quay-proxy"
+  notify: Restart containerd
+  tags: [harbor_proxy]
+
+- name: Configure Harbor proxy for gcr.io
+  ansible.builtin.template:
+    src: hosts.toml.j2
+    dest: /etc/containerd/certs.d/gcr.io/hosts.toml
+    owner: root
+    group: root
+    mode: "0600"
+  vars:
+    upstream_server: "https://gcr.io"
+    proxy_project: "gcr-proxy"
+  notify: Restart containerd
+  tags: [harbor_proxy]
+
+- name: Configure Harbor proxy for registry.k8s.io
+  ansible.builtin.template:
+    src: hosts.toml.j2
+    dest: /etc/containerd/certs.d/registry.k8s.io/hosts.toml
+    owner: root
+    group: root
+    mode: "0600"
+  vars:
+    upstream_server: "https://registry.k8s.io"
+    proxy_project: "k8s-proxy"
+  notify: Restart containerd
+  tags: [harbor_proxy]
+
+- name: Configure Harbor proxy for k8s.gcr.io
+  ansible.builtin.template:
+    src: hosts.toml.j2
+    dest: /etc/containerd/certs.d/k8s.gcr.io/hosts.toml
+    owner: root
+    group: root
+    mode: "0600"
+  vars:
+    upstream_server: "https://k8s.gcr.io"
+    proxy_project: "k8s-proxy"
+  notify: Restart containerd
+  tags: [harbor_proxy]
+
+- name: Configure Harbor proxy for Harbor
+  ansible.builtin.template:
+    src: hosts_harbor.toml.j2
+    dest: /etc/containerd/certs.d/{{ harbor_hostname }}/hosts.toml
+    owner: root
+    group: root
+    mode: "0600"
+  vars:
+    upstream_server: "https://{{ harbor_hostname }}"
+    proxy_project: "k8s-proxy"
+  notify: Restart containerd
+  tags: [harbor_proxy]
+
+- name: Add Kubernetes GPG key (Debian/Ubuntu)
+  ansible.builtin.get_url:
+    url: "https://pkgs.k8s.io/core:/stable:/v{{ k8s_short_version }}/deb/Release.key"
+    dest: "/etc/apt/keyrings/kubernetes-apt-keyring.asc"
+    mode: "0644"
+  when: ansible_os_family == "Debian"
+  tags: [k8s_packages]
+
+- name: Add Kubernetes apt repository (Debian/Ubuntu)
+  ansible.builtin.apt_repository:
+    repo: "deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.asc] https://pkgs.k8s.io/core:/stable:/v{{ k8s_short_version }}/deb/ /"
+    state: present
+    filename: kubernetes
+  when: ansible_os_family == "Debian"
+  notify: Update apt cache
+  tags: [k8s_packages]
+
+- name: Add Kubernetes yum repository (Rocky Linux)
+  ansible.builtin.yum_repository:
+    name: kubernetes
+    description: Kubernetes
+    baseurl: "https://pkgs.k8s.io/core:/stable:/v{{ k8s_short_version }}/rpm/"
+    gpgkey:
+      - "https://pkgs.k8s.io/core:/stable:/v{{ k8s_short_version }}/rpm/repodata/repomd.xml.key"
+    gpgcheck: yes
+    repo_gpgcheck: yes
+    enabled: yes
+  when: ansible_os_family == "RedHat"
+  tags: [k8s_packages]
+
+- name: Install kubelet, kubeadm, kubectl (Debian/Ubuntu)
+  ansible.builtin.apt:
+    name:
+      - "kubelet={{ k8s_long_version_debian }}"
+      - "kubeadm={{ k8s_long_version_debian }}"
+      - "kubectl={{ k8s_long_version_debian }}"
+    state: present
+    update_cache: yes
+  when: ansible_os_family == "Debian"
+  notify: Hold Kubernetes packages Debian
+  tags: [k8s_packages]
+
+- name: Install kubelet, kubeadm, kubectl (Rocky Linux)
+  ansible.builtin.dnf:
+    name:
+      - "kubelet-{{ k8s_long_version_redhat }}"
+      - "kubeadm-{{ k8s_long_version_redhat }}"
+      - "kubectl-{{ k8s_long_version_redhat }}"
+    state: present
+    disable_excludes: kubernetes
+  when: ansible_os_family == "RedHat"
+  notify: Hold Kubernetes packages RedHat
+  tags: [k8s_packages]
+
+- name: Install Python Kubernetes client library
+  ansible.builtin.package:
+    name: python3-kubernetes
+    state: present
+  tags: [k8s_packages, harbor_secret] # Required for k8s module
+
+- name: Install jmespath for json_query filter
+  ansible.builtin.package:
+    name: python3-jmespath
+    state: present
+  tags: [k8s_packages]
+
+- name: Set SELinux to permissive (Rocky Linux)
+  ansible.builtin.selinux:
+    policy: targeted
+    state: permissive
+  when: ansible_os_family == "RedHat" and ansible_selinux.status == "enabled"
+  tags: [bootstrap_prereqs]
+
+- name: Enable and start kubelet service
+  ansible.builtin.systemd:
+    name: kubelet
+    state: started
+    enabled: yes
+  tags: [k8s_packages]
+
+- name: Check if Seccomp is available
+  ansible.builtin.shell: 'if grep -q seccomp /proc/version; then echo "available"; else echo "not_available"; fi'
+  register: seccomp_check
+  changed_when: false
+  tags: [cks, seccomp]
+
+- name: Create Seccomp directory
+  ansible.builtin.file:
+    path: /var/lib/kubelet/seccomp/profiles
+    state: directory
+    mode: "0755"
+    recurse: yes
+  when: seccomp_check.stdout == "available"
+  tags: [cks, seccomp]
+
+- name: Create Seccomp profile 'restricted.json'
+  ansible.builtin.copy:
+    content: |
+      {
+        "defaultAction": "SCMP_ACT_ERRNO",
+        "archMap": [
+          { "architecture": "SCMP_ARCH_X86_64", "subArchitectures": [ "SCMP_ARCH_X86", "SCMP_ARCH_X32" ] }
+        ],
+        "syscalls": [
+          {
+            "names": [
+              "accept", "accept4", "access", "adjtimex", "alarm", "bind", "brk", "chdir", "chmod", "chown", "chown32",
+              "clock_adjtime", "clock_getres", "clock_gettime", "clock_nanosleep", "close", "connect", "copy_file_range",
+              "creat", "dup", "dup2", "dup3", "epoll_create", "epoll_create1", "epoll_ctl", "epoll_ctl_old", "epoll_pwait",
+              "epoll_wait", "epoll_wait_old", "eventfd", "eventfd2", "execve", "execveat", "exit", "exit_group", "faccessat",
+              "fchdir", "fchmod", "fchmodat", "fchown", "fchown32", "fchownat", "fcntl", "fcntl64", "fdatasync", "fgetxattr",
+              "flistxattr", "flock", "fork", "fremovexattr", "fsetxattr", "fstat", "fstat64", "fstatat64", "fstatfs", "fstatfs64",
+              "fsync", "ftruncate", "ftruncate64", "futex", "getcwd", "getdents", "getdents64", "getegid", "getegid32",
+              "geteuid", "geteuid32", "getgid", "getgid32", "getgroups", "getgroups32", "getitimer", "getpeername", "getpgid",
+              "getpgrp", "getpid", "getppid", "getpriority", "getrandom", "getresgid", "getresgid32", "getresuid", "getresuid32",
+              "getrlimit", "get_robust_list", "getrusage", "getsid", "getsockname", "getsockopt", "get_thread_area", "gettid",
+              "gettimeofday", "getuid", "getuid32", "getxattr", "inotify_add_watch", "inotify_init", "inotify_init1",
+              "inotify_rm_watch", "io_cancel", "ioctl", "io_destroy", "io_getevents", "ioprio_get", "ioprio_set", "io_setup",
+              "io_submit", "kill", "lchown", "lchown32", "lgetxattr", "link", "linkat", "listen", "listxattr", "llistxattr",
+              "lremovexattr", "lseek", "lsetxattr", "lstat", "lstat64", "madvise", "memfd_create", "mincore", "mkdir",
+              "mkdirat", "mknod", "mknodat", "mlock", "mlock2", "mlockall", "mmap", "mmap2", "mprotect", "mq_getsetattr",
+              "mq_notify", "mq_open", "mq_timedreceive", "mq_timedsend", "mq_unlink", "mremap", "msgctl", "msgget",
+              "msgrcv", "msgsnd", "msync", "munlock", "munlockall", "munmap", "nanosleep", "newfstatat", "_newselect",
+              "open", "openat", "pause", "pipe", "pipe2", "poll", "ppoll", "prctl", "pread64", "preadv", "prlimit64",
+              "pselect6", "pwrite64", "pwritev", "read", "readahead", "readlink", "readlinkat", "readv", "recv", "recvfrom",
+              "recvmmsg", "recvmsg", "rename", "renameat", "renameat2", "restart_syscall", "rmdir", "rt_sigaction",
+              "rt_sigpending", "rt_sigprocmask", "rt_sigqueueinfo", "rt_sigreturn", "rt_sigsuspend", "rt_sigtimedwait",
+              "rt_tgsigqueueinfo", "sched_getaffinity", "sched_getattr", "sched_getparam", "sched_get_priority_max",
+              "sched_get_priority_min", "sched_getscheduler", "sched_rr_get_interval", "sched_setaffinity", "sched_setattr",
+              "sched_setparam", "sched_setscheduler", "sched_yield", "seccomp", "select", "semctl", "semget", "semop",
+              "semtimedop", "send", "sendfile", "sendfile64", "sendmmsg", "sendmsg", "sendto", "setfsgid", "setfsgid32",
+              "setfsuid", "setfsuid32", "setgid", "setgid32", "setgroups", "setgroups32", "setitimer", "setpgid",
+              "setpriority", "setregid", "setregid32", "setresgid", "setresgid32", "setresuid", "setresuid32", "setreuid",
+              "setreuid32", "setrlimit", "set_robust_list", "setsid", "setsockopt", "set_thread_area", "set_tid_address",
+              "setuid", "setuid32", "setxattr", "shmat", "shmctl", "shmdt", "shmget", "shutdown", "sigaltstack", "signalfd",
+              "signalfd4", "sigreturn", "socket", "socketcall", "socketpair", "splice", "stat", "stat64", "statfs",
+              "statfs64", "statx", "symlink", "symlinkat", "sync", "sync_file_range", "syncfs", "sysinfo", "tee", "tgkill",
+              "time", "timer_create", "timer_delete", "timerfd_create", "timerfd_gettime", "timerfd_settime",
+              "timer_getoverrun", "timer_gettime", "timer_settime", "times", "tkill", "truncate", "truncate64",
+              "ugetrlimit", "umask", "uname", "unlink", "unlinkat", "utime", "utimensat", "utimes", "vfork", "vmsplice",
+              "wait4", "waitid", "waitpid", "write", "writev"
+            ],
+            "action": "SCMP_ACT_ALLOW"
+          }
+        ]
+      }
+    dest: /var/lib/kubelet/seccomp/profiles/restricted.json
+    mode: "0644"
+  when: seccomp_check.stdout == "available"
+  tags: [cks, seccomp]
+
+- name: Create Seccomp profile 'audit.json'
+  ansible.builtin.copy:
+    content: |
+      {
+        "defaultAction": "SCMP_ACT_LOG",
+        "archMap": [
+          { "architecture": "SCMP_ARCH_X86_64", "subArchitectures": [ "SCMP_ARCH_X86", "SCMP_ARCH_X32" ] }
+        ]
+      }
+    dest: /var/lib/kubelet/seccomp/profiles/audit.json
+    mode: "0644"
+  when: seccomp_check.stdout == "available"
+  tags: [cks, seccomp]

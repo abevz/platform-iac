@@ -1,0 +1,4 @@
+---
+# Falco version to install.
+# Leave empty to install the latest.
+falco_package_version: ""

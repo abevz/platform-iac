@@ -1,0 +1,16 @@
+# config/playbooks/setup_rustfs.yml
+---
+# /config/playbooks/setup_rustfs.yml
+- name: Setup S3-compatible object storage server
+  hosts: rustfs_servers # (Group name from Tofu outputs.tf)
+  become: yes
+
+  vars:
+    addon_state: "present"
+
+  roles:
+    # 1. Set timezone
+    - role: set_timezone
+
+    # 2. Install RustFS as the S3-compatible storage service
+    - role: rustfs_setup

@@ -1,0 +1,87 @@
+---
+monitoring_install_dir: /srv/monitoring
+monitoring_compose_project_name: monitoring
+
+# k8s clusters discovered from Tofu state at runtime.
+# Populate monitoring_k8s_environments via SOPS extra_vars
+# (e.g. ["dev/lab-cluster"]). The role reads tofu output for
+# each env and fills monitoring_k8s_clusters with node IPs.
+monitoring_k8s_environments: []
+monitoring_k8s_clusters: []
+monitoring_k8s_security_alerts_enabled: true
+monitoring_trivy_namespace: trivy-system
+monitoring_trivy_service: trivy-operator
+# Scanner report TTL is 24h; allow six hours for refresh/retry backlog.
+monitoring_trivy_report_max_age_seconds: 108000
+monitoring_k8s_node_exporter_port: 9100
+monitoring_k8s_kube_state_metrics_nodeport: 30080
+# Metrics dropped at scrape time from the k8s endpoints job (regex on __name__).
+# Defaults to the control-plane histogram buckets (~65% of all series in a small lab);
+# their _sum/_count stay. Set to "" to keep everything.
+monitoring_k8s_drop_metrics_regex: "(apiserver_request_duration_seconds|apiserver_request_sli_duration_seconds|apiserver_request_body_size_bytes|apiserver_response_sizes|etcd_request_duration_seconds)_bucket"
+
+# Grafana dashboards to provision from grafana.com.
+# Each entry downloads the latest revision and replaces the
+# ${DS_PROMETHEUS} placeholder with the real datasource uid.
+monitoring_grafana_dashboards:
+  - id: 1860
+    name: node-exporter-full
+  - id: 15661
+    name: kubernetes-cluster
+monitoring_grafana_datasource_uid: prometheus
+
+monitoring_prometheus_image: prom/prometheus:v2.55.1
+monitoring_grafana_image: grafana/grafana:11.2.0
+monitoring_alertmanager_image: prom/alertmanager:v0.27.0
+monitoring_node_exporter_image: prom/node-exporter:v1.8.2
+monitoring_pve_exporter_image: prompve/prometheus-pve-exporter:latest
+monitoring_blackbox_exporter_image: prom/blackbox-exporter:v0.25.0
+
+monitoring_prometheus_retention: 30d
+monitoring_grafana_admin_user: admin
+monitoring_grafana_admin_password: ""  # Supply the runtime value privately.
+
+monitoring_proxmox_verify_ssl: false
+monitoring_proxmox_api_url: https://192.0.2.101:8006/api2/json
+monitoring_proxmox_node_name: lab-host
+monitoring_proxmox_target: 192.0.2.101
+# cAdvisor on the Proxmox host (role proxmox_cadvisor). 0 disables the scrape job,
+# its alerts and leaves the host workload panels empty.
+monitoring_proxmox_cadvisor_port: 0
+monitoring_node_exporter_targets:
+  - node-exporter:9100
+  - 192.0.2.101:9100
+monitoring_blackbox_targets: []
+monitoring_jenkins_url: ""
+monitoring_jenkins_metrics_target: ""
+monitoring_jenkins_metrics_path: "/prometheus/"
+monitoring_jenkins_metrics_namespace: "default"
+monitoring_proxmox_token_id: ""
+monitoring_proxmox_token_name: ""
+monitoring_proxmox_token_secret: ""
+
+monitoring_alertmanager_telegram_api_url: https://api.telegram.org
+monitoring_telegram_bot_token: ""
+monitoring_telegram_chat_id: ""
+
+monitoring_alert_thresholds:
+  disk_warn_pct: 85
+  disk_crit_pct: 92
+  cpu_temp_warn_c: 75
+  cpu_temp_crit_c: 85
+  nvme_temp_warn_c: 70
+  nvme_temp_crit_c: 78
+
+monitoring_false_sensor_regex: '.*(AUXTIN|temp[0-9]+).*'
+
+# Vault Agent sidecar for dynamic K8s bearer tokens.
+# When enabled, Vault Agent runs alongside Prometheus in docker-compose,
+# authenticates via AppRole, and renders K8s SA tokens from the
+# Vault Kubernetes Secrets Engine into a shared volume.
+monitoring_vault_agent_enabled: false
+monitoring_vault_agent_image: "hashicorp/vault:1.17"
+monitoring_vault_agent_role_id: ""
+monitoring_vault_agent_secret_id: ""
+monitoring_vault_agent_vault_addr: ""
+monitoring_vault_k8s_secrets_path: "kubernetes"
+monitoring_vault_k8s_default_role: "prometheus-external"

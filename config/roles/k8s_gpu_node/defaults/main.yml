@@ -1,0 +1,10 @@
+---
+# NVIDIA driver branch installed with `ubuntu-drivers install --gpgpu nvidia:<branch>` (headless, prebuilt modules)
+nvidia_driver_branch: "595-server"
+# Model files for hostPath volumes (on the root disk; the secondary disk holds
+# the container image store, see k8s_bootstrap_node)
+gpu_models_dir: /var/lib/models
+# Registered by kubelet on first start, before `kubeadm join`, so no regular pod lands on the node
+gpu_kubelet_extra_args: >-
+  --register-with-taints=nvidia.com/gpu=present:NoSchedule
+  --node-labels=nvidia.com/gpu.present=true

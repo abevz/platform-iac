@@ -1,0 +1,8 @@
+[Unit]
+Description=Push the configured certificate lineage to Vault
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart={{ certbot_vault_cert_sync_helper_path }}

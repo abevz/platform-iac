@@ -1,0 +1,21 @@
+# config/playbooks/setup_nginx-proxy.yml
+# /config/playbooks/setup_nginx-proxy.yml
+---
+- name: Setup Nginx Proxy
+  hosts: nginx_proxies # (Group name from Tofu outputs.tf)
+  become: yes
+
+  vars:
+    addon_state: "present"
+    # Separate lineage: the existing wildcard does not cover this nested name.
+    certbot_additional_domains_to_create:
+      - name: "s3-rustfs-{{ primary_domain | default('example.com') | replace('.', '-') }}"
+        domains:
+          - "s3.rustfs.{{ primary_domain | default('example.com') }}"
+
+  roles:
+    # 1. Install Certbot (role from previous step)
+    - role: certbot_setup
+
+    # 2. Install Nginx (role we just created)
+    - role: nginx_proxy_setup

@@ -1,0 +1,12 @@
+# config/roles/k8s_cluster_manager/defaults/main.yml
+---
+# Remove if planning to override in group_vars.
+# If keeping, use only as fallback.
+pod_cidr: "198.51.100.2/24"
+
+# Prefer the package patch; preserve the short-only override for manager-only use.
+kubernetes_version: >-
+  {{ k8s_long_version_debian | default(k8s_short_version | default('1.37.1')) | regex_replace('-.*$', '') }}
+
+# REQUIRED VARIABLES (must be defined in config/secrets/ansible/extra_vars.sops.yml):
+# harbor.hostname, harbor.robot_username, harbor.robot_token

@@ -1,0 +1,10 @@
+[Unit]
+Description=Run RustFS backup to GDrive daily
+
+[Timer]
+OnCalendar={{ rustfs_backup_on_calendar }}
+Persistent=true
+RandomizedDelaySec=300
+
+[Install]
+WantedBy=timers.target

@@ -1,0 +1,31 @@
+---
+argocd_version: "v3.4.10"
+argocd_namespace: "argocd"
+# Argo CD 3.4 is tested upstream on Kubernetes 1.32 through 1.35.
+# An operator must explicitly accept the compatibility gap on newer clusters.
+argocd_allow_untested_kubernetes: false
+argocd_rollout_timeout: 600
+
+# Pins are linux/amd64 manifests; add a reviewed release before changing versions.
+argocd_releases:
+  v3.4.2:
+    manifest_sha256: "69114b8c9eb48a1d08598e6f654a0869b10ae902456ea4b70796cb563760f5ec"
+    image: "quay.io/argoproj/argocd:v3.4.2@sha256:a8679d1bbf7679ad27bf39fadbd30e486f59446eadd4f5c2c11ce6a41053a216"
+    dex_image: "ghcr.io/dexidp/dex:v2.45.0@sha256:8a9281c3a115180415b0726ca160e38fc40f9284bc9a2d1032c839a3a934695c"
+  v3.4.10:
+    manifest_sha256: "91293faf35225426664c753d1e6c5b6728d501b2eb17624a86744ad1dde4d881"
+    image: "quay.io/argoproj/argocd:v3.4.10@sha256:b44dd2b7c3f46d12adcce1d8efba5d708fbee049672829a26ccba682b3eabb67"
+    dex_image: "ghcr.io/dexidp/dex:v2.46.0@sha256:fd4ab5d117005b927433133f1d7db7cc30fbb537c377912b75b349edff47df01"
+
+argocd_install_url: "https://raw.githubusercontent.com/argoproj/argo-cd/{{ argocd_target_version }}/manifests/install.yaml"
+argocd_image: "{{ argocd_releases[argocd_target_version].image }}"
+argocd_dex_image: "{{ argocd_releases[argocd_target_version].dex_image }}"
+
+argocd_workloads:
+  - {kind: Deployment, name: argocd-applicationset-controller}
+  - {kind: Deployment, name: argocd-dex-server}
+  - {kind: Deployment, name: argocd-notifications-controller}
+  - {kind: Deployment, name: argocd-redis}
+  - {kind: Deployment, name: argocd-repo-server}
+  - {kind: Deployment, name: argocd-server}
+  - {kind: StatefulSet, name: argocd-application-controller}

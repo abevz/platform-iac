@@ -1,0 +1,35 @@
+---
+# cAdvisor on the Proxmox host itself. pve-exporter reports guests only, so
+# Docker containers and services running directly on the hypervisor are
+# invisible to Prometheus without a per-cgroup view of the host.
+proxmox_cadvisor_image: gcr.io/cadvisor/cadvisor:v0.49.1
+proxmox_cadvisor_service_name: host-cadvisor
+proxmox_cadvisor_port: 9105
+proxmox_cadvisor_listen_ip: "{{ ansible_default_ipv4.address }}"
+proxmox_cadvisor_housekeeping_interval: 30s
+
+# Only CPU, memory and OOM data are needed to name a noisy workload.
+proxmox_cadvisor_disabled_metrics:
+  - advtcp
+  - cpu_topology
+  - cpuset
+  - disk
+  - diskIO
+  - hugetlb
+  - memory_numa
+  - network
+  - percpu
+  - perf_event
+  - process
+  - referenced_memory
+  - resctrl
+  - sched
+  - tcp
+  - udp
+
+# The container uses the host network so that the Proxmox host firewall
+# (INPUT chain) applies. A published Docker port would bypass it.
+proxmox_cadvisor_manage_firewall: true
+proxmox_cadvisor_firewall_file: "/etc/pve/nodes/{{ ansible_hostname }}/host.fw"
+# Address or CIDR of the Prometheus server. Required when the firewall is managed.
+proxmox_cadvisor_scrape_source: ""

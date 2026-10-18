@@ -1,0 +1,4 @@
+# config/roles/localstack_setup/defaults/main.yml
+---
+localstack_root_dir: "/srv/localstack"
+localstack_data_dir: "/srv/localstack-data"

@@ -1,0 +1,163 @@
+---
+- name: Resolve target Argo CD version
+  ansible.builtin.set_fact:
+    argocd_target_version: "{{ requested_version | default(argocd_version, true) }}"
+
+- name: Require a reviewed release and immutable image pins
+  ansible.builtin.assert:
+    that:
+      - argocd_target_version in argocd_releases
+    fail_msg: Add a reviewed manifest checksum and image pins before selecting this version.
+
+- name: Read Kubernetes version
+  ansible.builtin.command:
+    argv: [kubectl, version, -o, json]
+  register: argocd_cluster_version
+  changed_when: false
+  check_mode: false
+
+- name: Require tested Kubernetes version or explicit compatibility acceptance
+  ansible.builtin.assert:
+    that:
+      - >-
+        argocd_allow_untested_kubernetes | bool or
+        ((argocd_cluster_version.stdout | from_json).serverVersion.major == '1' and
+         ((argocd_cluster_version.stdout | from_json).serverVersion.minor | int) >= 32 and
+         ((argocd_cluster_version.stdout | from_json).serverVersion.minor | int) <= 35)
+    fail_msg: >-
+      Argo CD 3.4 is tested upstream on Kubernetes 1.32-1.35. Review the
+      compatibility gap before setting argocd_allow_untested_kubernetes=true.
+
+- name: Require digest-pinned Argo CD and Dex images
+  ansible.builtin.assert:
+    that:
+      - argocd_image == argocd_releases[argocd_target_version].image
+      - argocd_image is match('quay.io/argoproj/argocd:v[0-9.]+@sha256:[0-9a-f]{64}$')
+      - argocd_dex_image == argocd_releases[argocd_target_version].dex_image
+      - argocd_dex_image is match('ghcr.io/dexidp/dex:v[0-9.]+@sha256:[0-9a-f]{64}$')
+
+- name: Read node architectures for the amd64 image pins
+  kubernetes.core.k8s_info:
+    api_version: v1
+    kind: Node
+  register: argocd_node_architectures
+
+- name: Require amd64 nodes for the reviewed image pins
+  ansible.builtin.assert:
+    that:
+      - >-
+        argocd_node_architectures.resources |
+        map(attribute='status.nodeInfo.architecture') | unique | list == ['amd64']
+    fail_msg: Resolve and scan appropriate image manifests before using another architecture.
+
+- name: Read existing application controller
+  kubernetes.core.k8s_info:
+    api_version: apps/v1
+    kind: StatefulSet
+    name: argocd-application-controller
+    namespace: "{{ argocd_namespace }}"
+  register: argocd_existing_controller
+  no_log: true
+
+- name: Read existing Argo CD namespace
+  kubernetes.core.k8s_info:
+    api_version: v1
+    kind: Namespace
+    name: "{{ argocd_namespace }}"
+  register: argocd_existing_namespace
+
+- name: Refuse bootstrap over an existing namespace without its controller
+  ansible.builtin.assert:
+    that:
+      - >-
+        argocd_existing_controller.resources | length > 0 or
+        argocd_existing_namespace.resources | length == 0
+    fail_msg: >-
+      The namespace already exists but its application controller is missing.
+      Inspect and recover the existing installation before retrying; do not
+      reapply upstream ConfigMaps or Secrets over its configuration.
+
+# An existing installation receives only guarded workload patches below.
+# Bootstrap is allowed only when the namespace itself does not exist.
+- name: Bootstrap a new installation
+  when: argocd_existing_controller.resources | length == 0
+  block:
+    - name: Allocate manifest download directory
+      ansible.builtin.tempfile:
+        state: directory
+        prefix: argocd-install-
+      register: argocd_manifest_directory
+      check_mode: false
+
+    - name: Download verified upstream installation manifest
+      ansible.builtin.get_url:
+        url: "{{ argocd_install_url }}"
+        dest: "{{ argocd_manifest_directory.path }}/install.yaml"
+        checksum: "sha256:{{ argocd_releases[argocd_target_version].manifest_sha256 }}"
+        mode: "0600"
+      check_mode: false
+
+    - name: Read verified upstream installation manifest
+      ansible.builtin.slurp:
+        src: "{{ argocd_manifest_directory.path }}/install.yaml"
+      register: argocd_bootstrap_source
+      no_log: true
+
+    - name: Prepare immutable images before creating any cluster resource
+      ansible.builtin.set_fact:
+        argocd_bootstrap_definition: >-
+          {{ (argocd_bootstrap_source.content | b64decode | from_yaml_all | list)
+             | argocd_bootstrap_manifest(argocd_releases, argocd_target_version) }}
+      no_log: true
+
+    - name: Create Argo CD namespace
+      kubernetes.core.k8s:
+        api_version: v1
+        kind: Namespace
+        name: "{{ argocd_namespace }}"
+        state: present
+
+    - name: Apply initial installation with pinned images
+      kubernetes.core.k8s:
+        definition: "{{ argocd_bootstrap_definition }}"
+        namespace: "{{ argocd_namespace }}"
+        state: present
+      no_log: true
+  always:
+    - name: Remove downloaded manifest directory
+      ansible.builtin.file:
+        path: "{{ argocd_manifest_directory.path }}"
+        state: absent
+      check_mode: false
+      when: argocd_manifest_directory.path is defined
+
+- name: Pin images and apply the reviewed repo-server mount change
+  ansible.builtin.include_tasks: patch_workload.yml
+  loop: "{{ argocd_workloads }}"
+  loop_control:
+    loop_var: argocd_workload
+    label: "{{ argocd_workload.kind }}/{{ argocd_workload.name }}"
+  when: not (ansible_check_mode and argocd_existing_controller.resources | length == 0)
+
+- name: Wait for each updated workload
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - rollout
+      - status
+      - "{{ item.kind | lower }}/{{ item.name }}"
+      - -n
+      - "{{ argocd_namespace }}"
+      - "--timeout={{ argocd_rollout_timeout }}s"
+  loop: "{{ argocd_workloads }}"
+  loop_control:
+    label: "{{ item.name }}"
+  changed_when: false
+  when: not ansible_check_mode
+
+- name: Display selected release without credentials
+  ansible.builtin.debug:
+    msg:
+      - "Argo CD target: {{ argocd_target_version }}"
+      - "Argo CD image: {{ argocd_image }}"
+      - "Dex image: {{ argocd_dex_image }}"

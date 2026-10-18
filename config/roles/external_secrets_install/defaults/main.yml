@@ -1,0 +1,8 @@
+---
+external_secrets_chart_version: "0.19.2"
+external_secrets_namespace: "external-secrets"
+external_secrets_release_name: "external-secrets"
+external_secrets_chart_ref: "external-secrets/external-secrets"
+external_secrets_helm_repo_url: "https://charts.external-secrets.io"
+external_secrets_install_crds: true
+external_secrets_wait_timeout: "5m"

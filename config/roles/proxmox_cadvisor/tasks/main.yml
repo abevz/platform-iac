@@ -1,0 +1,60 @@
+---
+- name: Validate host cAdvisor settings
+  ansible.builtin.assert:
+    that:
+      - proxmox_cadvisor_port | int > 1024
+      - (not proxmox_cadvisor_manage_firewall | bool) or (proxmox_cadvisor_scrape_source | length > 0)
+    fail_msg: >-
+      Set proxmox_cadvisor_scrape_source to the Prometheus address,
+      or disable proxmox_cadvisor_manage_firewall.
+
+- name: Require Docker on the Proxmox host
+  ansible.builtin.command: docker version
+  changed_when: false
+
+- name: Allow the Prometheus scrape in the Proxmox host firewall
+  ansible.builtin.lineinfile:
+    path: "{{ proxmox_cadvisor_firewall_file }}"
+    insertafter: '^\[RULES\]'
+    regexp: '-dport {{ proxmox_cadvisor_port }} .*# host cAdvisor'
+    line: >-
+      IN ACCEPT -source {{ proxmox_cadvisor_scrape_source }} -p tcp
+      -dport {{ proxmox_cadvisor_port }} -log nolog # host cAdvisor (Prometheus scrape)
+    # /etc/pve is pmxcfs: it has no atomic rename for the temp file.
+    unsafe_writes: true
+  when: proxmox_cadvisor_manage_firewall | bool
+  notify: Verify proxmox firewall
+
+# The first pull can take minutes; done inside the unit it would race the health check.
+- name: Pull the cAdvisor image
+  ansible.builtin.command: docker pull {{ proxmox_cadvisor_image }}
+  register: proxmox_cadvisor_pull
+  changed_when: "'Downloaded newer image' in proxmox_cadvisor_pull.stdout"
+
+- name: Render the host cAdvisor unit
+  ansible.builtin.template:
+    src: host-cadvisor.service.j2
+    dest: "/etc/systemd/system/{{ proxmox_cadvisor_service_name }}.service"
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Restart host cadvisor
+
+- name: Enable and start host cAdvisor
+  ansible.builtin.systemd_service:
+    name: "{{ proxmox_cadvisor_service_name }}"
+    enabled: true
+    state: started
+    daemon_reload: true
+
+- name: Flush handlers before the health check
+  ansible.builtin.meta: flush_handlers
+
+- name: Wait for host cAdvisor metrics
+  ansible.builtin.uri:
+    url: "http://{{ proxmox_cadvisor_listen_ip }}:{{ proxmox_cadvisor_port }}/healthz"
+    status_code: 200
+  register: proxmox_cadvisor_health
+  retries: 12
+  delay: 5
+  until: proxmox_cadvisor_health.status == 200

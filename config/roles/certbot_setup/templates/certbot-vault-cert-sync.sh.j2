@@ -1,0 +1,116 @@
+#!/bin/bash
+set -euo pipefail
+
+readonly PROTOCOL="vault-cert-sync-v1"
+readonly LINEAGE={{ certbot_vault_cert_sync_lineage | quote }}
+readonly EXPECTED_HOSTNAME={{ certbot_vault_cert_sync_expected_hostname | quote }}
+readonly IDENTITY_PATH={{ certbot_vault_cert_sync_identity_path | quote }}
+readonly SSH_CONFIG={{ certbot_vault_cert_sync_ssh_config_path | quote }}
+readonly MIN_VALIDITY_SECONDS={{ certbot_vault_cert_sync_min_validity_seconds | quote }}
+readonly TIMEOUT_SECONDS={{ certbot_vault_cert_sync_timeout_seconds | quote }}
+readonly TRUST_BUNDLE="/etc/ssl/certs/ca-certificates.crt"
+readonly CERT_FILE="/etc/letsencrypt/live/${LINEAGE}/fullchain.pem"
+readonly KEY_FILE="/etc/letsencrypt/live/${LINEAGE}/privkey.pem"
+
+umask 077
+
+die() {
+  printf '%s\n' "certbot-vault-cert-sync: $*" >&2
+  exit 1
+}
+
+split_fullchain() {
+  local input="$1"
+  local leaf="$2"
+  local chain="$3"
+
+  awk -v leaf="$leaf" -v chain="$chain" '
+    /^-----BEGIN CERTIFICATE-----$/ {
+      if (inside) { bad = 1; exit 1 }
+      inside = 1
+      count++
+      target = (count == 1 ? leaf : chain)
+    }
+    {
+      if (inside) {
+        print > target
+      } else if ($0 != "") {
+        bad = 1
+        exit 1
+      }
+    }
+    /^-----END CERTIFICATE-----$/ {
+      if (!inside) { bad = 1; exit 1 }
+      inside = 0
+    }
+    END {
+      if (bad || inside || count < 2 || count > 5) {
+        exit 1
+      }
+    }
+  ' "$input"
+}
+
+certificate_public_key_digest() {
+  openssl x509 -in "$1" -pubkey -noout 2>/dev/null |
+    openssl pkey -pubin -outform DER 2>/dev/null |
+    sha256sum | awk '{print $1}'
+}
+
+private_key_public_key_digest() {
+  openssl pkey -in "$1" -pubout 2>/dev/null |
+    openssl pkey -pubin -outform DER 2>/dev/null |
+    sha256sum | awk '{print $1}'
+}
+
+validate_certificate_pair() {
+  local cert="$1"
+  local key="$2"
+  local work_dir="$3"
+  local leaf="${work_dir}/leaf.pem"
+  local chain="${work_dir}/chain.pem"
+  local cert_digest
+  local key_digest
+  local not_before
+  local not_before_epoch
+  local now_epoch
+
+  [[ -f "$cert" && ! -L "$cert" && -r "$cert" ]] || die "certificate is not a readable regular file"
+  [[ -f "$key" && ! -L "$key" && -r "$key" ]] || die "private key is not a readable regular file"
+  [[ -r "$TRUST_BUNDLE" ]] || die "system CA bundle is unavailable"
+
+  openssl x509 -in "$cert" -noout >/dev/null 2>&1 || die "certificate is malformed"
+  openssl pkey -in "$key" -noout >/dev/null 2>&1 || die "private key is malformed"
+  split_fullchain "$cert" "$leaf" "$chain" || die "certificate must be a bounded PEM full chain"
+  openssl verify -purpose sslserver -CAfile "$TRUST_BUNDLE" -untrusted "$chain" "$leaf" >/dev/null || die "certificate chain is not trusted"
+  openssl x509 -in "$cert" -noout -checkhost "$EXPECTED_HOSTNAME" >/dev/null || die "certificate does not match the expected hostname"
+  openssl x509 -in "$cert" -noout -checkend "$MIN_VALIDITY_SECONDS" >/dev/null || die "certificate expires too soon"
+
+  not_before="$(openssl x509 -in "$cert" -noout -startdate | cut -d= -f2-)"
+  not_before_epoch="$(LC_ALL=C date --date="$not_before" +%s)" || die "certificate has an invalid not-before value"
+  now_epoch="$(date +%s)"
+  (( not_before_epoch <= now_epoch )) || die "certificate is not valid yet"
+
+  cert_digest="$(certificate_public_key_digest "$cert")"
+  key_digest="$(private_key_public_key_digest "$key")"
+  [[ -n "$cert_digest" && "$cert_digest" == "$key_digest" ]] || die "certificate and private key do not match"
+}
+
+cert_realpath="$(readlink -f -- "$CERT_FILE")" || die "certificate lineage is unavailable"
+key_realpath="$(readlink -f -- "$KEY_FILE")" || die "private-key lineage is unavailable"
+[[ "$cert_realpath" == "/etc/letsencrypt/archive/${LINEAGE}/"* ]] || die "certificate lineage resolves outside its archive"
+[[ "$key_realpath" == "/etc/letsencrypt/archive/${LINEAGE}/"* ]] || die "private-key lineage resolves outside its archive"
+[[ -f "$IDENTITY_PATH" && ! -L "$IDENTITY_PATH" ]] || die "source SSH identity is unavailable"
+[[ -f "$SSH_CONFIG" && ! -L "$SSH_CONFIG" ]] || die "source SSH configuration is unavailable"
+
+work_dir="$(mktemp -d)"
+trap 'rm -rf -- "$work_dir"' EXIT
+validate_certificate_pair "$cert_realpath" "$key_realpath" "$work_dir"
+
+{
+  printf '%s\n' "$PROTOCOL"
+  base64 -w 0 "$cert_realpath"
+  printf '\n'
+  base64 -w 0 "$key_realpath"
+  printf '\n'
+} | timeout "$TIMEOUT_SECONDS" ssh -F "$SSH_CONFIG" vault-cert-sync-target "$PROTOCOL"

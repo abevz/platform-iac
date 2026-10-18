@@ -1,0 +1,27 @@
+# Managed by platform-iac (role proxmox_cadvisor).
+[Unit]
+Description=cAdvisor for workloads running directly on the Proxmox host
+After=docker.service
+Requires=docker.service
+
+[Service]
+ExecStartPre=-/usr/bin/docker rm -f {{ proxmox_cadvisor_service_name }}
+ExecStart=/usr/bin/docker run --rm --name {{ proxmox_cadvisor_service_name }} \
+  --network host \
+  --volume /:/rootfs:ro \
+  --volume /var/run:/var/run:ro \
+  --volume /sys:/sys:ro \
+  --volume /var/lib/docker/:/var/lib/docker:ro \
+  {{ proxmox_cadvisor_image }} \
+  --listen_ip={{ proxmox_cadvisor_listen_ip }} \
+  --port={{ proxmox_cadvisor_port }} \
+  --housekeeping_interval={{ proxmox_cadvisor_housekeeping_interval }} \
+  --docker_only=false \
+  --store_container_labels=false \
+  --disable_metrics={{ proxmox_cadvisor_disabled_metrics | join(',') }}
+ExecStop=/usr/bin/docker stop {{ proxmox_cadvisor_service_name }}
+Restart=on-failure
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,112 @@
+---
+- name: Validate Proxmox SSH hardening settings
+  ansible.builtin.assert:
+    that:
+      - proxmox_ssh_hardening_allowed_groups | length > 0
+      - proxmox_ssh_hardening_allowed_groups | select('match', '^[A-Za-z_][A-Za-z0-9_-]*$') | list | length == proxmox_ssh_hardening_allowed_groups | length
+      - "'ssh_users' not in proxmox_ssh_hardening_allowed_groups"
+    fail_msg: "SSH hardening requires valid existing access groups and must not retain ssh_users."
+
+- name: Read the required SSH access groups
+  ansible.builtin.getent:
+    database: group
+    key: "{{ item }}"
+  loop: "{{ proxmox_ssh_hardening_allowed_groups }}"
+  register: proxmox_ssh_hardening_group_lookup
+
+- name: Require the SSH access groups to exist
+  ansible.builtin.assert:
+    that:
+      - "item.ansible_facts.getent_group[item.item] is defined"
+    fail_msg: "Refusing to change AllowGroups because {{ item.item }} does not exist."
+  loop: "{{ proxmox_ssh_hardening_group_lookup.results }}"
+  loop_control:
+    label: "{{ item.item }}"
+
+- name: Find SSH daemon configuration fragments
+  ansible.builtin.find:
+    paths: /etc/ssh/sshd_config.d
+    patterns: "*.conf"
+    file_type: file
+  register: proxmox_ssh_hardening_sshd_fragments
+
+- name: Collect all active SSH daemon configuration sources
+  ansible.builtin.set_fact:
+    proxmox_ssh_hardening_sshd_config_files: >-
+      {{ [proxmox_ssh_hardening_config_file] +
+      (proxmox_ssh_hardening_sshd_fragments.files | map(attribute='path') | list) }}
+
+- name: Read the active SSH daemon configuration
+  ansible.builtin.slurp:
+    src: "{{ item }}"
+  loop: "{{ proxmox_ssh_hardening_sshd_config_files }}"
+  register: proxmox_ssh_hardening_sshd_config_sources
+  changed_when: false
+
+- name: Require one active AllowGroups directive
+  ansible.builtin.set_fact:
+    proxmox_ssh_hardening_active_allow_groups: >-
+      {{ proxmox_ssh_hardening_sshd_config_sources.results |
+      map(attribute='content') | map('b64decode') |
+      map('regex_findall', '(?m)^(?![ \\t]*#)[ \\t]*AllowGroups[ \\t]+.*$') |
+      flatten }}
+
+- name: Refuse ambiguous SSH access group configuration
+  ansible.builtin.assert:
+    that:
+      - proxmox_ssh_hardening_active_allow_groups | length == 1
+    fail_msg: >-
+      Refusing to change SSH access because the host must have exactly one active
+      AllowGroups directive across /etc/ssh/sshd_config and sshd_config.d.
+
+- name: Retain only the required SSH access groups
+  ansible.builtin.replace:
+    path: "{{ item }}"
+    regexp: '(?m)^(?![ \t]*#)[ \t]*AllowGroups[ \t]+.*$'
+    replace: "AllowGroups {{ proxmox_ssh_hardening_allowed_groups | join(' ') }}"
+  loop: "{{ proxmox_ssh_hardening_sshd_config_files }}"
+  notify: Reload SSH daemon
+
+- name: Disable password authentication in all active SSH configuration sources
+  ansible.builtin.replace:
+    path: "{{ item }}"
+    regexp: '(?m)^(?![ \t]*#)[ \t]*PasswordAuthentication[ \t]+.*$'
+    replace: 'PasswordAuthentication no'
+  loop: "{{ proxmox_ssh_hardening_sshd_config_files }}"
+  notify: Reload SSH daemon
+
+- name: Keep password authentication disabled through package updates
+  ansible.builtin.copy:
+    dest: "{{ proxmox_ssh_hardening_drop_in_file }}"
+    content: |
+      # Managed by platform-iac. sshd includes this directory before the main file.
+      PasswordAuthentication no
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Reload SSH daemon
+
+- name: Validate the resulting SSH daemon configuration
+  ansible.builtin.command: /usr/sbin/sshd -t
+  changed_when: false
+
+- name: Read the effective SSH daemon configuration
+  ansible.builtin.command: /usr/sbin/sshd -T
+  register: proxmox_ssh_hardening_effective_config
+  changed_when: false
+
+- name: Verify the effective SSH hardening settings
+  ansible.builtin.set_fact:
+    proxmox_ssh_hardening_effective_allow_groups: >-
+      {{ proxmox_ssh_hardening_effective_config.stdout_lines |
+      select('match', '^allowgroups ') | list | sort }}
+    proxmox_ssh_hardening_expected_allow_groups: >-
+      {{ proxmox_ssh_hardening_allowed_groups |
+      map('regex_replace', '^', 'allowgroups ') | list | sort }}
+
+- name: Assert the effective SSH hardening settings
+  ansible.builtin.assert:
+    that:
+      - "'passwordauthentication no' in proxmox_ssh_hardening_effective_config.stdout_lines"
+      - proxmox_ssh_hardening_effective_allow_groups == proxmox_ssh_hardening_expected_allow_groups
+    fail_msg: "The effective sshd configuration does not match the intended access policy."

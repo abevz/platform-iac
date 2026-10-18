@@ -1,0 +1,29 @@
+- name: Remove local loopback hostname entry
+  ansible.builtin.lineinfile:
+    path: /etc/hosts
+    regexp: "^127\\.0\\.1\\.1\\s+.*\\b{{ inventory_hostname }}(\\.local)?\\b.*$"
+    state: absent
+
+- name: Manage ClickHouse peer host entries
+  ansible.builtin.blockinfile:
+    path: /etc/hosts
+    marker: "# {mark} ANSIBLE MANAGED CLICKHOUSE HOSTS"
+    block: |
+      {% for host in ansible_play_hosts %}
+      {{ hostvars[host]['ansible_host'] }} {{ host }} {{ host }}.local
+      {% endfor %}
+
+- name: Deploy ClickHouse main config (cluster + SSL)
+  ansible.builtin.template:
+    src: config.xml.j2
+    dest: /etc/clickhouse-server/config.d/cluster.xml
+    mode: "0640"
+    owner: clickhouse
+    group: clickhouse
+  notify: Restart clickhouse-server
+
+- name: Enable and start clickhouse-server
+  ansible.builtin.systemd:
+    name: clickhouse-server
+    enabled: true
+    state: started

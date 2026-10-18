@@ -1,0 +1,146 @@
+rule_files:
+- security-alerts.rules.yml
+evaluation_interval: 1m
+tests:
+- name: warning waits 15 minutes and resolves below threshold
+  interval: 1m
+  input_series:
+  - series: pve_disk_usage_bytes{id="storage/lab-host/local-lvm",instance="192.0.2.101",job="pve-exporter"}
+    values: 860+0x15 840+0x4
+  - series: pve_disk_size_bytes{id="storage/lab-host/local-lvm",instance="192.0.2.101",job="pve-exporter"}
+    values: 1000+0x20
+  promql_expr_test:
+  - expr: ALERTS{alertname="ProxmoxThinPoolUsageHigh",alertstate="firing"}
+    eval_time: 14m
+    exp_samples: []
+  - expr: ALERTS{alertname="ProxmoxThinPoolUsageHigh",alertstate="firing"}
+    eval_time: 15m
+    exp_samples:
+    - labels: ALERTS{alertname="ProxmoxThinPoolUsageHigh",alertstate="firing",id="storage/lab-host/local-lvm",instance="192.0.2.101",job="pve-exporter",severity="warning"}
+      value: 1
+  - expr: ALERTS{alertname="ProxmoxThinPoolUsageCritical",alertstate="firing"}
+    eval_time: 15m
+    exp_samples: []
+  - expr: ALERTS{alertname="ProxmoxThinPoolUsageHigh",alertstate="firing"}
+    eval_time: 16m
+    exp_samples: []
+- name: critical waits 5 minutes and resolves below 95 percent
+  interval: 1m
+  input_series:
+  - series: pve_disk_usage_bytes{id="storage/lab-host/local-lvm",instance="192.0.2.101",job="pve-exporter"}
+    values: 960+0x6 940+0x13
+  - series: pve_disk_size_bytes{id="storage/lab-host/local-lvm",instance="192.0.2.101",job="pve-exporter"}
+    values: 1000+0x20
+  promql_expr_test:
+  - expr: ALERTS{alertname="ProxmoxThinPoolUsageCritical",alertstate="firing"}
+    eval_time: 4m
+    exp_samples: []
+  - expr: ALERTS{alertname="ProxmoxThinPoolUsageCritical",alertstate="firing"}
+    eval_time: 5m
+    exp_samples:
+    - labels: ALERTS{alertname="ProxmoxThinPoolUsageCritical",alertstate="firing",id="storage/lab-host/local-lvm",instance="192.0.2.101",job="pve-exporter",severity="critical"}
+      value: 1
+  - expr: ALERTS{alertname="ProxmoxThinPoolUsageCritical",alertstate="firing"}
+    eval_time: 7m
+    exp_samples: []
+  - expr: ALERTS{alertname="ProxmoxThinPoolUsageHigh",alertstate="firing"}
+    eval_time: 14m
+    exp_samples: []
+  - expr: ALERTS{alertname="ProxmoxThinPoolUsageHigh",alertstate="firing"}
+    eval_time: 15m
+    exp_samples:
+    - labels: ALERTS{alertname="ProxmoxThinPoolUsageHigh",alertstate="firing",id="storage/lab-host/local-lvm",instance="192.0.2.101",job="pve-exporter",severity="warning"}
+      value: 1
+- name: exactly 85 percent does not warn
+  interval: 1m
+  input_series:
+  - series: pve_disk_usage_bytes{id="storage/lab-host/local-lvm",instance="192.0.2.101",job="pve-exporter"}
+    values: 850+0x20
+  - series: pve_disk_size_bytes{id="storage/lab-host/local-lvm",instance="192.0.2.101",job="pve-exporter"}
+    values: 1000+0x20
+  promql_expr_test:
+  - expr: ALERTS{alertname="ProxmoxThinPoolUsageHigh",alertstate="firing"}
+    eval_time: 20m
+    exp_samples: []
+  - expr: ALERTS{alertname="ProxmoxThinPoolUsageCritical",alertstate="firing"}
+    eval_time: 20m
+    exp_samples: []
+- name: exactly 95 percent warns without critical
+  interval: 1m
+  input_series:
+  - series: pve_disk_usage_bytes{id="storage/lab-host/local-lvm",instance="192.0.2.101",job="pve-exporter"}
+    values: 950+0x20
+  - series: pve_disk_size_bytes{id="storage/lab-host/local-lvm",instance="192.0.2.101",job="pve-exporter"}
+    values: 1000+0x20
+  promql_expr_test:
+  - expr: ALERTS{alertname="ProxmoxThinPoolUsageHigh",alertstate="firing"}
+    eval_time: 20m
+    exp_samples:
+    - labels: ALERTS{alertname="ProxmoxThinPoolUsageHigh",alertstate="firing",id="storage/lab-host/local-lvm",instance="192.0.2.101",job="pve-exporter",severity="warning"}
+      value: 1
+  - expr: ALERTS{alertname="ProxmoxThinPoolUsageCritical",alertstate="firing"}
+    eval_time: 20m
+    exp_samples: []
+- name: zero capacity does not produce infinite usage
+  interval: 1m
+  input_series:
+  - series: pve_disk_usage_bytes{id="storage/lab-host/local-lvm",instance="192.0.2.101",job="pve-exporter"}
+    values: 1+0x20
+  - series: pve_disk_size_bytes{id="storage/lab-host/local-lvm",instance="192.0.2.101",job="pve-exporter"}
+    values: 0+0x20
+  promql_expr_test:
+  - expr: ALERTS{alertname="ProxmoxThinPoolUsageHigh",alertstate="firing"}
+    eval_time: 20m
+    exp_samples: []
+  - expr: ALERTS{alertname="ProxmoxThinPoolUsageCritical",alertstate="firing"}
+    eval_time: 20m
+    exp_samples: []
+- name: stale usage resets the pending duration
+  interval: 1m
+  input_series:
+  - series: pve_disk_usage_bytes{id="storage/lab-host/local-lvm",instance="192.0.2.101",job="pve-exporter"}
+    values: 860+0x9 stale 860+0x15
+  - series: pve_disk_size_bytes{id="storage/lab-host/local-lvm",instance="192.0.2.101",job="pve-exporter"}
+    values: 1000+0x26
+  promql_expr_test:
+  - expr: ALERTS{alertname="ProxmoxThinPoolUsageHigh",alertstate="firing"}
+    eval_time: 15m
+    exp_samples: []
+  - expr: ALERTS{alertname="ProxmoxThinPoolUsageHigh",alertstate="firing"}
+    eval_time: 25m
+    exp_samples: []
+  - expr: ALERTS{alertname="ProxmoxThinPoolUsageHigh",alertstate="firing"}
+    eval_time: 26m
+    exp_samples:
+    - labels: ALERTS{alertname="ProxmoxThinPoolUsageHigh",alertstate="firing",id="storage/lab-host/local-lvm",instance="192.0.2.101",job="pve-exporter",severity="warning"}
+      value: 1
+- name: other storage and other node are excluded
+  interval: 1m
+  input_series:
+  - series: pve_disk_usage_bytes{id="storage/lab-host/DataPool",instance="192.0.2.101",job="pve-exporter"}
+    values: 990+0x20
+  - series: pve_disk_size_bytes{id="storage/lab-host/DataPool",instance="192.0.2.101",job="pve-exporter"}
+    values: 1000+0x20
+  - series: pve_disk_usage_bytes{id="storage/other/local-lvm",instance="192.0.2.101",job="pve-exporter"}
+    values: 990+0x20
+  - series: pve_disk_size_bytes{id="storage/other/local-lvm",instance="192.0.2.101",job="pve-exporter"}
+    values: 1000+0x20
+  promql_expr_test:
+  - expr: ALERTS{alertname="ProxmoxThinPoolUsageHigh",alertstate="firing"}
+    eval_time: 20m
+    exp_samples: []
+  - expr: ALERTS{alertname="ProxmoxThinPoolUsageCritical",alertstate="firing"}
+    eval_time: 20m
+    exp_samples: []
+- name: missing capacity is not treated as full
+  interval: 1m
+  input_series:
+  - series: pve_disk_usage_bytes{id="storage/lab-host/local-lvm",instance="192.0.2.101",job="pve-exporter"}
+    values: 999+0x20
+  promql_expr_test:
+  - expr: ALERTS{alertname="ProxmoxThinPoolUsageHigh",alertstate="firing"}
+    eval_time: 20m
+    exp_samples: []
+  - expr: ALERTS{alertname="ProxmoxThinPoolUsageCritical",alertstate="firing"}
+    eval_time: 20m
+    exp_samples: []

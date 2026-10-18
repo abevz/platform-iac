@@ -1,0 +1,9 @@
+---
+- name: Refresh yum cache
+  ansible.builtin.command: yum clean expire-cache
+  when: ansible_os_family == "RedHat"
+
+- name: Restart falco
+  ansible.builtin.service:
+    name: falco
+    state: restarted

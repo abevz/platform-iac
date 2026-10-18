@@ -1,0 +1,6 @@
+# config/roles/kube_bench_run/defaults/main.yml
+# /config/roles/kube_bench_run/defaults/main.yml
+---
+kube_bench_version: "v0.12.0"
+kube_bench_namespace: "kube-bench"
+kube_bench_cis_benchmark: "cis-1.7"

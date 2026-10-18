@@ -1,0 +1,8 @@
+# config/roles/rustfs_setup/handlers/main.yml
+---
+# /config/roles/rustfs_setup/handlers/main.yml
+- name: Restart RustFS
+  community.docker.docker_compose_v2:
+    project_src: "{{ rustfs_root_dir }}"
+    state: restarted
+  become: yes

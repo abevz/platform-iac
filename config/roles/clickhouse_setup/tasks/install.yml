@@ -1,0 +1,35 @@
+- name: Install prerequisites
+  ansible.builtin.apt:
+    name: [apt-transport-https, ca-certificates, curl, gnupg]
+    state: present
+    update_cache: yes
+
+- name: Add ClickHouse GPG key
+  ansible.builtin.get_url:
+    url: "https://packages.clickhouse.com/rpm/lts/repodata/repomd.xml.key"
+    dest: /etc/apt/keyrings/clickhouse.asc
+    mode: "0644"
+
+- name: Add ClickHouse apt repository
+  ansible.builtin.apt_repository:
+    repo: "deb [signed-by=/etc/apt/keyrings/clickhouse.asc] https://packages.clickhouse.com/deb stable main"
+    state: present
+    filename: clickhouse
+
+- name: Wait for unattended-upgrades to release dpkg lock
+  ansible.builtin.shell: |
+    while fuser /var/lib/dpkg/lock-frontend >/dev/null 2>&1; do sleep 5; done
+  changed_when: false
+  timeout: 600
+
+- name: Install ClickHouse
+  ansible.builtin.apt:
+    name:
+      - clickhouse-server
+      - clickhouse-client
+    state: present
+    lock_timeout: 300 # bump from default 60s to 5min
+  retries: 3
+  delay: 30
+  register: ch_install
+  until: ch_install is succeeded

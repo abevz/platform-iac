@@ -1,0 +1,14 @@
+# config/playbooks/install_bom.yml
+# /config/playbooks/install_bom.yml
+---
+- name: Install or Uninstall BOM Scanner
+  hosts: all # iac-wrapper will limit this to k8s_master
+  become: yes
+
+  vars:
+    requested_version: ""
+    # STATE VARIABLE
+    addon_state: "present" # (Override via -e "addon_state=absent")
+
+  roles:
+    - role: bom_install

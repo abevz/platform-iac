@@ -1,0 +1,14 @@
+{{ nginx_proxy_root_dir }}/logs/service-names.log {
+    daily
+    maxsize 20M
+    rotate 7
+    compress
+    delaycompress
+    missingok
+    notifempty
+    su root root
+    create 0640 root root
+    postrotate
+        /usr/bin/docker exec reverseproxy nginx -s reopen >/dev/null 2>&1
+    endscript
+}

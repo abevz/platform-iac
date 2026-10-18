@@ -1,0 +1,18 @@
+# config/roles/proxmox_template_builder/defaults/main.yml
+---
+# ID and name of future template
+template_vmid: 9013
+template_name: "debian-13-generic-template"
+
+# Image URL (Debian 13 Daily)
+template_image_url: "https://cloud.debian.org/images/cloud/trixie/daily/latest/debian-13-generic-amd64-daily.qcow2"
+template_image_filename: "debian-13-generic.qcow2"
+
+# Resource settings
+template_memory: 2048
+template_cores: 2
+template_bridge: "vmbr0"
+template_storage: "DataPool" # Where to store disk (local-lvm, ceph, etc)
+
+# Force rebuild flag (if template already exists)
+force_recreate: true

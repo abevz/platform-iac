@@ -1,0 +1,8 @@
+---
+- name: Push the configured Vault certificate lineage now
+  ansible.builtin.command:
+    argv:
+      - "{{ certbot_vault_cert_sync_helper_path }}"
+  become: true
+  changed_when: false
+  when: certbot_vault_cert_sync_enabled | bool

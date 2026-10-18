@@ -1,0 +1,7 @@
+---
+- name: Bootstrap ArgoCD app-of-apps root
+  hosts: all
+  become: no
+
+  roles:
+    - role: argocd_bootstrap_apps

@@ -1,0 +1,8 @@
+services:
+  prometheus:
+    volumes:
+      - type: bind
+        source: {{ prometheus_storage_data }}
+        target: /prometheus
+        bind:
+          create_host_path: false

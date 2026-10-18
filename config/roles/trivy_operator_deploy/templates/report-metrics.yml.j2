@@ -1,0 +1,141 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: trivy-report-metrics
+  namespace: {{ trivy_op_namespace }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: trivy-report-metrics
+rules:
+  - apiGroups: [aquasecurity.github.io]
+    resources: [vulnerabilityreports]
+    verbs: [list, watch]
+  - apiGroups: [apiextensions.k8s.io]
+    resources: [customresourcedefinitions]
+    verbs: [list, watch]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: trivy-report-metrics
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: trivy-report-metrics
+subjects:
+  - kind: ServiceAccount
+    name: trivy-report-metrics
+    namespace: {{ trivy_op_namespace }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: trivy-report-metrics
+  namespace: {{ trivy_op_namespace }}
+data:
+  config.yml: |
+    kind: CustomResourceStateMetrics
+    spec:
+      resources:
+        - groupVersionKind:
+            group: aquasecurity.github.io
+            version: v1alpha1
+            kind: VulnerabilityReport
+          metricNamePrefix: trivy_report
+          labelsFromPath:
+            namespace: [metadata, namespace]
+            report: [metadata, name]
+            image_digest: [report, artifact, digest]
+          metrics:
+            - name: updated_timestamp_seconds
+              help: Unix timestamp of the report scan update.
+              each:
+                type: Gauge
+                gauge:
+                  path: [report, updateTimestamp]
+            - name: created_timestamp_seconds
+              help: Unix timestamp of report resource creation, including reports without an update timestamp.
+              each:
+                type: Gauge
+                gauge:
+                  path: [metadata, creationTimestamp]
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: trivy-report-metrics
+  namespace: {{ trivy_op_namespace }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: trivy-report-metrics
+  template:
+    metadata:
+      labels:
+        app: trivy-report-metrics
+      annotations:
+        # Restart the informer when its metric configuration changes.
+        checksum/config: "{{ lookup('ansible.builtin.file', role_path + '/templates/report-metrics.yml.j2') | hash('sha256') }}"
+    spec:
+      serviceAccountName: trivy-report-metrics
+      nodeSelector: {{ trivy_op_control_node_selector | to_json }}
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65534
+        runAsGroup: 65534
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: metrics
+          image: {{ trivy_op_report_metrics_image }}
+          args:
+            - --custom-resource-state-only=true
+            - --custom-resource-state-config-file=/etc/report-metrics/config.yml
+          ports:
+            - name: metrics
+              containerPort: 8080
+            - name: telemetry
+              containerPort: 8081
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: telemetry
+          livenessProbe:
+            httpGet:
+              path: /livez
+              port: metrics
+          resources:
+            requests:
+              cpu: 10m
+              memory: 32Mi
+            limits:
+              memory: 128Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: [ALL]
+          volumeMounts:
+            - name: config
+              mountPath: /etc/report-metrics
+              readOnly: true
+      volumes:
+        - name: config
+          configMap:
+            name: trivy-report-metrics
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: trivy-report-metrics
+  namespace: {{ trivy_op_namespace }}
+spec:
+  selector:
+    app: trivy-report-metrics
+  ports:
+    - name: metrics
+      port: 8080
+      targetPort: metrics

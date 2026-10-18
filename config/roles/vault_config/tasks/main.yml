@@ -1,0 +1,156 @@
+---
+- name: Enable JWT auth method
+  ansible.builtin.command: >
+    vault auth enable -path={{ vault_jwt_auth_path }} jwt
+  environment:
+    VAULT_ADDR: "{{ vault_addr }}"
+  register: jwt_enable
+  changed_when: jwt_enable.rc == 0
+  failed_when:
+    - jwt_enable.rc != 0
+    - "'already in use' not in jwt_enable.stderr"
+  tags: vault_jwt
+
+- name: Configure JWT auth with GitLab OIDC discovery
+  ansible.builtin.command: >
+    vault write auth/{{ vault_jwt_auth_path }}/config
+    oidc_discovery_url="{{ vault_jwt_gitlab_url }}"
+    bound_issuer="{{ vault_jwt_gitlab_url }}"
+  environment:
+    VAULT_ADDR: "{{ vault_addr }}"
+  changed_when: true
+  tags: vault_jwt
+
+- name: Create CI cosign policy
+  ansible.builtin.command: >
+    vault policy write {{ vault_ci_policy_name }} /dev/stdin
+  args:
+    stdin: |
+      path "secret/data/ci/*" {
+        capabilities = ["read"]
+      }
+  environment:
+    VAULT_ADDR: "{{ vault_addr }}"
+  changed_when: true
+  tags: vault_jwt
+
+- name: Write JWT role JSON to temp file
+  ansible.builtin.copy:
+    dest: /tmp/vault-ci-role.json
+    mode: "0600"
+    content: |
+      {
+        "role_type": "jwt",
+        "bound_audiences": ["{{ vault_addr }}"],
+        "bound_claims_type": "glob",
+        "bound_claims": {
+          "project_path": "{{ vault_ci_project_path }}"
+        },
+        "user_claim": "sub",
+        "policies": ["{{ vault_ci_policy_name }}"],
+        "ttl": "1h"
+      }
+  tags: vault_jwt
+
+- name: Create JWT role for CI pipeline
+  ansible.builtin.command: >
+    vault write auth/{{ vault_jwt_auth_path }}/role/{{ vault_ci_jwt_role_name }}
+    @/tmp/vault-ci-role.json
+  environment:
+    VAULT_ADDR: "{{ vault_addr }}"
+  changed_when: true
+  tags: vault_jwt
+
+- name: Remove JWT role temp file
+  ansible.builtin.file:
+    path: /tmp/vault-ci-role.json
+    state: absent
+  tags: vault_jwt
+
+# --- Kubernetes Secrets Engine ---
+
+- name: Enable Kubernetes secrets engine
+  ansible.builtin.command: >
+    vault secrets enable -path={{ vault_k8s_secrets_path }} kubernetes
+  environment:
+    VAULT_ADDR: "{{ vault_addr }}"
+  register: k8s_secrets_enable
+  changed_when: k8s_secrets_enable.rc == 0
+  failed_when:
+    - k8s_secrets_enable.rc != 0
+    - "'already in use' not in k8s_secrets_enable.stderr"
+  when: vault_k8s_secrets_enabled
+  tags: vault_k8s_secrets
+
+- name: Configure Kubernetes secrets engine
+  ansible.builtin.command: >
+    vault write {{ vault_k8s_secrets_path }}/config
+    kubernetes_host="{{ vault_k8s_secrets_host }}"
+    kubernetes_ca_cert="{{ vault_k8s_secrets_ca_cert }}"
+    service_account_jwt="{{ vault_k8s_secrets_service_account_jwt }}"
+  environment:
+    VAULT_ADDR: "{{ vault_addr }}"
+  changed_when: true
+  no_log: true
+  when: vault_k8s_secrets_enabled
+  tags: vault_k8s_secrets
+
+- name: Create Kubernetes secrets engine roles
+  ansible.builtin.command: >
+    vault write {{ vault_k8s_secrets_path }}/roles/{{ item.name }}
+    allowed_kubernetes_namespaces="{{ item.allowed_namespaces | default('*') }}"
+    service_account_name="{{ item.service_account_name }}"
+    token_default_ttl="{{ item.token_ttl | default('1h') }}"
+    token_max_ttl="{{ item.token_max_ttl | default('24h') }}"
+  environment:
+    VAULT_ADDR: "{{ vault_addr }}"
+  loop: "{{ vault_k8s_secrets_roles }}"
+  loop_control:
+    label: "{{ item.name }}"
+  changed_when: true
+  when: vault_k8s_secrets_enabled
+  tags: vault_k8s_secrets
+
+# --- AppRole Auth ---
+
+- name: Enable AppRole auth method
+  ansible.builtin.command: >
+    vault auth enable approle
+  environment:
+    VAULT_ADDR: "{{ vault_addr }}"
+  register: approle_enable
+  changed_when: approle_enable.rc == 0
+  failed_when:
+    - approle_enable.rc != 0
+    - "'already in use' not in approle_enable.stderr"
+  when: vault_approle_enabled
+  tags: vault_approle
+
+- name: Create AppRole policies
+  ansible.builtin.command: >
+    vault policy write {{ item.name }} /dev/stdin
+  args:
+    stdin: "{{ item.policy }}"
+  environment:
+    VAULT_ADDR: "{{ vault_addr }}"
+  loop: "{{ vault_approle_roles }}"
+  loop_control:
+    label: "{{ item.name }}"
+  changed_when: true
+  when: vault_approle_enabled
+  tags: vault_approle
+
+- name: Create AppRole roles
+  ansible.builtin.command: >
+    vault write auth/approle/role/{{ item.name }}
+    policies="{{ item.name }}"
+    token_ttl="{{ item.token_ttl | default('1h') }}"
+    token_max_ttl="{{ item.token_max_ttl | default('4h') }}"
+  environment:
+    VAULT_ADDR: "{{ vault_addr }}"
+  loop: "{{ vault_approle_roles }}"
+  loop_control:
+    label: "{{ item.name }}"
+  changed_when: true
+  when: vault_approle_enabled
+  tags: vault_approle

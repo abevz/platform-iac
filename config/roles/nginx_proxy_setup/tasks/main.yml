@@ -1,0 +1,184 @@
+# config/roles/nginx_proxy_setup/tasks/main.yml
+# /config/roles/nginx_proxy_setup/tasks/main.yml
+---
+- name: Install Docker prerequisites
+  ansible.builtin.apt:
+    name:
+      - ca-certificates
+      - curl
+      - gnupg
+      - logrotate
+    state: present
+    update_cache: yes
+  become: yes
+
+- name: Add Docker GPG key (Debian/Ubuntu)
+  ansible.builtin.get_url:
+    url: "https://download.docker.com/linux/{{ ansible_distribution | lower }}/gpg"
+    dest: /etc/apt/keyrings/docker.asc
+    mode: "0644"
+    force: true
+  become: yes
+
+- name: Add Docker repository (Debian/Ubuntu)
+  ansible.builtin.apt_repository:
+    repo: "deb [arch={{ ansible_architecture if ansible_architecture == 'aarch64' else 'amd64' }} signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/{{ ansible_distribution | lower }} {{ ansible_distribution_release }} stable"
+    state: present
+    filename: docker
+  become: yes
+
+- name: Ensure Docker and Docker Compose are installed
+  ansible.builtin.apt:
+    name:
+      - docker-ce
+      - docker-compose-plugin
+    state: present
+    update_cache: yes
+  become: yes
+
+- name: Ensure Nginx Proxy directories exist
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    mode: "0755"
+  become: yes
+  loop:
+    - "{{ nginx_proxy_root_dir }}"
+    - "{{ nginx_proxy_root_dir }}/logs"
+    - "{{ nginx_proxy_root_dir }}/html"
+    - "{{ nginx_proxy_root_dir }}/nginx-conf"
+
+- name: Rotate the service name audit log
+  ansible.builtin.template:
+    src: service-names.logrotate.j2
+    dest: /etc/logrotate.d/nginx-service-names
+    owner: root
+    group: root
+    mode: "0644"
+    validate: /usr/sbin/logrotate --debug %s
+  become: true
+  when: nginx_proxy_name_audit_enabled | default(true) | bool
+
+- name: Copy main nginx.conf
+  ansible.builtin.template:
+    src: nginx.conf.j2
+    backup: true
+    dest: "{{ nginx_proxy_root_dir }}/nginx.conf"
+    mode: "0644"
+  become: yes
+  notify: Restart nginx-proxy
+
+- name: Copy Nginx snippets (gzip, TLS, and websockets)
+  ansible.builtin.copy:
+    src: "{{ item }}"
+    dest: "{{ nginx_proxy_root_dir }}/nginx-conf/{{ item }}"
+    mode: "0644"
+  become: yes
+  loop:
+    - "gzip.conf"
+    - "ssl-params.conf"
+    - "proxy-params-websockets.conf"
+  notify: Restart nginx-proxy
+
+- name: Copy vhost configuration (default.conf)
+  ansible.builtin.template:
+    src: default.conf.j2
+    backup: true
+    dest: "{{ nginx_proxy_root_dir }}/nginx-conf/default.conf"
+    mode: "0644"
+  become: yes
+  notify: Restart nginx-proxy
+
+- name: Validate Authelia guest names
+  ansible.builtin.assert:
+    that:
+      - nginx_proxy_authelia_guest_names | difference(nginx_proxy_authelia_names) | length == 0
+    fail_msg: "nginx_proxy_authelia_guest_names must be a subset of nginx_proxy_authelia_names."
+  when: nginx_proxy_authelia_enabled | bool
+
+- name: Install the YAML library used by the Authelia user helper
+  ansible.builtin.apt:
+    name: python3-yaml
+    state: present
+  become: true
+  when: nginx_proxy_authelia_enabled | bool
+
+- name: Ensure Authelia directories exist
+  ansible.builtin.file:
+    path: "{{ nginx_proxy_root_dir }}/authelia/{{ item }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0700"
+  loop:
+    - config
+    - secrets
+  become: true
+  when: nginx_proxy_authelia_enabled | bool
+
+# Generated on the host and never read back: the repository, the inventory and
+# the Ansible log do not carry them. Back up the secrets directory with the database.
+- name: Generate Authelia secrets once
+  ansible.builtin.shell:
+    cmd: "umask 077 && openssl rand -hex 64 > {{ nginx_proxy_root_dir }}/authelia/secrets/{{ item }}"
+    creates: "{{ nginx_proxy_root_dir }}/authelia/secrets/{{ item }}"
+  loop:
+    - session_secret
+    - storage_encryption_key
+    - jwt_secret
+  become: true
+  no_log: true
+  when: nginx_proxy_authelia_enabled | bool
+
+- name: Render Authelia configuration
+  ansible.builtin.template:
+    src: authelia-configuration.yml.j2
+    dest: "{{ nginx_proxy_root_dir }}/authelia/config/configuration.yml"
+    owner: root
+    group: root
+    mode: "0600"
+    backup: true
+  become: true
+  when: nginx_proxy_authelia_enabled | bool
+  notify: Restart nginx-proxy
+
+- name: Install the Authelia user helper
+  ansible.builtin.template:
+    src: authelia-user.py.j2
+    dest: /usr/local/sbin/authelia-user
+    owner: root
+    group: root
+    mode: "0750"
+  become: true
+  when: nginx_proxy_authelia_enabled | bool
+
+- name: Check for the Authelia user database
+  ansible.builtin.stat:
+    path: "{{ nginx_proxy_root_dir }}/authelia/config/users.yml"
+  register: nginx_proxy_authelia_users
+  become: true
+  when: nginx_proxy_authelia_enabled | bool
+
+- name: Explain how to create the first Authelia user
+  ansible.builtin.debug:
+    msg: >-
+      Authelia has no user database yet and will not start. The owner creates
+      it on the proxy host with `sudo authelia-user owner <name> <email>`; passwords are never
+      handled by Ansible.
+  when:
+    - nginx_proxy_authelia_enabled | bool
+    - not nginx_proxy_authelia_users.stat.exists
+
+- name: Copy docker-compose.yml
+  ansible.builtin.template:
+    src: docker-compose.yml.j2
+    dest: "{{ nginx_proxy_root_dir }}/docker-compose.yml"
+    mode: "0644"
+  become: yes
+  notify: Restart nginx-proxy
+
+- name: Ensure Nginx Proxy is running (Docker Compose)
+  community.docker.docker_compose_v2:
+    project_src: "{{ nginx_proxy_root_dir }}"
+    state: "{{ addon_state | default('present') }}"
+  become: yes

@@ -1,0 +1,117 @@
+#!/bin/bash
+set -euo pipefail
+
+export VAULT_ADDR="{{ vault_snapshot_vault_addr }}"
+export VAULT_TLS_SERVER_NAME="{{ vault_snapshot_tls_server_name }}"
+ROLE_ID_FILE="{{ vault_snapshot_role_id_file }}"
+SECRET_ID_FILE="{{ vault_snapshot_secret_id_file }}"
+SNAPSHOT_DIR="{{ vault_backup_dir }}"
+RETENTION_DAYS="{{ vault_snapshot_local_retention_days }}"
+S3_ENABLED="{{ vault_backup_s3_enabled | ternary('true', 'false') }}"
+RCLONE_ENABLED="{{ vault_backup_rclone_enabled | ternary('true', 'false') }}"
+RCLONE_TARGET="{{ vault_backup_rclone_target }}"
+RCLONE_CONFIG_FILE="{{ vault_backup_rclone_config_file }}"
+S3_ENV_FILE="{{ vault_config_dir }}/snapshot-s3.env"
+
+log() {
+  echo "[$(date --iso-8601=seconds)] $*"
+}
+
+require_env() {
+  local name="$1"
+  if [ -z "${!name:-}" ]; then
+    log "Required environment variable is empty: $name"
+    exit 1
+  fi
+}
+
+status_json=$(vault status -format=json 2>/dev/null || true)
+if [ -z "$status_json" ]; then
+  log "Vault status is unavailable"
+  exit 1
+fi
+
+initialized=$(echo "$status_json" | jq -r '.initialized')
+sealed=$(echo "$status_json" | jq -r '.sealed')
+
+if [ "$initialized" != "true" ]; then
+  log "Vault is not initialized"
+  exit 1
+fi
+
+if [ "$sealed" = "true" ]; then
+  log "Vault is sealed"
+  exit 1
+fi
+
+if [ ! -r "$ROLE_ID_FILE" ] || [ ! -r "$SECRET_ID_FILE" ]; then
+  log "AppRole credentials missing: $ROLE_ID_FILE or $SECRET_ID_FILE"
+  exit 1
+fi
+
+role_id=$(tr -d '\n' < "$ROLE_ID_FILE")
+secret_id=$(tr -d '\n' < "$SECRET_ID_FILE")
+
+export VAULT_TOKEN
+VAULT_TOKEN=$(vault write -field=token auth/approle/login \
+  role_id="$role_id" secret_id="$secret_id")
+
+timestamp=$(date -u +%Y%m%dT%H%M%SZ)
+snapshot_path="${SNAPSHOT_DIR}/vault-raft-${timestamp}.snap"
+
+install -d -o vault -g vault -m 0750 "$SNAPSHOT_DIR"
+vault operator raft snapshot save "$snapshot_path"
+chown vault:vault "$snapshot_path"
+chmod 0640 "$snapshot_path"
+log "Created local snapshot: $snapshot_path"
+
+find "$SNAPSHOT_DIR" -type f -name "vault-raft-*.snap" -mtime +"$RETENTION_DAYS" -delete
+
+if [ "$S3_ENABLED" = "true" ]; then
+  if [ ! -r "$S3_ENV_FILE" ]; then
+    log "S3 backup is enabled but $S3_ENV_FILE is missing"
+    exit 1
+  fi
+  set -a
+  # shellcheck source=/dev/null
+  # shellcheck disable=SC1090
+  source "$S3_ENV_FILE"
+  set +a
+  require_env RCLONE_CONFIG_VAULTS3_ACCESS_KEY_ID
+  require_env RCLONE_CONFIG_VAULTS3_SECRET_ACCESS_KEY
+  require_env RCLONE_CONFIG_VAULTS3_ENDPOINT
+  require_env VAULT_BACKUP_S3_ENDPOINT
+  require_env VAULT_BACKUP_S3_BUCKET
+  require_env VAULT_BACKUP_S3_PREFIX
+
+  if [ "${VAULT_BACKUP_S3_CREATE_BUCKET:-false}" = "true" ]; then
+    if ! rclone --config /dev/null lsd "vaults3:" --max-depth 1 | awk '{print $NF}' | grep -Fx "$VAULT_BACKUP_S3_BUCKET" >/dev/null; then
+      rclone --config /dev/null mkdir "vaults3:${VAULT_BACKUP_S3_BUCKET}"
+      log "Created RustFS bucket: ${VAULT_BACKUP_S3_BUCKET}"
+    fi
+  fi
+
+  snapshot_name=$(basename "$snapshot_path")
+  s3_dir="vaults3:${VAULT_BACKUP_S3_BUCKET}/${VAULT_BACKUP_S3_PREFIX}"
+  s3_object="${s3_dir}/${snapshot_name}"
+  rclone --config /dev/null copyto "$snapshot_path" "$s3_object"
+  rclone --config /dev/null lsf "$s3_dir" --files-only | grep -Fx "$snapshot_name" >/dev/null
+  log "Uploaded snapshot to RustFS: ${s3_object}"
+fi
+
+if [ "$RCLONE_ENABLED" = "true" ]; then
+  if [ -z "$RCLONE_TARGET" ]; then
+    log "rclone backup is enabled but no target is configured"
+    exit 1
+  fi
+  if [ ! -r "$RCLONE_CONFIG_FILE" ]; then
+    log "rclone backup is enabled but $RCLONE_CONFIG_FILE is missing or unreadable"
+    exit 1
+  fi
+  snapshot_name=$(basename "$snapshot_path")
+  rclone_target_dir="${RCLONE_TARGET%/}"
+  rclone_object="${rclone_target_dir}/${snapshot_name}"
+  rclone --config "$RCLONE_CONFIG_FILE" copyto "$snapshot_path" "$rclone_object"
+  rclone --config "$RCLONE_CONFIG_FILE" lsf "$rclone_target_dir" --files-only | grep -Fx "$snapshot_name" >/dev/null
+  log "Copied encrypted snapshot to rclone target: $rclone_object"
+fi

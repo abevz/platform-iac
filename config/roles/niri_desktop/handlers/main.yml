@@ -1,0 +1,4 @@
+- name: "Reload Niri"
+  ansible.builtin.shell: "niri msg action load-config-file"
+  listen: "Reload Niri"
+  ignore_errors: yes

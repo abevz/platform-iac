@@ -1,0 +1,37 @@
+---
+apiVersion: kubeadm.k8s.io/v1beta4
+kind: InitConfiguration
+localAPIEndpoint:
+  advertiseAddress: {{ ansible_default_ipv4.address }}
+  bindPort: 6443
+nodeRegistration:
+  kubeletExtraArgs:
+    - name: node-ip
+      value: "{{ ansible_default_ipv4.address }}"
+---
+apiVersion: kubeadm.k8s.io/v1beta4
+kind: ClusterConfiguration
+# FIX: Forced version formatting.
+# Preserve the configured full patch version, for example "1.37.1".
+kubernetesVersion: "v{{ kubernetes_version | replace('v', '') }}{{ '.0' if kubernetes_version | split('.') | length < 3 else '' }}"
+controlPlaneEndpoint: "{{ ansible_fqdn }}:6443"
+apiServer:
+  certSANs:
+  - {{ ansible_default_ipv4.address }}
+  - {{ ansible_hostname }}
+  - {{ ansible_fqdn }}
+  - localhost
+  - 127.0.0.1
+  - kubernetes
+  - kubernetes.default
+  - kubernetes.default.svc
+  - kubernetes.default.svc.cluster.local
+networking:
+  dnsDomain: cluster.local
+  podSubnet: {{ pod_cidr }}
+  serviceSubnet: 198.51.100.0/24
+---
+# This block enables ServerTLSBootstrap for ALL kubelets (including workers)
+apiVersion: kubelet.config.k8s.io/v1beta1
+kind: KubeletConfiguration
+serverTLSBootstrap: true

@@ -1,0 +1,286 @@
+# /config/roles/nginx_proxy_setup/templates/default.conf.j2
+# File managed by Ansible. DO NOT EDIT MANUALLY.
+{% set domain = primary_domain | default("example.com") %}
+{# Plain Jinja2 has no bool filter; the offline tests render these templates without Ansible. #}
+{% set authelia_on = (nginx_proxy_authelia_enabled | default(false) | string | lower) in ['true', 'yes', '1'] %}
+{% set authelia_fqdn = (nginx_proxy_authelia_host | default('auth')) ~ '.' ~ domain %}
+{% macro http_access(name) %}
+    # Source policy for the whole vhost, so a location added later is covered too.
+{% if name ~ '.' ~ domain not in nginx_proxy_public_http_names | default([]) %}
+{% set via_authelia = authelia_on and name in nginx_proxy_authelia_names | default([]) %}
+{% if via_authelia %}
+    # A trusted source passes on its address alone and never touches Authelia,
+    # so the private path keeps working when Authelia is down. Any other source
+    # must hold an Authelia session with a second factor.
+    satisfy any;
+{% endif %}
+{% for network in nginx_proxy_trusted_networks | default(nginx_proxy_k8s_trusted_networks) %}
+    allow {{ network }};
+{% endfor %}
+    deny all;
+{% if via_authelia %}
+    auth_request /internal/authelia/authz;
+    auth_request_set $authelia_redirect $upstream_http_location;
+    error_page 401 =302 $authelia_redirect;
+    set $authelia_upstream http://authelia:9091;
+
+    location = /internal/authelia/authz {
+        internal;
+        # The subrequest itself must not be subject to the vhost policy.
+        auth_request off;
+        allow all;
+        # A variable makes nginx resolve the name per request: it starts and
+        # serves trusted sources even while the Authelia container is absent.
+        # The resolver is set here because ssl-params.conf gives every vhost
+        # public resolvers for OCSP stapling, and those do not know "authelia".
+        resolver 127.0.0.11 valid=10s ipv6=off;
+        resolver_timeout 3s;
+        proxy_pass $authelia_upstream/api/authz/auth-request;
+        proxy_pass_request_body off;
+        proxy_set_header Content-Length "";
+        proxy_set_header Host $host;
+        proxy_set_header X-Original-Method $request_method;
+        proxy_set_header X-Original-URL https://$host$request_uri;
+        proxy_set_header X-Forwarded-For $remote_addr;
+        proxy_http_version 1.1;
+        proxy_set_header Connection "";
+        proxy_connect_timeout 3s;
+        proxy_read_timeout 5s;
+    }
+{% endif %}
+{% endif %}
+{% endmacro %}
+server {
+    listen 80 default_server;
+    listen [::]:80 default_server;
+    server_name _;
+    return 444;
+}
+
+server {
+    listen 127.0.0.1:1443 ssl http2 proxy_protocol default_server;
+    server_name _;
+    ssl_reject_handshake on;
+}
+
+server {
+    listen 80;
+    listen [::]:80;
+    server_name harbor.{{ primary_domain | default("example.com") }} gitlab.{{ primary_domain | default("example.com") }} s3.rustfs.{{ primary_domain | default("example.com") }} rustfs.{{ primary_domain | default("example.com") }} grafana.{{ primary_domain | default("example.com") }} jenkins.{{ primary_domain | default("example.com") }} vault.{{ primary_domain | default("example.com") }}{% if authelia_on %} {{ authelia_fqdn }}{% endif %};
+
+    location /.well-known/acme-challenge/ {
+        root /var/www/html;
+        allow all;
+    }
+
+    location / {
+        return 301 https://$host$request_uri;
+    }
+}
+
+server {
+    listen 127.0.0.1:1443 ssl http2 proxy_protocol;
+    server_name gitlab.{{ primary_domain | default("example.com") }};
+{{ http_access('gitlab') }}
+
+    ssl_certificate /etc/letsencrypt/live/{{ primary_domain | default("example.com") | replace('.', '-') }}-wildcard/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/{{ primary_domain | default("example.com") | replace('.', '-') }}-wildcard/privkey.pem;
+    ssl_trusted_certificate /etc/letsencrypt/live/{{ primary_domain | default("example.com") | replace('.', '-') }}-wildcard/chain.pem;
+    include /etc/nginx/conf.d/ssl-params.conf;
+
+    location / {
+        proxy_pass http://{{ nginx_proxy_upstreams.gitlab_http }};
+        proxy_set_header Host $http_host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_http_version 1.1;
+    }
+}
+
+server {
+    listen 127.0.0.1:1443 ssl http2 proxy_protocol;
+    server_name s3.rustfs.{{ primary_domain | default("example.com") }};
+{{ http_access('s3.rustfs') }}
+
+    ssl_certificate /etc/letsencrypt/live/s3-rustfs-{{ primary_domain | default("example.com") | replace('.', '-') }}/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/s3-rustfs-{{ primary_domain | default("example.com") | replace('.', '-') }}/privkey.pem;
+    ssl_trusted_certificate /etc/letsencrypt/live/s3-rustfs-{{ primary_domain | default("example.com") | replace('.', '-') }}/chain.pem;
+    include /etc/nginx/conf.d/ssl-params.conf;
+
+    client_max_body_size 0;
+
+    location / {
+        proxy_set_header Host $http_host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_connect_timeout 300;
+        proxy_http_version 1.1;
+        proxy_set_header Connection "";
+        proxy_read_timeout 300;
+        proxy_send_timeout 300;
+        proxy_buffering off;
+        proxy_request_buffering off;
+        proxy_pass {{ nginx_proxy_upstreams.rustfs_s3_api }};
+    }
+}
+
+server {
+    listen 127.0.0.1:1443 ssl http2 proxy_protocol;
+    server_name rustfs.{{ primary_domain | default("example.com") }};
+{{ http_access('rustfs') }}
+
+    ssl_certificate /etc/letsencrypt/live/{{ primary_domain | default("example.com") | replace('.', '-') }}-wildcard/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/{{ primary_domain | default("example.com") | replace('.', '-') }}-wildcard/privkey.pem;
+    ssl_trusted_certificate /etc/letsencrypt/live/{{ primary_domain | default("example.com") | replace('.', '-') }}-wildcard/chain.pem;
+    include /etc/nginx/conf.d/ssl-params.conf;
+    location / {
+        proxy_set_header Host $http_host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_connect_timeout 300;
+        proxy_http_version 1.1;
+        proxy_set_header Connection "";
+        chunked_transfer_encoding off;
+        proxy_pass {{ nginx_proxy_upstreams.rustfs_console }};
+    }
+}
+
+server {
+    listen 127.0.0.1:1443 ssl http2 proxy_protocol;
+    server_name harbor.{{ primary_domain | default("example.com") }};
+{{ http_access('harbor') }}
+
+    ssl_certificate /etc/letsencrypt/live/{{ primary_domain | default("example.com") | replace('.', '-') }}-wildcard/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/{{ primary_domain | default("example.com") | replace('.', '-') }}-wildcard/privkey.pem;
+    ssl_trusted_certificate /etc/letsencrypt/live/{{ primary_domain | default("example.com") | replace('.', '-') }}-wildcard/chain.pem;
+    include /etc/nginx/conf.d/ssl-params.conf;
+    client_max_body_size 0;
+
+    location / {
+        proxy_set_header Host $http_host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_connect_timeout 600;
+        proxy_send_timeout 600;
+        proxy_read_timeout 600;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+
+        proxy_pass http://{{ nginx_proxy_upstreams.harbor_http }};
+    }
+}
+
+server {
+    listen 127.0.0.1:1443 ssl http2 proxy_protocol;
+    server_name vault.{{ primary_domain | default("example.com") }};
+
+    ssl_certificate /etc/letsencrypt/live/{{ primary_domain | default("example.com") | replace('.', '-') }}-wildcard/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/{{ primary_domain | default("example.com") | replace('.', '-') }}-wildcard/privkey.pem;
+    ssl_trusted_certificate /etc/letsencrypt/live/{{ primary_domain | default("example.com") | replace('.', '-') }}-wildcard/chain.pem;
+    include /etc/nginx/conf.d/ssl-params.conf;
+
+{% for network in nginx_proxy_vault_allowed_networks | default(['192.0.2.0/24']) %}
+    allow {{ network }};
+{% endfor %}
+    deny all;
+
+    location / {
+        proxy_pass {{ nginx_proxy_upstreams.vault_http }};
+        proxy_ssl_name vault.{{ primary_domain | default("example.com") }};
+        proxy_ssl_server_name on;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+}
+
+server {
+    listen 127.0.0.1:1443 ssl http2 proxy_protocol;
+    server_name grafana.{{ primary_domain | default("example.com") }};
+{{ http_access('grafana') }}
+
+    ssl_certificate /etc/letsencrypt/live/{{ primary_domain | default("example.com") | replace('.', '-') }}-wildcard/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/{{ primary_domain | default("example.com") | replace('.', '-') }}-wildcard/privkey.pem;
+    ssl_trusted_certificate /etc/letsencrypt/live/{{ primary_domain | default("example.com") | replace('.', '-') }}-wildcard/chain.pem;
+    include /etc/nginx/conf.d/ssl-params.conf;
+
+    location / {
+        proxy_pass {{ nginx_proxy_upstreams.grafana_http }};
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+
+        proxy_read_timeout 3600;
+        proxy_send_timeout 3600;
+    }
+}
+
+server {
+    listen 127.0.0.1:1443 ssl http2 proxy_protocol;
+    server_name jenkins.{{ primary_domain | default("example.com") }};
+{{ http_access('jenkins') }}
+
+    ssl_certificate /etc/letsencrypt/live/{{ primary_domain | default("example.com") | replace('.', '-') }}-wildcard/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/{{ primary_domain | default("example.com") | replace('.', '-') }}-wildcard/privkey.pem;
+    ssl_trusted_certificate /etc/letsencrypt/live/{{ primary_domain | default("example.com") | replace('.', '-') }}-wildcard/chain.pem;
+    include /etc/nginx/conf.d/ssl-params.conf;
+
+    location / {
+        proxy_pass {{ nginx_proxy_upstreams.jenkins_http }};
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Forwarded-Port 443;
+        proxy_set_header X-Forwarded-Ssl on;
+
+        proxy_read_timeout 3600;
+        proxy_send_timeout 3600;
+        proxy_request_buffering off;
+    }
+}
+
+{% if authelia_on %}
+# Login portal. Reachable from anywhere: it is the one thing an external
+# client may talk to before authenticating.
+server {
+    listen 127.0.0.1:1443 ssl http2 proxy_protocol;
+    server_name {{ authelia_fqdn }};
+
+    ssl_certificate /etc/letsencrypt/live/{{ primary_domain | default("example.com") | replace('.', '-') }}-wildcard/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/{{ primary_domain | default("example.com") | replace('.', '-') }}-wildcard/privkey.pem;
+    ssl_trusted_certificate /etc/letsencrypt/live/{{ primary_domain | default("example.com") | replace('.', '-') }}-wildcard/chain.pem;
+    include /etc/nginx/conf.d/ssl-params.conf;
+
+    set $authelia_upstream http://authelia:9091;
+
+    location / {
+        resolver 127.0.0.11 valid=10s ipv6=off;
+        resolver_timeout 3s;
+        proxy_pass $authelia_upstream;
+        proxy_http_version 1.1;
+        proxy_set_header Connection "";
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $remote_addr;
+        proxy_set_header X-Forwarded-Proto https;
+        proxy_set_header X-Forwarded-Host $host;
+        proxy_set_header X-Forwarded-URI $request_uri;
+        proxy_connect_timeout 3s;
+        proxy_read_timeout 30s;
+    }
+}
+{% endif %}

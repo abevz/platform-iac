@@ -1,0 +1,10 @@
+[Unit]
+Description=Run GitLab backup to GDrive daily
+
+[Timer]
+OnCalendar={{ gitlab_backup_on_calendar }}
+Persistent=true
+RandomizedDelaySec=300
+
+[Install]
+WantedBy=timers.target

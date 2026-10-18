@@ -1,0 +1,6 @@
+---
+- name: Expose per-workload metrics of the Proxmox host
+  hosts: proxmox_nodes
+  become: true
+  roles:
+    - role: proxmox_cadvisor

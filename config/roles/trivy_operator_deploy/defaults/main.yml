@@ -1,0 +1,32 @@
+---
+trivy_op_helm_repo_url: https://aquasecurity.github.io/helm-charts/
+trivy_op_chart_version: "0.36.0"
+trivy_op_namespace: trivy-system
+trivy_op_scan_jobs_concurrent_limit: 1
+trivy_op_scan_jobs_in_same_namespace: false
+# The operator counts retained Jobs against concurrency, so keep this short.
+trivy_op_scan_job_ttl: 2m
+trivy_op_scan_memory_request: "768Mi"
+trivy_op_scan_memory_limit: "1Gi"
+# Share the scan cache through a bounded server instead of standalone processes.
+trivy_op_builtin_server: true
+trivy_op_server_memory_request: "1Gi"
+trivy_op_server_memory_limit: "1Gi"
+trivy_op_operator_memory_request: "512Mi"
+trivy_op_operator_memory_limit: "1Gi"
+# Leave the enlarged worker available for six-container Cilium scan Jobs.
+trivy_op_control_node_selector:
+  kubernetes.io/hostname: lab-cluster-wn-1
+trivy_op_scan_node_selector:
+  kubernetes.io/hostname: lab-cluster-wn-2
+# Node collectors must inspect their target node, including tainted lab nodes.
+trivy_op_node_collector_tolerations:
+  - key: node-role.kubernetes.io/control-plane
+    operator: Exists
+    effect: NoSchedule
+  - key: nvidia.com/gpu
+    operator: Equal
+    value: present
+    effect: NoSchedule
+# Export report timestamps without changing the GitOps-managed general KSM.
+trivy_op_report_metrics_image: harbor.example.com/library/trivy-report-metrics:2.17.0-piac49@sha256:7e5903b9e0fe4580cc41f16bfffc23048068f8752d86e26997093006ff7c9ac9

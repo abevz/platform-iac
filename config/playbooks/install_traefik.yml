@@ -1,0 +1,14 @@
+# /config/playbooks/install_traefik.yml
+---
+- name: Install or Uninstall Traefik Gateway
+  hosts: all
+  become: yes
+
+  vars:
+    requested_version: ""
+    requested_version_gateway_api: ""
+    # STATE VARIABLE
+    addon_state: "present" # (Override via -e "addon_state=absent")
+
+  roles:
+    - role: traefik_install

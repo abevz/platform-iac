@@ -1,0 +1,10 @@
+---
+# Versions for package installation
+k8s_short_version: "1.37"
+k8s_long_version_debian: "1.37.1-1.1"
+k8s_long_version_redhat: "1.37.1"
+
+# Secondary VM disk (proxmox scsi0) that holds the container image store.
+# The 20 GB root from the template fills up with images; set to "" to keep
+# /var/lib/containerd on the root filesystem.
+k8s_containerd_device: /dev/sda

@@ -1,0 +1,71 @@
+# File managed by Ansible (role nginx_proxy_setup). DO NOT EDIT MANUALLY.
+# Secrets are not here: they are read from /secrets/* through *_FILE variables.
+{% set domain = primary_domain | default("example.com") %}
+{% set portal = (nginx_proxy_authelia_host | default('auth')) ~ '.' ~ domain %}
+theme: auto
+
+server:
+  address: "tcp://0.0.0.0:9091"
+
+log:
+  level: info
+
+totp:
+  issuer: "{{ domain }}"
+
+authentication_backend:
+  # Look the user up again on every check: a removed guest loses access at
+  # once instead of when the session expires.
+  refresh_interval: always
+  password_reset:
+    disable: true
+  file:
+    path: /config/users.yml
+    watch: true
+    password:
+      algorithm: argon2
+
+access_control:
+  default_policy: deny
+  rules:
+    # Guests: password only, and only on the names their groups list. The
+    # authelia-user helper puts a guest into "guests" and "guest-<name>".
+{% for name in nginx_proxy_authelia_guest_names | default([]) %}
+    - domain: "{{ name }}.{{ domain }}"
+      subject: "group:guest-{{ name }}"
+      policy: one_factor
+{% endfor %}
+    - domain: "*.{{ domain }}"
+      subject: "group:guests"
+      policy: deny
+    # Everyone else: password and a second factor.
+    - domain:
+{% for name in nginx_proxy_authelia_names %}
+        - "{{ name }}.{{ domain }}"
+{% endfor %}
+      policy: two_factor
+
+session:
+  cookies:
+    - domain: "{{ domain }}"
+      authelia_url: "https://{{ portal }}"
+      expiration: "{{ nginx_proxy_authelia_session_expiration }}"
+      inactivity: "{{ nginx_proxy_authelia_session_inactivity }}"
+      # No "remember me": a session ends with the browser or the timers above.
+      remember_me: -1
+
+regulation:
+  max_retries: 5
+  find_time: "2m"
+  ban_time: "15m"
+
+storage:
+  local:
+    path: /config/db.sqlite3
+
+# One-time codes for enrolling a second factor are written to this file on the
+# proxy host instead of being mailed; read it over SSH from the trusted network.
+notifier:
+  disable_startup_check: true
+  filesystem:
+    filename: /config/notification.txt

@@ -1,0 +1,50 @@
+---
+# Explicit uninstall retains the previous full-manifest deletion semantics.
+# This includes CRDs and cluster-scoped RBAC; it is never an upgrade rollback.
+- name: Resolve uninstall manifest version
+  ansible.builtin.set_fact:
+    argocd_target_version: "{{ requested_version | default(argocd_version, true) }}"
+
+- name: Require a reviewed uninstall manifest checksum
+  ansible.builtin.assert:
+    that:
+      - argocd_target_version in argocd_releases
+    fail_msg: Select a reviewed manifest version before uninstalling Argo CD.
+
+- name: Remove installation resources from the verified manifest
+  block:
+    - name: Allocate uninstall manifest directory
+      ansible.builtin.tempfile:
+        state: directory
+        prefix: argocd-uninstall-
+      register: argocd_uninstall_directory
+      check_mode: false
+
+    - name: Download verified uninstall manifest
+      ansible.builtin.get_url:
+        url: "{{ argocd_install_url }}"
+        dest: "{{ argocd_uninstall_directory.path }}/install.yaml"
+        checksum: "sha256:{{ argocd_releases[argocd_target_version].manifest_sha256 }}"
+        mode: "0600"
+      check_mode: false
+
+    - name: Remove namespaced and cluster-scoped installation resources
+      kubernetes.core.k8s:
+        src: "{{ argocd_uninstall_directory.path }}/install.yaml"
+        namespace: "{{ argocd_namespace }}"
+        state: absent
+      no_log: true
+
+    - name: Remove Argo CD namespace
+      kubernetes.core.k8s:
+        api_version: v1
+        kind: Namespace
+        name: "{{ argocd_namespace }}"
+        state: absent
+  always:
+    - name: Remove uninstall manifest directory
+      ansible.builtin.file:
+        path: "{{ argocd_uninstall_directory.path }}"
+        state: absent
+      check_mode: false
+      when: argocd_uninstall_directory.path is defined

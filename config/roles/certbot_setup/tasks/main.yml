@@ -1,0 +1,172 @@
+# config/roles/certbot_setup/tasks/main.yml
+# /config/roles/certbot_setup/tasks/main.yml
+---
+- name: Install/Remove dependencies (python venv)
+  ansible.builtin.apt:
+    name: python3-venv
+    state: "{{ addon_state }}"
+  become: yes
+
+- name: Create/Remove Python venv for Certbot
+  ansible.builtin.file:
+    path: "{{ certbot_venv_path }}"
+    state: "{{ 'directory' if addon_state == 'present' else 'absent' }}"
+  become: yes
+
+- name: Install/Remove Certbot and dns-multi plugin in venv
+  ansible.builtin.pip:
+    name:
+      - pip
+      - certbot
+      - certbot-dns-multi
+    virtualenv: "{{ certbot_venv_path }}"
+    virtualenv_command: "python3 -m venv"
+    state: "{{ addon_state }}"
+  become: yes
+
+- name: Create/Remove symlink to certbot
+  ansible.builtin.file:
+    src: "{{ certbot_venv_path }}/bin/certbot"
+    dest: /usr/bin/certbot
+    state: "{{ 'link' if addon_state == 'present' else 'absent' }}"
+  become: yes
+
+- name: Inspect existing certbot renew deploy hook
+  ansible.builtin.stat:
+    path: "{{ certbot_renew_hook_path }}"
+  register: certbot_renew_hook_stat
+  become: true
+  when: addon_state == "present"
+  tags: [vault_cert_sync]
+
+- name: Create certbot renew deploy hook script
+  ansible.builtin.template:
+    src: certbot-renew-hook.sh.j2
+    dest: "{{ certbot_renew_hook_path }}"
+    mode: "0750"
+  become: yes
+  when:
+    - addon_state == "present"
+    - certbot_vault_cert_sync_enabled is not none or not certbot_renew_hook_stat.stat.exists
+  tags: [vault_cert_sync]
+
+- name: Configure optional Vault certificate sync sender
+  ansible.builtin.import_tasks: vault_cert_sync.yml
+  when:
+    - addon_state == "present"
+    - certbot_vault_cert_sync_enabled is not none
+    - certbot_vault_cert_sync_enabled | bool
+  tags: [vault_cert_sync]
+
+- name: Disable optional Vault certificate sync sender
+  ansible.builtin.import_tasks: vault_cert_sync_disabled.yml
+  when:
+    - addon_state == "present"
+    - certbot_vault_cert_sync_enabled is not none
+    - not (certbot_vault_cert_sync_enabled | bool)
+  tags: [vault_cert_sync]
+
+- name: Remove certbot renew deploy hook script
+  ansible.builtin.file:
+    path: "{{ certbot_renew_hook_path }}"
+    state: absent
+  become: yes
+  when: addon_state == "absent"
+
+- name: Create/Remove /etc/letsencrypt directory
+  ansible.builtin.file:
+    path: /etc/letsencrypt
+    state: "{{ 'directory' if addon_state == 'present' else 'absent' }}"
+    mode: "0700"
+  become: yes
+
+- name: Ensure Cloudflare token is available (from Sops)
+  ansible.builtin.fail:
+    msg: "Variable 'cloudflare.api_token' not found in Sops (extra_vars.sops.yml)"
+  when: (cloudflare.api_token is not defined or cloudflare.api_token | length == 0) and addon_state == "present"
+
+- name: Create dns-multi.ini credentials file
+  ansible.builtin.template:
+    src: dns-multi.ini.j2
+    dest: "{{ certbot_credentials_path }}"
+    mode: "0600"
+  become: yes
+  when: addon_state == "present"
+
+- name: Remove dns-multi.ini credentials file
+  ansible.builtin.file:
+    path: "{{ certbot_credentials_path }}"
+    state: absent
+  become: yes
+  when: addon_state == "absent"
+
+- name: Request Let's Encrypt certificates (idempotent)
+  ansible.builtin.command:
+    cmd: >
+      certbot certonly
+      -a dns-multi
+      --dns-multi-credentials={{ certbot_credentials_path }}
+      -d "{{ item.domains | join(',') }}"
+      --agree-tos
+      --email {{ certbot_email }}
+      --non-interactive
+      --cert-name {{ item.name }}
+    creates: "/etc/letsencrypt/live/{{ item.name }}/fullchain.pem"
+  become: yes
+  loop: "{{ (certbot_domains_to_create | default([])) + certbot_additional_domains_to_create }}"
+  when:
+    - addon_state == "present"
+    - ((certbot_domains_to_create | default([])) + certbot_additional_domains_to_create) | length > 0
+    - certbot_email is defined
+    - certbot_email | length > 0
+
+- name: Create certbot renew systemd service unit
+  ansible.builtin.template:
+    src: certbot-renew.service.j2
+    dest: "/etc/systemd/system/{{ certbot_renew_systemd_service }}"
+    mode: "0644"
+  become: yes
+  when: addon_state == "present"
+
+- name: Create certbot renew systemd timer unit
+  ansible.builtin.template:
+    src: certbot-renew.timer.j2
+    dest: "/etc/systemd/system/{{ certbot_renew_systemd_timer }}"
+    mode: "0644"
+  become: yes
+  when: addon_state == "present"
+
+- name: Stop and disable certbot renew timer/service
+  ansible.builtin.systemd:
+    name: "{{ item }}"
+    enabled: false
+    state: stopped
+  become: yes
+  loop:
+    - "{{ certbot_renew_systemd_timer }}"
+    - "{{ certbot_renew_systemd_service }}"
+  failed_when: false
+  when: addon_state == "absent"
+
+- name: Remove certbot renew systemd units
+  ansible.builtin.file:
+    path: "/etc/systemd/system/{{ item }}"
+    state: absent
+  become: yes
+  loop:
+    - "{{ certbot_renew_systemd_service }}"
+    - "{{ certbot_renew_systemd_timer }}"
+  when: addon_state == "absent"
+
+- name: Reload systemd daemon
+  ansible.builtin.systemd:
+    daemon_reload: true
+  become: yes
+
+- name: Enable and start certbot renew timer
+  ansible.builtin.systemd:
+    name: "{{ certbot_renew_systemd_timer }}"
+    enabled: true
+    state: started
+  become: yes
+  when: addon_state == "present"

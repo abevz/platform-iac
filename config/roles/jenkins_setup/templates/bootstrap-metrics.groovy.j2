@@ -1,0 +1,9 @@
+// Keep plugin-specific imports separate from core security and location setup.
+import org.jenkinsci.plugins.prometheus.config.PrometheusConfiguration
+
+def prometheus = PrometheusConfiguration.get()
+prometheus.setDefaultNamespace("{{ jenkins_metrics_namespace }}")
+prometheus.setPath("{{ jenkins_metrics_endpoint | regex_replace('^/', '') | regex_replace('/$', '') }}")
+prometheus.setUseAuthenticatedEndpoint(false)
+prometheus.setCollectDiskUsage(false)
+prometheus.save()

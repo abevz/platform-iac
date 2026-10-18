@@ -1,0 +1,12 @@
+---
+- name: Configure monitoring stack
+  hosts: monitoring_servers
+  become: true
+  vars:
+    addon_state: present
+    monitoring_prometheus_storage_enabled: true
+  roles:
+    - role: set_timezone
+    - role: prometheus_storage
+      when: monitoring_prometheus_storage_enabled | bool
+    - role: monitoring_stack

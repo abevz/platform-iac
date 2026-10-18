@@ -1,0 +1,205 @@
+#!/bin/bash
+set -euo pipefail
+
+readonly PROTOCOL="vault-cert-sync-v1"
+readonly EXPECTED_HOSTNAME={{ vault_cert_sync_receiver_expected_hostname | quote }}
+readonly TLS_CERT={{ vault_cert_sync_receiver_tls_cert_file | quote }}
+readonly TLS_KEY={{ vault_cert_sync_receiver_tls_key_file | quote }}
+readonly TLS_DIR={{ vault_cert_sync_receiver_tls_cert_file | dirname | quote }}
+readonly TLS_OWNER={{ vault_cert_sync_receiver_tls_owner | quote }}
+readonly TLS_GROUP={{ vault_cert_sync_receiver_tls_group | quote }}
+readonly VAULT_SERVICE={{ vault_cert_sync_receiver_vault_service | quote }}
+readonly VAULT_PORT={{ vault_cert_sync_receiver_vault_port | quote }}
+readonly MIN_VALIDITY_SECONDS={{ vault_cert_sync_receiver_min_validity_seconds | quote }}
+readonly TRUST_BUNDLE={{ vault_cert_sync_receiver_trust_bundle | quote }}
+readonly LOCK_FILE={{ vault_cert_sync_receiver_lock_file | quote }}
+readonly MAX_CERT_BASE64_BYTES=262144
+readonly MAX_KEY_BASE64_BYTES=262144
+
+umask 077
+
+die() {
+  printf '%s\n' "vault-cert-sync: $*" >&2
+  exit 1
+}
+
+certificate_fingerprint() {
+  openssl x509 -in "$1" -noout -fingerprint -sha256 | cut -d= -f2
+}
+
+certificate_public_key_digest() {
+  openssl x509 -in "$1" -pubkey -noout 2>/dev/null |
+    openssl pkey -pubin -outform DER 2>/dev/null |
+    sha256sum | awk '{print $1}'
+}
+
+private_key_public_key_digest() {
+  openssl pkey -in "$1" -pubout 2>/dev/null |
+    openssl pkey -pubin -outform DER 2>/dev/null |
+    sha256sum | awk '{print $1}'
+}
+
+split_fullchain() {
+  local input="$1"
+  local leaf="$2"
+  local chain="$3"
+
+  awk -v leaf="$leaf" -v chain="$chain" '
+    /^-----BEGIN CERTIFICATE-----$/ {
+      if (inside) { bad = 1; exit 1 }
+      inside = 1
+      count++
+      target = (count == 1 ? leaf : chain)
+    }
+    {
+      if (inside) {
+        print > target
+      } else if ($0 != "") {
+        bad = 1
+        exit 1
+      }
+    }
+    /^-----END CERTIFICATE-----$/ {
+      if (!inside) { bad = 1; exit 1 }
+      inside = 0
+    }
+    END {
+      if (bad || inside || count < 2 || count > 5) {
+        exit 1
+      }
+    }
+  ' "$input"
+}
+
+validate_certificate_pair() {
+  local cert="$1"
+  local key="$2"
+  local validation_dir="$3"
+  local leaf="${validation_dir}/leaf.pem"
+  local chain="${validation_dir}/chain.pem"
+  local cert_digest
+  local key_digest
+  local not_before
+  local not_before_epoch
+  local now_epoch
+
+  mkdir -p "$validation_dir"
+  [[ -f "$cert" && ! -L "$cert" && -r "$cert" ]] || die "certificate is not a readable regular file"
+  [[ -f "$key" && ! -L "$key" && -r "$key" ]] || die "private key is not a readable regular file"
+  [[ -r "$TRUST_BUNDLE" ]] || die "system CA bundle is unavailable"
+
+  openssl x509 -in "$cert" -noout >/dev/null 2>&1 || die "certificate is malformed"
+  openssl pkey -in "$key" -noout >/dev/null 2>&1 || die "private key is malformed"
+  split_fullchain "$cert" "$leaf" "$chain" || die "certificate must be a bounded PEM full chain"
+  openssl verify -purpose sslserver -CAfile "$TRUST_BUNDLE" -untrusted "$chain" "$leaf" >/dev/null || die "certificate chain is not trusted"
+  openssl x509 -in "$cert" -noout -checkhost "$EXPECTED_HOSTNAME" >/dev/null || die "certificate does not match the expected hostname"
+  openssl x509 -in "$cert" -noout -checkend "$MIN_VALIDITY_SECONDS" >/dev/null || die "certificate expires too soon"
+
+  not_before="$(openssl x509 -in "$cert" -noout -startdate | cut -d= -f2-)"
+  not_before_epoch="$(LC_ALL=C date --date="$not_before" +%s)" || die "certificate has an invalid not-before value"
+  now_epoch="$(date +%s)"
+  (( not_before_epoch <= now_epoch )) || die "certificate is not valid yet"
+
+  cert_digest="$(certificate_public_key_digest "$cert")"
+  key_digest="$(private_key_public_key_digest "$key")"
+  [[ -n "$cert_digest" && "$cert_digest" == "$key_digest" ]] || die "certificate and private key do not match"
+}
+
+check_health() {
+  curl --fail --silent --show-error --noproxy '*' --connect-timeout 5 --max-time 10 \
+    --cacert "$TRUST_BUNDLE" \
+    --resolve "${EXPECTED_HOSTNAME}:${VAULT_PORT}:127.0.0.1" \
+    "https://${EXPECTED_HOSTNAME}:${VAULT_PORT}/v1/sys/health" >/dev/null
+}
+
+check_listener_fingerprint() {
+  local expected_fingerprint="$1"
+  local served_fingerprint
+
+  served_fingerprint="$(timeout 10 openssl s_client \
+    -connect "127.0.0.1:${VAULT_PORT}" \
+    -servername "$EXPECTED_HOSTNAME" \
+    -verify_return_error \
+    -verify_hostname "$EXPECTED_HOSTNAME" \
+    -CAfile "$TRUST_BUNDLE" \
+    -showcerts < /dev/null 2>/dev/null |
+    openssl x509 -noout -fingerprint -sha256 2>/dev/null | cut -d= -f2)" || return 1
+
+  [[ "$served_fingerprint" == "$expected_fingerprint" ]]
+}
+
+reload_vault() {
+  systemctl kill --kill-who=main --signal=HUP "$VAULT_SERVICE"
+  systemctl is-active --quiet "$VAULT_SERVICE"
+}
+
+[[ "$#" -eq 1 && "$1" == "$PROTOCOL" ]] || die "rejected command"
+[[ "$EUID" -eq 0 ]] || die "receiver must run as root"
+[[ -d "$TLS_DIR" && ! -L "$TLS_DIR" ]] || die "Vault TLS directory is unavailable"
+[[ -f "$TLS_CERT" && ! -L "$TLS_CERT" ]] || die "current Vault certificate is unavailable"
+[[ -f "$TLS_KEY" && ! -L "$TLS_KEY" ]] || die "current Vault private key is unavailable"
+
+exec 9>"$LOCK_FILE"
+flock -n 9 || die "another certificate sync is in progress"
+
+work_dir="$(mktemp -d "${TLS_DIR}/.vault-cert-sync.XXXXXX")"
+rollback_required=0
+previous_fingerprint=""
+
+rollback() {
+  set +e
+  if [[ "$rollback_required" -eq 1 ]]; then
+    install -o "$TLS_OWNER" -g "$TLS_GROUP" -m 0640 "$work_dir/backup/fullchain.pem" "$work_dir/restore-fullchain.pem"
+    install -o "$TLS_OWNER" -g "$TLS_GROUP" -m 0640 "$work_dir/backup/privkey.pem" "$work_dir/restore-privkey.pem"
+    mv -f -- "$work_dir/restore-fullchain.pem" "$TLS_CERT"
+    mv -f -- "$work_dir/restore-privkey.pem" "$TLS_KEY"
+    reload_vault
+    check_listener_fingerprint "$previous_fingerprint"
+    check_health
+  fi
+}
+
+cleanup() {
+  rm -rf -- "$work_dir"
+}
+
+trap 'status=$?; if (( status != 0 )); then rollback || printf "%s\\n" "vault-cert-sync: rollback verification failed" >&2; fi; cleanup; exit "$status"' EXIT
+
+validate_certificate_pair "$TLS_CERT" "$TLS_KEY" "$work_dir/current-validation"
+previous_fingerprint="$(certificate_fingerprint "$TLS_CERT")"
+check_listener_fingerprint "$previous_fingerprint" || die "current Vault listener does not serve its TLS certificate"
+check_health || die "Vault is not healthy and unsealed before certificate replacement"
+
+IFS= read -r protocol_line || die "missing protocol"
+IFS= read -r certificate_base64 || die "missing certificate payload"
+IFS= read -r private_key_base64 || die "missing private-key payload"
+if IFS= read -r extra_line; then
+  die "unexpected extra payload"
+fi
+
+[[ "$protocol_line" == "$PROTOCOL" ]] || die "unexpected protocol"
+{% raw %}[[ "${#certificate_base64}" -le "$MAX_CERT_BASE64_BYTES" ]] || die "certificate payload is too large"{% endraw %}
+{% raw %}[[ "${#private_key_base64}" -le "$MAX_KEY_BASE64_BYTES" ]] || die "private-key payload is too large"{% endraw %}
+[[ "$certificate_base64" =~ ^[A-Za-z0-9+/]*={0,2}$ ]] || die "certificate payload is not base64"
+[[ "$private_key_base64" =~ ^[A-Za-z0-9+/]*={0,2}$ ]] || die "private-key payload is not base64"
+
+printf '%s' "$certificate_base64" | base64 --decode > "$work_dir/incoming-fullchain.pem" || die "certificate payload could not be decoded"
+printf '%s' "$private_key_base64" | base64 --decode > "$work_dir/incoming-privkey.pem" || die "private-key payload could not be decoded"
+[[ -f "$work_dir/incoming-fullchain.pem" && ! -L "$work_dir/incoming-fullchain.pem" ]] || die "certificate payload is not a regular file"
+[[ -f "$work_dir/incoming-privkey.pem" && ! -L "$work_dir/incoming-privkey.pem" ]] || die "private-key payload is not a regular file"
+validate_certificate_pair "$work_dir/incoming-fullchain.pem" "$work_dir/incoming-privkey.pem" "$work_dir/incoming-validation"
+incoming_fingerprint="$(certificate_fingerprint "$work_dir/incoming-fullchain.pem")"
+
+mkdir -p "$work_dir/backup"
+cp --preserve=mode,ownership -- "$TLS_CERT" "$work_dir/backup/fullchain.pem"
+cp --preserve=mode,ownership -- "$TLS_KEY" "$work_dir/backup/privkey.pem"
+install -o "$TLS_OWNER" -g "$TLS_GROUP" -m 0640 "$work_dir/incoming-fullchain.pem" "$work_dir/next-fullchain.pem"
+install -o "$TLS_OWNER" -g "$TLS_GROUP" -m 0640 "$work_dir/incoming-privkey.pem" "$work_dir/next-privkey.pem"
+
+rollback_required=1
+mv -f -- "$work_dir/next-fullchain.pem" "$TLS_CERT"
+mv -f -- "$work_dir/next-privkey.pem" "$TLS_KEY"
+reload_vault || die "Vault did not accept SIGHUP"
+check_listener_fingerprint "$incoming_fingerprint" || die "Vault did not reload the new TLS certificate"
+check_health || die "Vault is not healthy and unsealed after certificate replacement"
+rollback_required=0

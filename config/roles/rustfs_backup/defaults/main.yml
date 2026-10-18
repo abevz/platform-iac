@@ -1,0 +1,8 @@
+---
+rustfs_backup_rclone_enabled: "{{ rustfs_backup.rclone.enabled | default(false) }}"
+rustfs_backup_rclone_target: "{{ rustfs_backup.rclone.target | default('rustfsgdrivecrypt:') }}"
+rustfs_backup_rclone_source: "{{ rustfs_backup.rclone.source | default('rustfs-src:') }}"
+rustfs_backup_rclone_config: "{{ rustfs_backup.rclone.config | default('') }}"
+rustfs_backup_rclone_config_file: /etc/rclone/rustfs-backup.conf
+rustfs_backup_on_calendar: "03:00"
+rustfs_backup_script: /usr/local/sbin/rustfs-backup-gdrive.sh

@@ -1,0 +1,16 @@
+---
+- name: (Debug) Verify Ansible Connection to lab-cluster
+  hosts: k8s_master:k8s_worker # (Group from Tofu outputs.tf)
+  become: true
+
+  tasks:
+    - name: Ping all hosts
+      ansible.builtin.ping:
+
+    - name: Verify user and sudo access (whoami)
+      ansible.builtin.command: whoami
+      register: whoami_output
+
+    - name: Print whoami output
+      ansible.builtin.debug:
+        msg: "I am running as '{{ whoami_output.stdout }}' (via become:true)"

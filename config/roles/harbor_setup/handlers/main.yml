@@ -1,0 +1,6 @@
+---
+# /config/roles/harbor_setup/handlers/main.yml
+- name: Reload systemd
+  ansible.builtin.systemd:
+    daemon_reload: yes
+  become: yes

@@ -1,0 +1,11 @@
+[Unit]
+Description=Twice-daily Certbot renewal check
+
+[Timer]
+OnCalendar={{ certbot_renew_on_calendar }}
+RandomizedDelaySec={{ certbot_renew_randomized_delay_sec }}
+Persistent=true
+Unit={{ certbot_renew_systemd_service }}
+
+[Install]
+WantedBy=timers.target

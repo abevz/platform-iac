@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+if command -v docker >/dev/null 2>&1; then
+  if docker ps --format '{{"{{"}}.Names{{"}}"}}' | grep -qx 'reverseproxy'; then
+    docker exec reverseproxy nginx -s reload
+  fi
+fi
+
+{% if certbot_vault_cert_sync_enabled is not none and certbot_vault_cert_sync_enabled | bool %}
+# Certbot provides RENEWED_LINEAGE only after a successful renewal.  Compare
+# it byte-for-byte to the configured lineage; never form paths from that env.
+if [[ "${RENEWED_LINEAGE:-}" == "/etc/letsencrypt/live/{{ certbot_vault_cert_sync_lineage }}" ]]; then
+  "{{ certbot_vault_cert_sync_helper_path }}"
+fi
+{% endif %}

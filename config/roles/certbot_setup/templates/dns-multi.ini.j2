@@ -1,0 +1,8 @@
+# /config/roles/certbot_setup/templates/dns-multi.ini.j2
+# File managed by Ansible.
+# Secrets are pulled from sops: config/secrets/ansible/extra_vars.sops.yml
+
+dns_multi_provider = cloudflare
+
+# USE KEY FROM YOUR EXAMPLE:
+CLOUDFLARE_DNS_API_TOKEN = {{ cloudflare.api_token }}

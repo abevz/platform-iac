@@ -1,0 +1,51 @@
+---
+vault_package_name: vault
+vault_hashicorp_apt_key_url: https://apt.releases.hashicorp.com/gpg
+vault_hashicorp_apt_keyring: /usr/share/keyrings/hashicorp-archive-keyring.gpg
+vault_hashicorp_apt_repo: "deb [signed-by={{ vault_hashicorp_apt_keyring }}] https://apt.releases.hashicorp.com {{ ansible_distribution_release }} main"
+
+vault_config_dir: /etc/vault.d
+vault_data_dir: /opt/vault/data
+vault_backup_dir: /var/backups/vault
+
+vault_api_port: 8200
+vault_cluster_port: 8201
+vault_listener_address: "0.0.0.0"
+vault_tls_disable: false
+vault_tls_dir: "{{ vault_config_dir }}/tls"
+vault_tls_cert_file: "{{ vault_tls_dir }}/fullchain.pem"
+vault_tls_key_file: "{{ vault_tls_dir }}/privkey.pem"
+vault_api_addr: "https://{{ ansible_host | default(ansible_default_ipv4.address) }}:{{ vault_api_port }}"
+vault_cluster_addr: "https://{{ ansible_host | default(ansible_default_ipv4.address) }}:{{ vault_cluster_port }}"
+
+vault_snapshot_enabled: true
+vault_snapshot_on_calendar: "*-*-* 00/6:00:00"
+vault_snapshot_role_id_file: "{{ vault_config_dir }}/snapshot-role-id"
+vault_snapshot_secret_id_file: "{{ vault_config_dir }}/snapshot-secret-id"
+vault_snapshot_local_retention_days: 14
+
+vault_backup_s3_enabled: "{{ (((vault | default({})).get('backup', {})).get('s3', {})).get('enabled', false) }}"
+vault_backup_s3_endpoint: "{{ (((vault | default({})).get('backup', {})).get('s3', {})).get('endpoint', '') }}"
+vault_backup_s3_bucket: "{{ (((vault | default({})).get('backup', {})).get('s3', {})).get('bucket', 'vault-backups') }}"
+vault_backup_s3_prefix: "{{ (((vault | default({})).get('backup', {})).get('s3', {})).get('prefix', 'raft') }}"
+vault_backup_s3_create_bucket: "{{ (((vault | default({})).get('backup', {})).get('s3', {})).get('create_bucket', false) }}"
+vault_backup_s3_access_key: "{{ (((vault | default({})).get('backup', {})).get('s3', {})).get('access_key', '') }}"
+vault_backup_s3_secret_key: "{{ (((vault | default({})).get('backup', {})).get('s3', {})).get('secret_key', '') }}"
+
+vault_backup_rclone_enabled: "{{ (((vault | default({})).get('backup', {})).get('rclone', {})).get('enabled', false) }}"
+vault_backup_rclone_target: "{{ (((vault | default({})).get('backup', {})).get('rclone', {})).get('target', '') }}"
+vault_backup_rclone_config_file: "{{ vault_config_dir }}/rclone.conf"
+vault_backup_rclone_config: "{{ (((vault | default({})).get('backup', {})).get('rclone', {})).get('config', '') }}"
+
+vault_awscli_enabled: false
+vault_awscli_install_dir: /usr/local/aws-cli
+vault_awscli_bin_dir: /usr/local/bin
+
+# The snapshot client stays on loopback while validating the public certificate
+# against the Vault hostname served by the native TLS listener.
+vault_snapshot_vault_addr: "https://127.0.0.1:{{ vault_api_port }}"
+vault_snapshot_tls_server_name: "vault.{{ primary_domain }}"
+
+# Firewall (ufw) — restrict Vault API port to known sources only
+vault_firewall_enabled: "{{ (((vault | default({})).get('firewall', {})).get('enabled', false)) }}"
+vault_firewall_allowed_api_sources: "{{ (((vault | default({})).get('firewall', {})).get('allowed_api_sources', [])) }}"  # e.g. ["192.0.2.105"]

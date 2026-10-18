@@ -1,0 +1,5 @@
+default:
+  user: {{ monitoring_proxmox_token_id_resolved }}
+  token_name: {{ monitoring_proxmox_token_name_resolved }}
+  token_value: {{ monitoring_proxmox_token_secret_resolved }}
+  verify_ssl: {{ monitoring_proxmox_verify_ssl | ternary('true', 'false') }}

@@ -1,0 +1,12 @@
+---
+falco_helm_release_name: falco
+falco_namespace: falco
+falco_helm_repo_url: https://falcosecurity.github.io/charts
+falco_helm_chart_name: falco
+falco_chart_version: "9.2.0"
+# Pin the forwarder independently of the Falco engine and chart.
+falco_sidekick_image_tag: "2.35.0@sha256:038c126d867e4d01589352ff483448013b680d7e6a77326bbf7511f19c04ea96"
+# Internal monitoring VM; override for another environment.
+falco_alertmanager_url: "http://192.0.2.108:9093"
+falco_alertmanager_minimum_priority: warning
+falco_alertmanager_cluster: dev-lab-cluster

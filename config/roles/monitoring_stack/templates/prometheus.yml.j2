@@ -1,0 +1,254 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 30s
+
+rule_files:
+  - /etc/prometheus/alerts.yml
+
+# Without this block rules are evaluated but no notification ever leaves Prometheus
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets: ["alertmanager:9093"]
+
+scrape_configs:
+  - job_name: prometheus
+    static_configs:
+      - targets: ["localhost:9090"]
+
+  - job_name: node-exporter
+    static_configs:
+{% for target in monitoring_node_exporter_targets_resolved %}
+      - targets: ["{{ target }}"]
+{% endfor %}
+
+{% if monitoring_proxmox_cadvisor_port_resolved | int > 0 %}
+  # Per-cgroup view of the hypervisor: guests, host services, Docker containers.
+  - job_name: proxmox-cadvisor
+    scrape_interval: 30s
+    static_configs:
+      - targets: ["{{ monitoring_proxmox_target_resolved }}:{{ monitoring_proxmox_cadvisor_port_resolved }}"]
+    metric_relabel_configs:
+      - source_labels: [__name__]
+        regex: container_cpu_usage_seconds_total|container_memory_working_set_bytes|container_oom_events_total|container_last_seen|cadvisor_version_info
+        action: keep
+      # Nested scopes below a service or guest repeat their parent's usage.
+      - source_labels: [id]
+        regex: /|/[^/]+(/[^/]+)?
+        action: keep
+
+{% endif %}
+  - job_name: pve-exporter
+    metrics_path: /pve
+    params:
+      module: ["default"]
+      cluster: ["1"]
+      node: ["1"]
+    static_configs:
+      - targets: ["{{ monitoring_proxmox_target_resolved }}"]
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: __param_target
+      - source_labels: [__param_target]
+        target_label: instance
+      - target_label: __address__
+        replacement: pve-exporter:9221
+
+{% for cluster in monitoring_k8s_clusters | default([]) %}
+  - job_name: {{ cluster.name }}-nodes
+    static_configs:
+      - targets:
+{% for ip in cluster.node_ips %}
+          - "{{ ip }}:{{ monitoring_k8s_node_exporter_port | default(9100) }}"
+{% endfor %}
+        labels:
+          cluster: {{ cluster.name }}
+
+  - job_name: {{ cluster.name }}-kube-state-metrics
+    static_configs:
+      - targets:
+          - "{{ cluster.node_ips[0] }}:{{ monitoring_k8s_kube_state_metrics_nodeport | default(30080) }}"
+        labels:
+          cluster: {{ cluster.name }}
+
+{% if cluster.vault_k8s_role is defined and cluster.api_server is defined %}
+{% if monitoring_k8s_security_alerts_enabled | default(false) %}
+  # Dedicated service proxy target, using the existing Vault-managed K8s token.
+  - job_name: {{ cluster.name }}-trivy
+    scheme: https
+    metrics_path: /api/v1/namespaces/{{ monitoring_trivy_namespace }}/services/{{ monitoring_trivy_service }}:metrics/proxy/metrics
+    bearer_token_file: /etc/prometheus/k8s-tokens/{{ cluster.name }}.token
+    tls_config:
+      insecure_skip_verify: true
+    static_configs:
+      - targets: ["{{ cluster.api_server }}:6443"]
+        labels:
+          cluster: {{ cluster.name }}
+
+  - job_name: {{ cluster.name }}-trivy-reports
+    scheme: https
+    metrics_path: /api/v1/namespaces/{{ monitoring_trivy_namespace }}/services/trivy-report-metrics:metrics/proxy/metrics
+    bearer_token_file: /etc/prometheus/k8s-tokens/{{ cluster.name }}.token
+    tls_config:
+      insecure_skip_verify: true
+    static_configs:
+      - targets: ["{{ cluster.api_server }}:6443"]
+        labels:
+          cluster: {{ cluster.name }}
+
+{% endif %}
+  - job_name: {{ cluster.name }}-kubelet
+    kubernetes_sd_configs:
+      - role: node
+        api_server: https://{{ cluster.api_server }}:6443
+        bearer_token_file: /etc/prometheus/k8s-tokens/{{ cluster.name }}.token
+        tls_config:
+          insecure_skip_verify: true
+    scheme: https
+    tls_config:
+      insecure_skip_verify: true
+    bearer_token_file: /etc/prometheus/k8s-tokens/{{ cluster.name }}.token
+    relabel_configs:
+      - source_labels: [__meta_kubernetes_node_name]
+        action: replace
+        regex: (.+)
+        replacement: /api/v1/nodes/$1/proxy/metrics
+        target_label: __metrics_path__
+      - target_label: __address__
+        replacement: {{ cluster.api_server }}:6443
+      - target_label: cluster
+        replacement: {{ cluster.name }}
+
+  - job_name: {{ cluster.name }}-cadvisor
+    kubernetes_sd_configs:
+      - role: node
+        api_server: https://{{ cluster.api_server }}:6443
+        bearer_token_file: /etc/prometheus/k8s-tokens/{{ cluster.name }}.token
+        tls_config:
+          insecure_skip_verify: true
+    scheme: https
+    tls_config:
+      insecure_skip_verify: true
+    bearer_token_file: /etc/prometheus/k8s-tokens/{{ cluster.name }}.token
+    relabel_configs:
+      - source_labels: [__meta_kubernetes_node_name]
+        action: replace
+        regex: (.+)
+        replacement: /api/v1/nodes/$1/proxy/metrics/cadvisor
+        target_label: __metrics_path__
+      - target_label: __address__
+        replacement: {{ cluster.api_server }}:6443
+      - target_label: cluster
+        replacement: {{ cluster.name }}
+
+  - job_name: {{ cluster.name }}-k8s-pods
+    kubernetes_sd_configs:
+      - role: pod
+        api_server: https://{{ cluster.api_server }}:6443
+        bearer_token_file: /etc/prometheus/k8s-tokens/{{ cluster.name }}.token
+        tls_config:
+          insecure_skip_verify: true
+    scheme: https
+    tls_config:
+      insecure_skip_verify: true
+    bearer_token_file: /etc/prometheus/k8s-tokens/{{ cluster.name }}.token
+    relabel_configs:
+      - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_scrape]
+        action: keep
+        regex: "true"
+      - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_port]
+        action: replace
+        target_label: __meta_kubernetes_pod_port
+        regex: (.+)
+      - source_labels: [__meta_kubernetes_namespace, __meta_kubernetes_pod_name, __meta_kubernetes_pod_port]
+        action: replace
+        regex: (.+);(.+);(.+)
+        replacement: /api/v1/namespaces/$1/pods/$2:$3/proxy/metrics
+        target_label: __metrics_path__
+      - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_path, __meta_kubernetes_namespace, __meta_kubernetes_pod_name, __meta_kubernetes_pod_port]
+        action: replace
+        regex: (.+);(.+);(.+);(.+)
+        replacement: /api/v1/namespaces/$2/pods/$3:$4/proxy$1
+        target_label: __metrics_path__
+      - target_label: __address__
+        replacement: {{ cluster.api_server }}:6443
+      - source_labels: [__meta_kubernetes_namespace]
+        target_label: namespace
+      - source_labels: [__meta_kubernetes_pod_name]
+        target_label: pod
+      - target_label: cluster
+        replacement: {{ cluster.name }}
+
+  - job_name: {{ cluster.name }}-k8s-endpoints
+    kubernetes_sd_configs:
+      - role: endpoints
+        api_server: https://{{ cluster.api_server }}:6443
+        bearer_token_file: /etc/prometheus/k8s-tokens/{{ cluster.name }}.token
+        tls_config:
+          insecure_skip_verify: true
+    scheme: https
+    tls_config:
+      insecure_skip_verify: true
+    bearer_token_file: /etc/prometheus/k8s-tokens/{{ cluster.name }}.token
+    relabel_configs:
+      - source_labels: [__meta_kubernetes_service_annotation_prometheus_io_scrape]
+        action: keep
+        regex: "true"
+      - source_labels: [__meta_kubernetes_service_annotation_prometheus_io_port]
+        action: replace
+        target_label: __meta_kubernetes_endpoint_port
+        regex: (.+)
+      - source_labels: [__meta_kubernetes_namespace, __meta_kubernetes_pod_name, __meta_kubernetes_endpoint_port]
+        action: replace
+        regex: (.+);(.+);(.+)
+        replacement: /api/v1/namespaces/$1/pods/$2:$3/proxy/metrics
+        target_label: __metrics_path__
+      - source_labels: [__meta_kubernetes_service_annotation_prometheus_io_path, __meta_kubernetes_namespace, __meta_kubernetes_pod_name, __meta_kubernetes_endpoint_port]
+        action: replace
+        regex: (.+);(.+);(.+);(.+)
+        replacement: /api/v1/namespaces/$2/pods/$3:$4/proxy$1
+        target_label: __metrics_path__
+      - target_label: __address__
+        replacement: {{ cluster.api_server }}:6443
+      - source_labels: [__meta_kubernetes_namespace]
+        target_label: namespace
+      - source_labels: [__meta_kubernetes_service_name]
+        target_label: service
+      - target_label: cluster
+        replacement: {{ cluster.name }}
+{% if monitoring_k8s_drop_metrics_regex | default('') | length > 0 %}
+    # High-cardinality control-plane histograms: buckets dropped, _sum/_count kept
+    metric_relabel_configs:
+      - source_labels: [__name__]
+        regex: "{{ monitoring_k8s_drop_metrics_regex }}"
+        action: drop
+{% endif %}
+{% endif %}
+
+{% endfor %}
+  - job_name: alertmanager
+    static_configs:
+      - targets: ["alertmanager:9093"]
+
+{% if monitoring_jenkins_metrics_target_resolved | default('') | length > 0 %}
+  - job_name: jenkins
+    metrics_path: "{{ monitoring_jenkins_metrics_path_resolved }}"
+    static_configs:
+      - targets: ["{{ monitoring_jenkins_metrics_target_resolved }}"]
+{% endif %}
+
+  - job_name: blackbox-ssl
+    metrics_path: /probe
+    params:
+      module: ["https_2xx"]
+    static_configs:
+{% for target in monitoring_blackbox_targets_effective | default(monitoring_blackbox_targets) %}
+      - targets: ["{{ target }}"]
+{% endfor %}
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: __param_target
+      - source_labels: [__param_target]
+        target_label: instance
+      - target_label: __address__
+        replacement: blackbox-exporter:9115

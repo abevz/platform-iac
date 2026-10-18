@@ -1,0 +1,41 @@
+[
+  {
+    "binary": "tofu",
+    "version": "v1.13.1",
+    "url": "https://github.com/opentofu/opentofu/releases/download/v1.13.1/tofu_1.13.1_linux_amd64.zip",
+    "sha256": "8ccbc6f8ee21d2827715f3c6e08a9b3e0209b1e62057c05067ef117e047c1a80",
+    "format": "zip",
+    "member": "tofu"
+  },
+  {
+    "binary": "tflint",
+    "version": "v0.59.1",
+    "url": "https://github.com/terraform-linters/tflint/releases/download/v0.59.1/tflint_linux_amd64.zip",
+    "sha256": "6108d84282292f11d793dc8038ce08fbc629dcd25324d6f13c63d8100b52e01f",
+    "format": "zip",
+    "member": "tflint"
+  },
+  {
+    "binary": "tfsec",
+    "version": "v1.28.14",
+    "url": "https://github.com/aquasecurity/tfsec/releases/download/v1.28.14/tfsec-linux-amd64",
+    "sha256": "a32d0799bbefababaa4fcd814da9f4d251cd932789590b99d1d5fcb89ace6f68",
+    "format": "binary"
+  },
+  {
+    "binary": "golangci-lint",
+    "version": "v2.14.0",
+    "url": "https://github.com/golangci/golangci-lint/releases/download/v2.14.0/golangci-lint-2.14.0-linux-amd64.tar.gz",
+    "sha256": "ab90aeb7b066f92a33415b638a50fe5344bbb75a0d32ad30cc248d88f81032ab",
+    "format": "tar.gz",
+    "member": "golangci-lint-2.14.0-linux-amd64/golangci-lint"
+  },
+  {
+    "binary": "promtool",
+    "version": "v2.55.0",
+    "url": "https://github.com/prometheus/prometheus/releases/download/v2.55.0/prometheus-2.55.0.linux-amd64.tar.gz",
+    "sha256": "7a6b6d5ea003e8d59def294392c64e28338da627bf760cf268e788d6a8832a23",
+    "format": "tar.gz",
+    "member": "prometheus-2.55.0.linux-amd64/promtool"
+  }
+]

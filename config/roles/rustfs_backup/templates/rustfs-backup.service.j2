@@ -1,0 +1,11 @@
+[Unit]
+Description=RustFS backup sync to encrypted GDrive
+After=network-online.target
+
+[Service]
+Type=oneshot
+User=root
+ExecStart={{ rustfs_backup_script }}
+Nice=10
+IOSchedulingClass=best-effort
+NoNewPrivileges=yes

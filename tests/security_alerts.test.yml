@@ -1,0 +1,647 @@
+rule_files:
+- security-alerts.rules.yml
+evaluation_interval: 30s
+tests:
+- name: growth deduplicates images, waits 15m and holds recovery for 30m
+  interval: 1m
+  input_series:
+  - series: trivy_image_vulnerabilities{cluster="lab",namespace="one",image_repository="a",image_digest="sha256:a",severity="Critical"}
+    values: 2+0x1439 3+0x1441
+  - series: trivy_image_vulnerabilities{cluster="lab",namespace="two",image_repository="a",image_digest="sha256:a",severity="Critical"}
+    values: 2+0x1439 3+0x1441
+  promql_expr_test:
+  - expr: trivy:critical_findings:sum
+    eval_time: 24h
+    exp_samples:
+    - labels: trivy:critical_findings:sum{cluster="lab"}
+      value: 3
+  - expr: ALERTS{alertname="TrivyCriticalGrowth",alertstate="firing"}
+    eval_time: 23h
+    exp_samples: []
+  - expr: ALERTS{alertname="TrivyCriticalGrowth",alertstate="firing"}
+    eval_time: 24h15m
+    exp_samples:
+    - labels: ALERTS{alertname="TrivyCriticalGrowth",alertstate="firing",cluster="lab",source="trivy",severity="critical"}
+      value: 1
+  - expr: ALERTS{alertname="TrivyCriticalGrowth",alertstate="firing"}
+    eval_time: 47h59m
+    exp_samples:
+    - labels: ALERTS{alertname="TrivyCriticalGrowth",alertstate="firing",cluster="lab",source="trivy",severity="critical"}
+      value: 1
+  - expr: ALERTS{alertname="TrivyCriticalGrowth",alertstate="firing"}
+    eval_time: 48h30m
+    exp_samples: []
+  - expr: ALERTS{alertname="TrivyCriticalGrowth",alertstate="firing"}
+    eval_time: 24h
+    exp_samples: []
+  - expr: ALERTS{alertname="TrivyCriticalGrowth",alertstate="firing"}
+    eval_time: 24h14m
+    exp_samples: []
+  - expr: ALERTS{alertname="TrivyCriticalGrowth",alertstate="firing"}
+    eval_time: 48h29m
+    exp_samples:
+    - labels: ALERTS{alertname="TrivyCriticalGrowth",alertstate="firing",cluster="lab",source="trivy",severity="critical"}
+      value: 1
+- name: image count growth at unchanged finding total
+  interval: 1m
+  input_series:
+  - series: trivy_image_vulnerabilities{cluster="lab",image_repository="a",severity="Critical"}
+    values: 2+0x1439 1+0x30
+  - series: trivy_image_vulnerabilities{cluster="lab",image_repository="b",severity="Critical"}
+    values: 0+0x1439 1+0x30
+  promql_expr_test:
+  - expr: ALERTS{alertname="TrivyCriticalGrowth",alertstate="firing"}
+    eval_time: 24h15m
+    exp_samples:
+    - labels: ALERTS{alertname="TrivyCriticalGrowth",alertstate="firing",cluster="lab",source="trivy",severity="critical"}
+      value: 1
+- name: zero, decrease and missing baseline do not cause growth
+  interval: 1m
+  input_series:
+  - series: trivy_image_vulnerabilities{cluster="zero",severity="Critical"}
+    values: 0+0x1441
+  - series: trivy_image_vulnerabilities{cluster="less",severity="Critical"}
+    values: 3+0x1439 2+0x1
+  - series: trivy_image_vulnerabilities{cluster="new",severity="Critical"}
+    values: _x1439 5+0x1
+  promql_expr_test:
+  - expr: ALERTS{alertname="TrivyCriticalGrowth",alertstate="firing"}
+    eval_time: 24h
+    exp_samples: []
+  - expr: ALERTS{alertname=~"TrivyCriticalVulnerabilities|TrivyHighVulnerabilities"}
+    eval_time: 24h
+    exp_samples: []
+- name: brief failed job survives deletion in the lookback window
+  interval: 30s
+  input_series:
+  - series: kube_job_status_failed{cluster="lab",namespace="workload",job_name="scan-vulnerabilityreport-test"}
+    values: 0 1 stale _ _ _ _
+  - series: kube_job_created{cluster="lab",namespace="workload",job_name="scan-vulnerabilityreport-test"}
+    values: 0 0 stale _ _ _ _
+  - series: kube_job_status_failed{cluster="old",namespace="trivy-temp",job_name="node-collector-old"}
+    values: 1+0x6
+  - series: kube_job_created{cluster="old",namespace="trivy-temp",job_name="node-collector-old"}
+    values: -3600+0x6
+  promql_expr_test:
+  - expr: ALERTS{alertname="TrivyScanJobFailed",alertstate="firing"}
+    eval_time: 2m
+    exp_samples:
+    - labels: ALERTS{alertname="TrivyScanJobFailed",alertstate="firing",cluster="lab",namespace="workload",job_name="scan-vulnerabilityreport-test",source="trivy",severity="warning"}
+      value: 1
+- name: recent OOM alerts but old Operator termination does not
+  interval: 30s
+  input_series:
+  - series: kube_pod_container_status_last_terminated_reason{cluster="recent",namespace="app",pod="scan-vulnerabilityreport-a",container="scan",uid="a",reason="OOMKilled"}
+    values: 1+0x12
+  - series: kube_pod_container_status_last_terminated_timestamp{cluster="recent",namespace="app",pod="scan-vulnerabilityreport-a",container="scan",uid="a"}
+    values: 30+0x12
+  - series: kube_pod_container_status_last_terminated_reason{cluster="old",namespace="trivy-system",pod="trivy-operator-a",container="operator",uid="b",reason="OOMKilled"}
+    values: 1+0x12
+  - series: kube_pod_container_status_last_terminated_timestamp{cluster="old",namespace="trivy-system",pod="trivy-operator-a",container="operator",uid="b"}
+    values: -3600+0x12
+  - series: kube_pod_init_container_status_last_terminated_reason{cluster="old-init",namespace="app",pod="scan-vulnerabilityreport-init-old",container="init",uid="c",reason="OOMKilled"}
+    values: 1+0x12
+  - series: kube_pod_created{cluster="old-init",namespace="app",pod="scan-vulnerabilityreport-init-old",uid="c"}
+    values: -3600+0x12
+  - series: kube_pod_init_container_status_last_terminated_reason{cluster="recent-init",namespace="app",pod="scan-vulnerabilityreport-init-new",container="init",uid="d",reason="OOMKilled"}
+    values: 1+0x12
+  - series: kube_pod_created{cluster="recent-init",namespace="app",pod="scan-vulnerabilityreport-init-new",uid="d"}
+    values: 30+0x12
+  promql_expr_test:
+  - expr: ALERTS{alertname="TrivyScanOOMKilled",alertstate="firing"}
+    eval_time: 2m
+    exp_samples:
+    - labels: ALERTS{alertname="TrivyScanOOMKilled",alertstate="firing",cluster="recent",source="trivy",severity="critical"}
+      value: 1
+    - labels: ALERTS{alertname="TrivyScanOOMKilled",alertstate="firing",cluster="recent-init",source="trivy",severity="critical"}
+      value: 1
+- name: reconciliation counter reset alone is not an error increase
+  interval: 30s
+  input_series:
+  - series: controller_runtime_reconcile_errors_total{cluster="lab",job="lab-trivy",controller="job"}
+    values: 8 8 8 0 0 0 0 0 0 0
+  promql_expr_test:
+  - expr: ALERTS{alertname="TrivyReconciliationErrors",alertstate="firing"}
+    eval_time: 4m
+    exp_samples: []
+- name: Never restart scan OOM is in current state instead of lastState
+  interval: 30s
+  input_series:
+  - series: kube_pod_container_status_terminated_reason{cluster="lab",namespace="falco",pod="scan-vulnerabilityreport-smoke",container="scan",uid="e",reason="OOMKilled"}
+    values: 1+0x6
+  - series: kube_pod_created{cluster="lab",namespace="falco",pod="scan-vulnerabilityreport-smoke",uid="e"}
+    values: 0+0x6
+  promql_expr_test:
+  - expr: ALERTS{alertname="TrivyScanOOMKilled",alertstate="firing"}
+    eval_time: 2m
+    exp_samples:
+    - labels: ALERTS{alertname="TrivyScanOOMKilled",alertstate="firing",cluster="lab",source="trivy",severity="critical"}
+      value: 1
+- name: brief historical report dips do not cause current growth
+  interval: 1m
+  input_series:
+  - series: trivy:critical_findings:sum{cluster="lab"}
+    values: 68+0x59 59+0x9 68+0x1460
+  - series: trivy:critical_images:sum{cluster="lab"}
+    values: 25+0x59 24+0x9 25+0x1460
+  promql_expr_test:
+  - expr: ALERTS{alertname="TrivyCriticalGrowth",alertstate="firing"}
+    eval_time: 25h
+    exp_samples: []
+  - expr: ALERTS{alertname="TrivyCriticalGrowth",alertstate="firing"}
+    eval_time: 25h9m
+    exp_samples: []
+  - expr: ALERTS{alertname="TrivyCriticalGrowth",alertstate="firing"}
+    eval_time: 25h15m
+    exp_samples: []
+- name: a brief real increase is retained by the hourly peak
+  interval: 1m
+  input_series:
+  - series: trivy:critical_findings:sum{cluster="lab"}
+    values: 68+0x1439 69 68+0x120
+  promql_expr_test:
+  - expr: ALERTS{alertname="TrivyCriticalGrowth",alertstate="firing"}
+    eval_time: 24h14m
+    exp_samples: []
+  - expr: ALERTS{alertname="TrivyCriticalGrowth",alertstate="firing"}
+    eval_time: 24h15m
+    exp_samples:
+    - labels: ALERTS{alertname="TrivyCriticalGrowth",alertstate="firing",cluster="lab",source="trivy",severity="critical"}
+      value: 1
+  - expr: ALERTS{alertname="TrivyCriticalGrowth",alertstate="firing"}
+    eval_time: 25h29m
+    exp_samples:
+    - labels: ALERTS{alertname="TrivyCriticalGrowth",alertstate="firing",cluster="lab",source="trivy",severity="critical"}
+      value: 1
+  - expr: ALERTS{alertname="TrivyCriticalGrowth",alertstate="firing"}
+    eval_time: 25h31m
+    exp_samples: []
+- name: deleted failed Job holds warning and repeated failures extend it
+  interval: 1m
+  input_series:
+  - series: kube_job_status_failed{cluster="lab",namespace="trivy-system",job_name="scan-vulnerabilityreport-repeat",reason="BackoffLimitExceeded"}
+    values: 1 stale _ _ _ _ _ _ _ _ 1 stale _x50
+  - series: kube_job_created{cluster="lab",namespace="trivy-system",job_name="scan-vulnerabilityreport-repeat"}
+    values: 0 stale _ _ _ _ _ _ _ _ 600 stale _x50
+  promql_expr_test:
+  - expr: ALERTS{alertname="TrivyScanJobFailed",alertstate="firing"}
+    eval_time: 2m
+    exp_samples:
+    - labels: ALERTS{alertname="TrivyScanJobFailed",alertstate="firing",cluster="lab",namespace="trivy-system",job_name="scan-vulnerabilityreport-repeat",reason="BackoffLimitExceeded",source="trivy",severity="warning"}
+      value: 1
+  - expr: ALERTS{alertname="TrivyScanJobFailed",alertstate="firing"}
+    eval_time: 9m
+    exp_samples:
+    - labels: ALERTS{alertname="TrivyScanJobFailed",alertstate="firing",cluster="lab",namespace="trivy-system",job_name="scan-vulnerabilityreport-repeat",reason="BackoffLimitExceeded",source="trivy",severity="warning"}
+      value: 1
+  - expr: ALERTS{alertname="TrivyScanJobFailed",alertstate="firing"}
+    eval_time: 20m
+    exp_samples:
+    - labels: ALERTS{alertname="TrivyScanJobFailed",alertstate="firing",cluster="lab",namespace="trivy-system",job_name="scan-vulnerabilityreport-repeat",reason="BackoffLimitExceeded",source="trivy",severity="warning"}
+      value: 1
+  - expr: ALERTS{alertname="TrivyScanJobFailed",alertstate="firing"}
+    eval_time: 44m
+    exp_samples:
+    - labels: ALERTS{alertname="TrivyScanJobFailed",alertstate="firing",cluster="lab",namespace="trivy-system",job_name="scan-vulnerabilityreport-repeat",reason="BackoffLimitExceeded",source="trivy",severity="warning"}
+      value: 1
+  - expr: ALERTS{alertname="TrivyScanJobFailed",alertstate="firing"}
+    eval_time: 46m
+    exp_samples: []
+- name: healthy scrape without reports warns after 30m
+  interval: 1m
+  input_series:
+  - series: up{cluster="dev-lab-cluster",job="dev-lab-cluster-trivy"}
+    values: 1+0x40
+  promql_expr_test:
+  - expr: ALERTS{alertname="TrivyReportsMissing",alertstate="firing"}
+    eval_time: 29m
+    exp_samples: []
+  - expr: ALERTS{alertname="TrivyReportsMissing",alertstate="firing"}
+    eval_time: 30m
+    exp_samples:
+    - labels: ALERTS{alertname="TrivyReportsMissing",alertstate="firing",cluster="dev-lab-cluster",source="trivy",severity="warning"}
+      value: 1
+- name: zero findings are present and returning reports resolve the warning
+  interval: 1m
+  input_series:
+  - series: up{cluster="dev-lab-cluster",job="dev-lab-cluster-trivy"}
+    values: 1+0x65
+  - series: trivy_image_vulnerabilities{cluster="dev-lab-cluster",severity="Critical"}
+    values: 0+0x9 stale _x34 0+0x20
+  promql_expr_test:
+  - expr: ALERTS{alertname="TrivyReportsMissing",alertstate="firing"}
+    eval_time: 9m
+    exp_samples: []
+  - expr: ALERTS{alertname="TrivyReportsMissing",alertstate="firing"}
+    eval_time: 40m
+    exp_samples:
+    - labels: ALERTS{alertname="TrivyReportsMissing",alertstate="firing",cluster="dev-lab-cluster",source="trivy",severity="warning"}
+      value: 1
+  - expr: ALERTS{alertname="TrivyReportsMissing",alertstate="firing"}
+    eval_time: 45m
+    exp_samples: []
+- name: scrape failure does not also report missing vulnerability metrics
+  interval: 1m
+  input_series:
+  - series: up{cluster="dev-lab-cluster",job="dev-lab-cluster-nodes",instance="node1:9100"}
+    values: 1+0x60
+  - series: node_boot_time_seconds{cluster="dev-lab-cluster",job="dev-lab-cluster-nodes",instance="node1:9100"}
+    values: -3600+0x60
+  - series: up{cluster="dev-lab-cluster",job="dev-lab-cluster-trivy"}
+    values: 0+0x40
+  promql_expr_test:
+  - expr: ALERTS{alertname="TrivyReportsMissing",alertstate="firing"}
+    eval_time: 35m
+    exp_samples: []
+  - expr: ALERTS{alertname="TrivyOperatorUnavailable",alertstate="firing"}
+    eval_time: 35m
+    exp_samples:
+    - labels: ALERTS{alertname="TrivyOperatorUnavailable",alertstate="firing",cluster="dev-lab-cluster",job="dev-lab-cluster-trivy",source="trivy",severity="critical"}
+      value: 1
+- name: report without usable scan timestamp is detected independently
+  interval: 1m
+  input_series:
+  - series: trivy_report_created_timestamp_seconds{cluster="dev-lab-cluster",namespace="app",report="test"}
+    values: 0+0x60
+  promql_expr_test:
+  - expr: ALERTS{alertname="TrivyReportTimestampMissing",alertstate="firing"}
+    eval_time: 30m
+    exp_samples:
+    - labels: ALERTS{alertname="TrivyReportTimestampMissing",alertstate="firing",cluster="dev-lab-cluster",namespace="app",report="test",source="trivy",severity="warning"}
+      value: 1
+  - expr: ALERTS{alertname="TrivyImageScanStale",alertstate="firing"}
+    eval_time: 30m
+    exp_samples: []
+- name: empty report collector warns despite healthy endpoint and existing reports
+  interval: 1m
+  input_series:
+  - series: up{cluster="dev-lab-cluster",job="dev-lab-cluster-nodes",instance="node1:9100"}
+    values: 1+0x60
+  - series: node_boot_time_seconds{cluster="dev-lab-cluster",job="dev-lab-cluster-nodes",instance="node1:9100"}
+    values: -3600+0x60
+  - series: up{cluster="dev-lab-cluster",job="dev-lab-cluster-trivy-reports"}
+    values: 1+0x30
+  - series: trivy_image_vulnerabilities{cluster="dev-lab-cluster",severity="Critical"}
+    values: 0+0x30
+  promql_expr_test:
+  - expr: ALERTS{alertname="TrivyReportMetricsUnavailable",alertstate="firing"}
+    eval_time: 9m
+    exp_samples: []
+  - expr: ALERTS{alertname="TrivyReportMetricsUnavailable",alertstate="firing"}
+    eval_time: 10m
+    exp_samples:
+    - labels: ALERTS{alertname="TrivyReportMetricsUnavailable",alertstate="firing",cluster="dev-lab-cluster",source="trivy",severity="warning"}
+      value: 1
+- name: TTL-deleted report retains scan history and warns only after age limit
+  interval: 1m
+  input_series:
+  - series: trivy_report_updated_timestamp_seconds{cluster="dev-lab-cluster",image_digest="sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",report="test"}
+    values: -107000 stale _x59
+  - series: trivy:running_images:info{cluster="dev-lab-cluster",namespace="app",image="example:v1",image_digest="sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}
+    values: 1+0x61
+  promql_expr_test:
+  - expr: ALERTS{alertname="TrivyImageScanStale",alertstate="firing"}
+    eval_time: 15m
+    exp_samples: []
+  - expr: ALERTS{alertname="TrivyImageScanStale",alertstate="firing"}
+    eval_time: 46m
+    exp_samples: []
+  - expr: ALERTS{alertname="TrivyImageScanStale",alertstate="firing"}
+    eval_time: 47m
+    exp_samples:
+    - labels: ALERTS{alertname="TrivyImageScanStale",alertstate="firing",cluster="dev-lab-cluster",namespace="app",image="example:v1",image_digest="sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",source="trivy",severity="warning"}
+      value: 1
+  - expr: ALERTS{alertname="TrivyImageScanStale",alertstate="firing"}
+    eval_time: 60m
+    exp_samples:
+    - labels: ALERTS{alertname="TrivyImageScanStale",alertstate="firing",cluster="dev-lab-cluster",namespace="app",image="example:v1",image_digest="sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",source="trivy",severity="warning"}
+      value: 1
+- name: new scan of same digest resolves freshness warning
+  interval: 1m
+  input_series:
+  - series: trivy_report_updated_timestamp_seconds{cluster="dev-lab-cluster",image_digest="sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",report="test"}
+    values: -107000 stale _x48 3000+0x10
+  - series: trivy:running_images:info{cluster="dev-lab-cluster",namespace="app",image="example:v1",image_digest="sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}
+    values: 1+0x61
+  promql_expr_test:
+  - expr: ALERTS{alertname="TrivyImageScanStale",alertstate="firing"}
+    eval_time: 47m
+    exp_samples:
+    - labels: ALERTS{alertname="TrivyImageScanStale",alertstate="firing",cluster="dev-lab-cluster",namespace="app",image="example:v1",image_digest="sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",source="trivy",severity="warning"}
+      value: 1
+  - expr: ALERTS{alertname="TrivyImageScanStale",alertstate="firing"}
+    eval_time: 50m
+    exp_samples: []
+- name: never-scanned running image warns; removed image stops warning
+  interval: 1m
+  input_series:
+  - series: trivy:running_images:info{cluster="dev-lab-cluster",namespace="app",image="example:v1",image_digest="sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}
+    values: 1+0x39 stale _x10
+  promql_expr_test:
+  - expr: ALERTS{alertname="TrivyImageScanStale",alertstate="firing"}
+    eval_time: 29m
+    exp_samples: []
+  - expr: ALERTS{alertname="TrivyImageScanStale",alertstate="firing"}
+    eval_time: 30m
+    exp_samples:
+    - labels: ALERTS{alertname="TrivyImageScanStale",alertstate="firing",cluster="dev-lab-cluster",namespace="app",image="example:v1",image_digest="sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",source="trivy",severity="warning"}
+      value: 1
+  - expr: ALERTS{alertname="TrivyImageScanStale",alertstate="firing"}
+    eval_time: 40m
+    exp_samples: []
+- name: running image extraction excludes stopped containers and normalizes digest
+  interval: 1m
+  input_series:
+  - series: kube_pod_container_info{cluster="dev-lab-cluster",namespace="app",pod="one",container="app",image="example:v1",image_id="docker-pullable://example@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}
+    values: 1+0x1
+  - series: kube_pod_container_status_running{cluster="dev-lab-cluster",namespace="app",pod="one",container="app"}
+    values: 1 0
+  promql_expr_test:
+  - expr: trivy:running_images:info
+    eval_time: 0m
+    exp_samples:
+    - labels: trivy:running_images:info{cluster="dev-lab-cluster",namespace="app",image="example:v1",image_digest="sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}
+      value: 1
+  - expr: trivy:running_images:info
+    eval_time: 1m
+    exp_samples: []
+- name: missing running image inventory is not silently treated as healthy
+  interval: 1m
+  input_series:
+  - series: up{cluster="dev-lab-cluster",job="dev-lab-cluster-nodes",instance="node1:9100"}
+    values: 1+0x60
+  - series: node_boot_time_seconds{cluster="dev-lab-cluster",job="dev-lab-cluster-nodes",instance="node1:9100"}
+    values: -3600+0x60
+  - series: up{cluster="dev-lab-cluster",job="dev-lab-cluster-trivy-reports"}
+    values: 1+0x20
+  promql_expr_test:
+  - expr: ALERTS{alertname="TrivyImageInventoryUnavailable",alertstate="firing"}
+    eval_time: 9m
+    exp_samples: []
+  - expr: ALERTS{alertname="TrivyImageInventoryUnavailable",alertstate="firing"}
+    eval_time: 10m
+    exp_samples: &id001
+    - labels: ALERTS{alertname="TrivyImageInventoryUnavailable",alertstate="firing",cluster="dev-lab-cluster",job="dev-lab-cluster-kube-state-metrics",source="trivy",severity="warning"}
+      value: 1
+- name: down running image inventory is not silently treated as healthy
+  interval: 1m
+  input_series:
+  - series: up{cluster="dev-lab-cluster",job="dev-lab-cluster-nodes",instance="node1:9100"}
+    values: 1+0x60
+  - series: node_boot_time_seconds{cluster="dev-lab-cluster",job="dev-lab-cluster-nodes",instance="node1:9100"}
+    values: -3600+0x60
+  - series: up{cluster="dev-lab-cluster",job="dev-lab-cluster-trivy-reports"}
+    values: 1+0x20
+  - series: up{cluster="dev-lab-cluster",job="dev-lab-cluster-kube-state-metrics"}
+    values: 0+0x20
+  promql_expr_test:
+  - expr: ALERTS{alertname="TrivyImageInventoryUnavailable",alertstate="firing"}
+    eval_time: 9m
+    exp_samples: []
+  - expr: ALERTS{alertname="TrivyImageInventoryUnavailable",alertstate="firing"}
+    eval_time: 10m
+    exp_samples: *id001
+- name: nightly shutdown suppresses availability alerts with failed scrapes
+  interval: 1m
+  input_series:
+  - series: up{cluster="dev-lab-cluster",job="dev-lab-cluster-nodes",instance="node1:9100"}
+    values: 0+0x120
+  - series: node_boot_time_seconds{cluster="dev-lab-cluster",job="dev-lab-cluster-nodes",instance="node1:9100"}
+    values: -3600+0x120
+  - series: up{cluster="dev-lab-cluster",job="dev-lab-cluster-trivy"}
+    values: 0+0x120
+  - series: up{cluster="dev-lab-cluster",job="dev-lab-cluster-trivy-reports"}
+    values: 0+0x120
+  - series: up{cluster="dev-lab-cluster",job="dev-lab-cluster-kube-state-metrics"}
+    values: 0+0x120
+  promql_expr_test:
+  - expr: ALERTS{alertname="TrivyOperatorUnavailable",alertstate="firing",cluster="dev-lab-cluster"}
+    eval_time: 60m
+    exp_samples: []
+  - expr: ALERTS{alertname="TrivyReportMetricsUnavailable",alertstate="firing",cluster="dev-lab-cluster"}
+    eval_time: 60m
+    exp_samples: []
+  - expr: ALERTS{alertname="TrivyImageInventoryUnavailable",alertstate="firing",cluster="dev-lab-cluster"}
+    eval_time: 60m
+    exp_samples: []
+- name: nightly shutdown suppresses availability alerts with missing scrapes
+  interval: 1m
+  input_series: []
+  promql_expr_test:
+  - expr: ALERTS{alertname="TrivyOperatorUnavailable",alertstate="firing",cluster="dev-lab-cluster"}
+    eval_time: 60m
+    exp_samples: []
+  - expr: ALERTS{alertname="TrivyReportMetricsUnavailable",alertstate="firing",cluster="dev-lab-cluster"}
+    eval_time: 60m
+    exp_samples: []
+  - expr: ALERTS{alertname="TrivyImageInventoryUnavailable",alertstate="firing",cluster="dev-lab-cluster"}
+    eval_time: 60m
+    exp_samples: []
+- name: boot grace delays persistent failures then preserves normal pending durations
+  interval: 1m
+  input_series:
+  - series: up{cluster="dev-lab-cluster",job="dev-lab-cluster-nodes",instance="node1:9100"}
+    values: 1+0x120
+  - series: node_boot_time_seconds{cluster="dev-lab-cluster",job="dev-lab-cluster-nodes",instance="node1:9100"}
+    values: 0+0x120
+  - series: up{cluster="dev-lab-cluster",job="dev-lab-cluster-trivy"}
+    values: 0+0x120
+  - series: up{cluster="dev-lab-cluster",job="dev-lab-cluster-trivy-reports"}
+    values: 0+0x120
+  - series: up{cluster="dev-lab-cluster",job="dev-lab-cluster-kube-state-metrics"}
+    values: 0+0x120
+  promql_expr_test:
+  - expr: ALERTS{alertname="TrivyOperatorUnavailable",alertstate="firing",cluster="dev-lab-cluster"}
+    eval_time: 14m
+    exp_samples: []
+  - expr: ALERTS{alertname="TrivyReportMetricsUnavailable",alertstate="firing",cluster="dev-lab-cluster"}
+    eval_time: 14m
+    exp_samples: []
+  - expr: ALERTS{alertname="TrivyImageInventoryUnavailable",alertstate="firing",cluster="dev-lab-cluster"}
+    eval_time: 14m
+    exp_samples: []
+  - expr: ALERTS{alertname="TrivyOperatorUnavailable",alertstate="firing",cluster="dev-lab-cluster"}
+    eval_time: 16m
+    exp_samples: []
+  - expr: ALERTS{alertname="TrivyOperatorUnavailable",alertstate="firing",cluster="dev-lab-cluster"}
+    eval_time: 17m
+    exp_samples:
+    - labels: ALERTS{alertname="TrivyOperatorUnavailable",alertstate="firing",cluster="dev-lab-cluster",job="dev-lab-cluster-trivy",source="trivy",severity="critical"}
+      value: 1
+  - expr: ALERTS{alertname="TrivyReportMetricsUnavailable",alertstate="firing",cluster="dev-lab-cluster"}
+    eval_time: 24m
+    exp_samples: []
+  - expr: ALERTS{alertname="TrivyReportMetricsUnavailable",alertstate="firing",cluster="dev-lab-cluster"}
+    eval_time: 25m
+    exp_samples:
+    - labels: ALERTS{alertname="TrivyReportMetricsUnavailable",alertstate="firing",cluster="dev-lab-cluster",job="dev-lab-cluster-trivy-reports",source="trivy",severity="warning"}
+      value: 1
+  - expr: ALERTS{alertname="TrivyImageInventoryUnavailable",alertstate="firing",cluster="dev-lab-cluster"}
+    eval_time: 25m
+    exp_samples:
+    - labels: ALERTS{alertname="TrivyImageInventoryUnavailable",alertstate="firing",cluster="dev-lab-cluster",job="dev-lab-cluster-kube-state-metrics",source="trivy",severity="warning"}
+      value: 1
+- name: components recovering during startup never fire availability alerts
+  interval: 1m
+  input_series:
+  - series: up{cluster="dev-lab-cluster",job="dev-lab-cluster-nodes",instance="node1:9100"}
+    values: 1+0x120
+  - series: node_boot_time_seconds{cluster="dev-lab-cluster",job="dev-lab-cluster-nodes",instance="node1:9100"}
+    values: 0+0x120
+  - series: up{cluster="dev-lab-cluster",job="dev-lab-cluster-trivy"}
+    values: 0+0x9 1+0x110
+  - series: up{cluster="dev-lab-cluster",job="dev-lab-cluster-trivy-reports"}
+    values: 0+0x9 1+0x110
+  - series: up{cluster="dev-lab-cluster",job="dev-lab-cluster-kube-state-metrics"}
+    values: 0+0x9 1+0x110
+  promql_expr_test:
+  - expr: ALERTS{alertname="TrivyOperatorUnavailable",alertstate="firing",cluster="dev-lab-cluster"}
+    eval_time: 14m
+    exp_samples: []
+  - expr: ALERTS{alertname="TrivyReportMetricsUnavailable",alertstate="firing",cluster="dev-lab-cluster"}
+    eval_time: 14m
+    exp_samples: []
+  - expr: ALERTS{alertname="TrivyImageInventoryUnavailable",alertstate="firing",cluster="dev-lab-cluster"}
+    eval_time: 14m
+    exp_samples: []
+  - expr: ALERTS{alertname="TrivyOperatorUnavailable",alertstate="firing",cluster="dev-lab-cluster"}
+    eval_time: 60m
+    exp_samples: []
+  - expr: ALERTS{alertname="TrivyReportMetricsUnavailable",alertstate="firing",cluster="dev-lab-cluster"}
+    eval_time: 60m
+    exp_samples: []
+  - expr: ALERTS{alertname="TrivyImageInventoryUnavailable",alertstate="firing",cluster="dev-lab-cluster"}
+    eval_time: 60m
+    exp_samples: []
+- name: a single failed node does not hide component failure in a running cluster
+  interval: 1m
+  input_series:
+  - series: up{cluster="dev-lab-cluster",job="dev-lab-cluster-nodes",instance="node1:9100"}
+    values: 1+0x120
+  - series: node_boot_time_seconds{cluster="dev-lab-cluster",job="dev-lab-cluster-nodes",instance="node1:9100"}
+    values: -3600+0x120
+  - series: up{cluster="dev-lab-cluster",job="dev-lab-cluster-nodes",instance="node2:9100"}
+    values: 0+0x120
+  - series: node_boot_time_seconds{cluster="dev-lab-cluster",job="dev-lab-cluster-nodes",instance="node2:9100"}
+    values: 0+0x120
+  - series: up{cluster="dev-lab-cluster",job="dev-lab-cluster-trivy"}
+    values: 0+0x120
+  - series: up{cluster="dev-lab-cluster",job="dev-lab-cluster-trivy-reports"}
+    values: 0+0x120
+  - series: up{cluster="dev-lab-cluster",job="dev-lab-cluster-kube-state-metrics"}
+    values: 0+0x120
+  promql_expr_test:
+  - expr: ALERTS{alertname="TrivyOperatorUnavailable",alertstate="firing",cluster="dev-lab-cluster"}
+    eval_time: 2m
+    exp_samples:
+    - labels: ALERTS{alertname="TrivyOperatorUnavailable",alertstate="firing",cluster="dev-lab-cluster",job="dev-lab-cluster-trivy",source="trivy",severity="critical"}
+      value: 1
+  - expr: ALERTS{alertname="TrivyReportMetricsUnavailable",alertstate="firing",cluster="dev-lab-cluster"}
+    eval_time: 10m
+    exp_samples:
+    - labels: ALERTS{alertname="TrivyReportMetricsUnavailable",alertstate="firing",cluster="dev-lab-cluster",job="dev-lab-cluster-trivy-reports",source="trivy",severity="warning"}
+      value: 1
+  - expr: ALERTS{alertname="TrivyImageInventoryUnavailable",alertstate="firing",cluster="dev-lab-cluster"}
+    eval_time: 10m
+    exp_samples:
+    - labels: ALERTS{alertname="TrivyImageInventoryUnavailable",alertstate="firing",cluster="dev-lab-cluster",job="dev-lab-cluster-kube-state-metrics",source="trivy",severity="warning"}
+      value: 1
+- name: missing boot metric on reachable nodes does not disable failure detection
+  interval: 1m
+  input_series:
+  - series: up{cluster="dev-lab-cluster",job="dev-lab-cluster-nodes",instance="node1:9100"}
+    values: 1+0x120
+  - series: up{cluster="dev-lab-cluster",job="dev-lab-cluster-trivy"}
+    values: 0+0x120
+  - series: up{cluster="dev-lab-cluster",job="dev-lab-cluster-trivy-reports"}
+    values: 0+0x120
+  - series: up{cluster="dev-lab-cluster",job="dev-lab-cluster-kube-state-metrics"}
+    values: 0+0x120
+  promql_expr_test:
+  - expr: ALERTS{alertname="TrivyOperatorUnavailable",alertstate="firing",cluster="dev-lab-cluster"}
+    eval_time: 2m
+    exp_samples:
+    - labels: ALERTS{alertname="TrivyOperatorUnavailable",alertstate="firing",cluster="dev-lab-cluster",job="dev-lab-cluster-trivy",source="trivy",severity="critical"}
+      value: 1
+  - expr: ALERTS{alertname="TrivyReportMetricsUnavailable",alertstate="firing",cluster="dev-lab-cluster"}
+    eval_time: 10m
+    exp_samples:
+    - labels: ALERTS{alertname="TrivyReportMetricsUnavailable",alertstate="firing",cluster="dev-lab-cluster",job="dev-lab-cluster-trivy-reports",source="trivy",severity="warning"}
+      value: 1
+- name: shutdown clears active component failure and next boot gets a fresh grace
+  interval: 1m
+  input_series:
+  - series: up{cluster="dev-lab-cluster",job="dev-lab-cluster-nodes",instance="node1:9100"}
+    values: 1+0x19 0+0x19 1+0x80
+  - series: node_boot_time_seconds{cluster="dev-lab-cluster",job="dev-lab-cluster-nodes",instance="node1:9100"}
+    values: -3600+0x39 2400+0x80
+  - series: up{cluster="dev-lab-cluster",job="dev-lab-cluster-trivy"}
+    values: 0+0x120
+  - series: up{cluster="dev-lab-cluster",job="dev-lab-cluster-trivy-reports"}
+    values: 0+0x120
+  - series: up{cluster="dev-lab-cluster",job="dev-lab-cluster-kube-state-metrics"}
+    values: 0+0x120
+  promql_expr_test:
+  - expr: ALERTS{alertname="TrivyOperatorUnavailable",alertstate="firing",cluster="dev-lab-cluster"}
+    eval_time: 10m
+    exp_samples:
+    - labels: ALERTS{alertname="TrivyOperatorUnavailable",alertstate="firing",cluster="dev-lab-cluster",job="dev-lab-cluster-trivy",source="trivy",severity="critical"}
+      value: 1
+  - expr: ALERTS{alertname="TrivyOperatorUnavailable",alertstate="firing",cluster="dev-lab-cluster"}
+    eval_time: 20m
+    exp_samples: []
+  - expr: ALERTS{alertname="TrivyOperatorUnavailable",alertstate="firing",cluster="dev-lab-cluster"}
+    eval_time: 54m
+    exp_samples: []
+  - expr: ALERTS{alertname="TrivyOperatorUnavailable",alertstate="firing",cluster="dev-lab-cluster"}
+    eval_time: 56m
+    exp_samples: []
+  - expr: ALERTS{alertname="TrivyOperatorUnavailable",alertstate="firing",cluster="dev-lab-cluster"}
+    eval_time: 57m
+    exp_samples:
+    - labels: ALERTS{alertname="TrivyOperatorUnavailable",alertstate="firing",cluster="dev-lab-cluster",job="dev-lab-cluster-trivy",source="trivy",severity="critical"}
+      value: 1
+- name: another cluster boot does not suppress this cluster
+  interval: 1m
+  input_series:
+  - series: up{cluster="dev-lab-cluster",job="dev-lab-cluster-nodes",instance="node1:9100"}
+    values: 1+0x120
+  - series: node_boot_time_seconds{cluster="dev-lab-cluster",job="dev-lab-cluster-nodes",instance="node1:9100"}
+    values: -3600+0x120
+  - series: up{cluster="dev-lab-cluster",job="dev-lab-cluster-trivy"}
+    values: 0+0x120
+  - series: up{cluster="dev-lab-cluster",job="dev-lab-cluster-trivy-reports"}
+    values: 0+0x120
+  - series: up{cluster="dev-lab-cluster",job="dev-lab-cluster-kube-state-metrics"}
+    values: 0+0x120
+  - series: up{cluster="other",job="other-nodes",instance="other:9100"}
+    values: 1+0x120
+  - series: node_boot_time_seconds{cluster="other",job="other-nodes",instance="other:9100"}
+    values: 0+0x120
+  promql_expr_test:
+  - expr: ALERTS{alertname="TrivyOperatorUnavailable",alertstate="firing",cluster="dev-lab-cluster"}
+    eval_time: 2m
+    exp_samples:
+    - labels: ALERTS{alertname="TrivyOperatorUnavailable",alertstate="firing",cluster="dev-lab-cluster",job="dev-lab-cluster-trivy",source="trivy",severity="critical"}
+      value: 1
+- name: missing component targets remain detectable on a reachable cluster
+  interval: 1m
+  input_series:
+  - series: up{cluster="dev-lab-cluster",job="dev-lab-cluster-nodes",instance="node1:9100"}
+    values: 1+0x30
+  promql_expr_test:
+  - expr: ALERTS{alertname="TrivyOperatorUnavailable",alertstate="firing",cluster="dev-lab-cluster"}
+    eval_time: 10m
+    exp_samples:
+    - labels: ALERTS{alertname="TrivyOperatorUnavailable",alertstate="firing",cluster="dev-lab-cluster",job="dev-lab-cluster-trivy",source="trivy",severity="critical"}
+      value: 1
+  - expr: ALERTS{alertname="TrivyReportMetricsUnavailable",alertstate="firing",cluster="dev-lab-cluster"}
+    eval_time: 10m
+    exp_samples:
+    - labels: ALERTS{alertname="TrivyReportMetricsUnavailable",alertstate="firing",cluster="dev-lab-cluster",job="dev-lab-cluster-trivy-reports",source="trivy",severity="warning"}
+      value: 1
+  - expr: ALERTS{alertname="TrivyImageInventoryUnavailable",alertstate="firing",cluster="dev-lab-cluster"}
+    eval_time: 10m
+    exp_samples:
+    - labels: ALERTS{alertname="TrivyImageInventoryUnavailable",alertstate="firing",cluster="dev-lab-cluster",job="dev-lab-cluster-kube-state-metrics",source="trivy",severity="warning"}
+      value: 1

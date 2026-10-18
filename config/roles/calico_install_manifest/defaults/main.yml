@@ -1,0 +1,3 @@
+---
+calico_operator_manifest_url: https://docs.tigera.io/calico/latest/manifests/tigera-operator.yaml
+calico_cr_manifest_url: https://docs.tigera.io/calico/latest/manifests/custom-resources.yaml

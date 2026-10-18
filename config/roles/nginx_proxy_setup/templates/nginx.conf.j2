@@ -1,0 +1,93 @@
+# /config/roles/nginx_proxy_setup/templates/nginx.conf.j2
+# File managed by Ansible. DO NOT EDIT MANUALLY.
+user  nginx;
+worker_processes  auto;
+
+error_log  /var/log/nginx/error.log warn;
+pid        /var/run/nginx.pid;
+
+events {
+    worker_connections  1024;
+}
+
+stream {
+    geo $remote_addr $k8s_trusted_source {
+        default 0;
+{% for network in nginx_proxy_trusted_networks | default(nginx_proxy_k8s_trusted_networks) %}
+        {{ network }} 1;
+{% endfor %}
+    }
+
+    map $ssl_preread_server_name $stream_route {
+        hostnames;
+        *.k8s.{{ primary_domain | default("example.com") }} k8s;
+        default edge;
+    }
+
+    # A future opt-in demo path can add exact SNI routes above and an
+    # authenticated edge target here; the private passthrough stays separate.
+    map "$k8s_trusted_source:$stream_route" $backend_stream {
+        "1:k8s" {{ nginx_proxy_upstreams.k8s_ingress }};
+        "0:k8s" 127.0.0.1:1444;
+        default 127.0.0.1:1443;
+    }
+
+    # Close rejected sessions immediately, without a TLS handshake or certificate.
+    # PROXY headers come only from the local stream listener.
+    server {
+        listen 127.0.0.1:1444 proxy_protocol;
+        return "";
+    }
+
+    server {
+        listen 443;
+        listen [::]:443;
+
+        proxy_pass $backend_stream;
+        ssl_preread on;
+        proxy_protocol on;
+    }
+
+    server {
+        listen 2222;
+        proxy_pass {{ nginx_proxy_upstreams.gitlab_ssh }};
+        proxy_timeout 3600s;
+        proxy_connect_timeout 60s;
+    }
+}
+
+http {
+    include       /etc/nginx/mime.types;
+    default_type  application/octet-stream;
+
+    # The stream block terminates external connections and relays them to
+    # 127.0.0.1:1443 wrapped in a PROXY protocol header carrying the real
+    # client address. Without this, $remote_addr here would be 127.0.0.1
+    # for every request, defeating any allow/deny IP restrictions below.
+    real_ip_header proxy_protocol;
+    set_real_ip_from 127.0.0.1;
+
+    log_format  main  '$remote_addr - $remote_user [$time_local] "$request" '
+                      '$status $body_bytes_sent "$http_referer" '
+                      '"$http_user_agent" "$http_x_forwarded_for"';
+
+    access_log  /var/log/nginx/access.log  main;
+
+{% if nginx_proxy_name_audit_enabled | default(true) %}
+    # No URI, query string, cookies or Authorization fields in this audit log.
+    log_format service_names escape=json
+        '{"time":"$time_iso8601","host":"$host","sni":"$ssl_server_name",'
+        '"server":"$server_name","status":$status}';
+    access_log /var/log/nginx/service-names.log service_names;
+{% endif %}
+
+    sendfile        on;
+    tcp_nopush      on;
+    keepalive_timeout  65;
+
+    # These snippets are global HTTP defaults. TLS settings stay per-vhost so
+    # upstream HSTS can be hidden and the edge sends one canonical value.
+    include /etc/nginx/conf.d/gzip.conf;
+    include /etc/nginx/conf.d/proxy-params-websockets.conf;
+    include /etc/nginx/conf.d/default.conf;
+}

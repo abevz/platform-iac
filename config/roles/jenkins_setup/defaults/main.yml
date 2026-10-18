@@ -1,0 +1,20 @@
+# config/roles/jenkins_setup/defaults/main.yml
+---
+jenkins_root_dir: "/srv/jenkins"
+jenkins_home_dir: "/srv/jenkins-home"
+jenkins_vm_user: "{{ vm_user | default(ansible_user) }}"
+# Jenkins LTS 2.580.1; retained plugins require at least 2.568.3 (piac-47).
+jenkins_image: "jenkins/jenkins:2.580.1-lts-jdk21@sha256:a660310e39ade10631f774bacd5219de767dfd08947ea5c32a739b5e5bb382c1"
+jenkins_prometheus_plugin: "prometheus:860.v532442b_44e9a_"
+jenkins_metrics_namespace: "default"
+jenkins_metrics_endpoint: "/prometheus/"
+jenkins_external_url: 'https://jenkins.{{ primary_domain | default("example.com") }}/'
+jenkins_admin_user: "admin"
+jenkins_admin_password_file: "{{ lookup('env', 'HOME') }}/.jenkins_admin_password"
+jenkins_http_port: 8080
+jenkins_agent_port: 50000
+jenkins_num_executors: 0
+jenkins_healthcheck_interval: "30s"
+jenkins_healthcheck_timeout: "10s"
+jenkins_healthcheck_retries: 5
+jenkins_healthcheck_start_period: "90s"

@@ -1,0 +1,161 @@
+---
+# ==============================================================================
+# PHASE 1: BOOTSTRAP (ALL NODES)
+# (k8s_bootstrap_node includes: sysctl, swap, containerd, Kubelet/Kubeadm,
+# Harbor Proxy, AppArmor/Seccomp setup)
+# ==============================================================================
+- name: 1. Bootstrap All Nodes and Kernel Security (Prereqs, Containerd, Kubelet)
+  hosts: k8s_master:k8s_worker
+  become: yes
+  gather_facts: yes
+  tags: [bootstrap]
+
+  vars:
+    # Harbor variables loaded from sops (config/secrets/ansible/extra_vars.sops.yml)
+    # Do not use defaults here - all required variables must be defined in sops
+    harbor_hostname: "{{ harbor.hostname }}"
+    harbor_robot_username: "{{ harbor.robot_username }}"
+    harbor_robot_token: "{{ harbor.robot_token }}"
+    k8s_short_version: "1.37"
+    k8s_long_version_debian: "1.37.1-1.1"
+
+  pre_tasks:
+    - name: Assert required harbor variables are defined
+      ansible.builtin.assert:
+        that:
+          - harbor.hostname is defined
+          - harbor.robot_username is defined
+          - harbor.robot_token is defined
+        fail_msg: "Required harbor variables not defined. Check config/secrets/ansible/extra_vars.sops.yml"
+
+  roles:
+    # Role including all logic from install_kubernetes_cluster.yml
+    - role: k8s_bootstrap_node
+
+# ==============================================================================
+# PHASE 1.5: GPU WORKERS (k8s_gpu_worker group, empty unless gpu_worker_count > 0)
+# (k8s_gpu_node: NVIDIA driver, container toolkit + containerd runtime drop-in,
+# kubelet taint/labels before join, model directory)
+# ==============================================================================
+- name: 1.5. Prepare GPU Workers (driver, container toolkit, taint before join)
+  hosts: k8s_gpu_worker
+  become: true
+  gather_facts: true
+  roles:
+    - role: k8s_gpu_node
+
+# ==============================================================================
+# PHASE 2: CLUSTER MANAGEMENT (Init, Join, Secrets)
+# (k8s_cluster_manager: kubeadm init, kubeadm join, CSR approve, Harbor Secret)
+# ==============================================================================
+- name: 2. Manage K8s Cluster State (Init, Join, Verify)
+  hosts: k8s_master:k8s_worker
+  become: yes
+  gather_facts: no
+  tags: [cluster_manage]
+
+  vars:
+    # Harbor variables loaded from sops (config/secrets/ansible/extra_vars.sops.yml)
+    harbor_hostname: "{{ harbor.hostname }}"
+    harbor_robot_username: "{{ harbor.robot_username }}"
+    harbor_robot_token: "{{ harbor.robot_token }}"
+    k8s_short_version: "1.37"
+    k8s_long_version_debian: "1.37.1-1.1"
+    # Define 'target_namespaces' directly in the play
+    # to avoid issues with group_vars loading
+    target_namespaces:
+      - default
+      - kube-system
+
+  pre_tasks:
+    - name: Assert required harbor variables are defined
+      ansible.builtin.assert:
+        that:
+          - harbor.hostname is defined
+          - harbor.robot_username is defined
+          - harbor.robot_token is defined
+        fail_msg: "Required harbor variables not defined. Check config/secrets/ansible/extra_vars.sops.yml"
+
+  roles:
+    # Role including all logic from initialize_kubernetes_cluster_with_dns.yml,
+    # but without CNI.
+    - role: k8s_cluster_manager
+
+# ==============================================================================
+# PHASE 3: CNI DEPLOYMENT (Choose ONE role)
+# ==============================================================================
+- name: 3. Deploy CNI Plugin (Cilium via Helm)
+  hosts: k8s_master
+  become: yes
+  tags: [cni, cilium]
+
+  vars:
+    addon_state: "present"
+
+  roles:
+    # WARNING: Choose only ONE CNI role.
+    # This example uses Cilium Helm.
+    - role: cilium_install_helm
+    #- role: cilium_install_cli
+    #- role: calico_install_helm
+    #- role: calico_install_manifest
+
+# ==============================================================================
+# PHASE 3.5: NODE VERIFICATION AND CSR APPROVAL (POST-CNI)
+# ==============================================================================
+- name: 3.5. Verify Node Readiness and Approve CSRs (Post-CNI)
+  hosts: k8s_master
+  become: yes
+  gather_facts: no
+  tags: [cluster_verify]
+
+  tasks:
+    - name: Wait for all nodes to report Ready status (post-CNI)
+      ansible.builtin.command: "kubectl wait --for=condition=Ready nodes --all --timeout=300s"
+      changed_when: false # Waiting is not a change
+
+    - name: Wait until all worker CSRs are created
+      ansible.builtin.command: >
+        kubectl get csr -o jsonpath='{.items[?(@.spec.signerName=="kubernetes.io/kubelet-serving")].metadata.name}'
+      register: pending_csr_names
+      # 'until' should use 'groups', not 'hostvars'
+      until: "pending_csr_names.stdout.split(' ') | length >= (groups['k8s_worker'] | length)"
+      retries: 30
+      delay: 10
+      changed_when: false
+      ignore_errors: yes
+
+    - name: Approve all found kubelet serving CSRs
+      ansible.builtin.command: "kubectl certificate approve {{ item }}"
+      loop: "{{ pending_csr_names.stdout.split(' ') }}"
+      when: "pending_csr_names.stdout | length > 0"
+      changed_when: true
+
+    - name: Final cluster status verification
+      ansible.builtin.shell: kubectl get nodes -o wide
+      register: final_cluster_status
+      changed_when: false
+
+    - name: Display final cluster status
+      ansible.builtin.debug:
+        msg: |
+          Final Cluster Status:
+          {{ final_cluster_status.stdout }}
+
+# ==============================================================================
+# PHASE 4: SECURITY TOOLING DEPLOYMENT
+# ==============================================================================
+- name: 4. Deploy CKS Security Tooling (Falco and Trivy)
+  hosts: k8s_master
+  become: yes
+  tags: [security]
+
+  roles:
+    # Deploy Falco (DaemonSet via Helm)
+    - role: falco_install_package
+
+    # Install Trivy CLI on master node (for scanning)
+    - role: trivy_package_install
+
+    # Deploy Trivy Operator (in cluster)
+    - role: trivy_operator_deploy

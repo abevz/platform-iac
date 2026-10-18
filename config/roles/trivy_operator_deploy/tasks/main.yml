@@ -1,0 +1,100 @@
+---
+- name: Add Trivy (Aqua Security) Helm repository
+  kubernetes.core.helm_repository:
+    name: aqua
+    repo_url: "{{ trivy_op_helm_repo_url }}"
+    state: present
+
+- name: Create Trivy Operator namespace
+  kubernetes.core.k8s:
+    api_version: v1
+    kind: Namespace
+    name: "{{ trivy_op_namespace }}"
+    state: present
+
+# Helm installs CRDs from crds/ once, but does not update them on upgrade.
+- name: Read CRDs from the pinned Trivy Operator chart
+  ansible.builtin.command:
+    argv:
+      - helm
+      - show
+      - crds
+      - trivy-operator
+      - --repo
+      - "{{ trivy_op_helm_repo_url }}"
+      - --version
+      - "{{ trivy_op_chart_version }}"
+  register: trivy_op_chart_crds
+  changed_when: false
+
+- name: Update Trivy Operator CRDs before upgrading the controller
+  kubernetes.core.k8s:
+    state: present
+    apply: true
+    server_side_apply:
+      # Helm does not upgrade crds/: explicitly take ownership of their schemas.
+      field_manager: trivy-operator-crds
+      force_conflicts: true
+    definition: "{{ trivy_op_chart_crds.stdout | from_yaml_all | select | list }}"
+
+- name: Install Trivy Operator via Helm
+  kubernetes.core.helm:
+    name: trivy-operator
+    chart_ref: aqua/trivy-operator
+    chart_version: "{{ trivy_op_chart_version }}"
+    update_repo_cache: true
+    release_namespace: "{{ trivy_op_namespace }}"
+    state: present
+    wait: true
+    values:
+      # The chart applies this selector to both the operator and Trivy server.
+      nodeSelector: "{{ trivy_op_control_node_selector }}"
+      resources:
+        requests:
+          cpu: 100m
+          memory: "{{ trivy_op_operator_memory_request }}"
+        limits:
+          memory: "{{ trivy_op_operator_memory_limit }}"
+      # Enable configuration scanning (important for CKS)
+      trivy:
+        ignoreUnfixed: true
+        # Rebuild the server cache on restart; no default StorageClass is required.
+        storageClassEnabled: false
+        server:
+          resources:
+            requests:
+              cpu: 200m
+              memory: "{{ trivy_op_server_memory_request }}"
+            limits:
+              cpu: 1
+              memory: "{{ trivy_op_server_memory_limit }}"
+        resources:
+          requests:
+            cpu: 100m
+            memory: "{{ trivy_op_scan_memory_request }}"
+          limits:
+            cpu: 500m
+            memory: "{{ trivy_op_scan_memory_limit }}"
+      operator:
+        builtInTrivyServer: "{{ trivy_op_builtin_server }}"
+        scanJobsConcurrentLimit: "{{ trivy_op_scan_jobs_concurrent_limit }}"
+        scanJobTTL: "{{ trivy_op_scan_job_ttl }}"
+        vulnerabilityScannerScanOnlyCurrentRevisions: true
+      trivyOperator:
+        # Keep scanner credentials and service-account references in one namespace.
+        scanJobsInSameNamespace: "{{ trivy_op_scan_jobs_in_same_namespace }}"
+        scanJobNodeSelector: "{{ trivy_op_scan_node_selector }}"
+      nodeCollector:
+        tolerations: "{{ trivy_op_node_collector_tolerations }}"
+      # The chart checksum omits scanner mode, namespace, placement and collectors.
+      podAnnotations:
+        checksum/scan-job-node-selector: "{{ trivy_op_scan_node_selector | to_json | hash('sha256') }}"
+        checksum/trivy-server-mode: "{{ trivy_op_builtin_server | to_json | hash('sha256') }}"
+        checksum/scan-jobs-namespace: "{{ trivy_op_scan_jobs_in_same_namespace | to_json | hash('sha256') }}"
+        checksum/node-collector-tolerations: "{{ trivy_op_node_collector_tolerations | to_json | hash('sha256') }}"
+
+- name: Deploy read-only Trivy report timestamp metrics
+  kubernetes.core.k8s:
+    state: present
+    apply: true
+    definition: "{{ lookup('ansible.builtin.template', 'report-metrics.yml.j2') | from_yaml_all | list }}"

@@ -1,0 +1,11 @@
+---
+prometheus_storage_device: /dev/disk/by-id/scsi-0QEMU_QEMU_HARDDISK_drive-scsi0
+prometheus_storage_label: prometheus-data
+prometheus_storage_mount: /srv/prometheus-data
+prometheus_storage_data: "{{ prometheus_storage_mount }}/prometheus"
+prometheus_storage_compose_dir: /srv/monitoring
+prometheus_storage_legacy_data: /var/lib/docker/volumes/monitoring_prometheus-data/_data
+# Disable only while mounting a prepared disk before the offline data copy.
+prometheus_storage_activate: true
+# Enable only for an intentionally empty, new installation.
+prometheus_storage_allow_empty: false

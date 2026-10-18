@@ -1,0 +1,21 @@
+---
+# The receiver is deliberately disabled until a source key, source address,
+# and expected hostname are supplied by the dedicated sync playbook.
+vault_cert_sync_receiver_enabled: false
+vault_cert_sync_receiver_user: "vault-cert-sync"
+vault_cert_sync_receiver_home: "/var/empty"
+vault_cert_sync_receiver_authorized_key: ""
+vault_cert_sync_receiver_source_address: ""
+vault_cert_sync_receiver_expected_hostname: ""
+vault_cert_sync_receiver_tls_cert_file: "/etc/vault.d/tls/fullchain.pem"
+vault_cert_sync_receiver_tls_key_file: "/etc/vault.d/tls/privkey.pem"
+vault_cert_sync_receiver_tls_owner: "vault"
+vault_cert_sync_receiver_tls_group: "vault"
+vault_cert_sync_receiver_vault_service: "vault"
+vault_cert_sync_receiver_vault_port: 8200
+vault_cert_sync_receiver_min_validity_seconds: 86400
+vault_cert_sync_receiver_trust_bundle: "/etc/ssl/certs/ca-certificates.crt"
+vault_cert_sync_receiver_lock_file: "/run/lock/vault-cert-sync.lock"
+vault_cert_sync_receiver_script_path: "/usr/local/sbin/vault-cert-sync-receive"
+vault_cert_sync_receiver_wrapper_path: "/usr/local/libexec/vault-cert-sync-ssh-wrapper"
+vault_cert_sync_receiver_sudo_path: "/usr/bin/sudo"

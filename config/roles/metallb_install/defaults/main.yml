@@ -1,0 +1,7 @@
+# config/roles/metallb_install/defaults/main.yml
+# /config/roles/metallb_install/defaults/main.yml
+---
+metallb_version: "v0.14.9"
+metallb_namespace: "metallb-system"
+metallb_install_url: "https://raw.githubusercontent.com/metallb/metallb/{{ metallb_target_version }}/config/manifests/metallb-native.yaml"
+metallb_ip_range: "<K8S-INGRESS-IP>-<K8S-IP-END>" # (From old playbook)

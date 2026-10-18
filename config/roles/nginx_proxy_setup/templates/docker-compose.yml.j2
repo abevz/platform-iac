@@ -1,0 +1,43 @@
+# /config/roles/nginx_proxy_setup/templates/docker-compose.yml.j2
+# File managed by Ansible. DO NOT EDIT MANUALLY.
+version: '3.8'
+services:
+  reverseproxy:
+    image: nginx:latest
+    container_name: reverseproxy
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+      - "2222:2222"
+    volumes:
+      - ./logs:/var/log/nginx
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./html:/var/www/html
+      - ./nginx-conf:/etc/nginx/conf.d:ro
+      - /etc/letsencrypt:/etc/letsencrypt:ro
+      - /etc/ssl/certs:/etc/ssl/certs:ro
+    networks:
+      - app-network
+
+{% if (nginx_proxy_authelia_enabled | default(false) | string | lower) in ['true', 'yes', '1'] %}
+  authelia:
+    image: {{ nginx_proxy_authelia_image }}
+    container_name: authelia
+    restart: unless-stopped
+    # No published port: only the reverse proxy reaches it over app-network.
+    environment:
+      TZ: "{{ nginx_proxy_authelia_timezone }}"
+      AUTHELIA_SESSION_SECRET_FILE: /secrets/session_secret
+      AUTHELIA_STORAGE_ENCRYPTION_KEY_FILE: /secrets/storage_encryption_key
+      AUTHELIA_IDENTITY_VALIDATION_RESET_PASSWORD_JWT_SECRET_FILE: /secrets/jwt_secret
+    volumes:
+      - ./authelia/config:/config
+      - ./authelia/secrets:/secrets:ro
+    networks:
+      - app-network
+
+{% endif %}
+networks:
+  app-network:
+    driver: bridge

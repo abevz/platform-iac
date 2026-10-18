@@ -1,0 +1,16 @@
+---
+- name: Configure gitaly allowAnySHA1InWant for ArgoCD compatibility
+  ansible.builtin.blockinfile:
+    path: "{{ gitlab_rb_path }}"
+    marker: "# {mark} ANSIBLE MANAGED — gitaly argocd sha"
+    block: |
+      gitaly['configuration'] = {
+        git: {
+          config: [
+            { key: "uploadpack.allowAnySHA1InWant", value: "true" },
+          ],
+        },
+      }
+  when: gitlab_gitaly_allow_any_sha | bool
+  notify: reconfigure gitlab
+  tags: gitlab_gitaly

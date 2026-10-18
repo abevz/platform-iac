@@ -1,0 +1,13 @@
+---
+- name: Validate Argo CD operation
+  ansible.builtin.assert:
+    that:
+      - addon_state in ['present', 'absent']
+
+- name: Install or upgrade Argo CD
+  ansible.builtin.include_tasks: present.yml
+  when: addon_state == 'present'
+
+- name: Uninstall Argo CD when explicitly requested
+  ansible.builtin.include_tasks: absent.yml
+  when: addon_state == 'absent'

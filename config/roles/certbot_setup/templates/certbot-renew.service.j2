@@ -1,0 +1,12 @@
+[Unit]
+Description=Renew Let's Encrypt certificates via Certbot
+Documentation=https://certbot.eff.org/docs/using.html#renewing-certificates
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/certbot renew --quiet --deploy-hook {{ certbot_renew_hook_path }}
+
+[Install]
+WantedBy=multi-user.target

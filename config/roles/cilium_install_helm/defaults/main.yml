@@ -1,0 +1,5 @@
+---
+cilium_helm_repo_url: https://helm.cilium.io/
+cilium_chart_version: "1.20.3"
+cilium_upgrade_compatibility: "1.18"
+cilium_namespace: kube-system

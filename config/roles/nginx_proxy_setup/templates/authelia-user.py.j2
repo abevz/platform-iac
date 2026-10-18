@@ -1,0 +1,212 @@
+#!/usr/bin/env python3
+# Managed by Ansible (role nginx_proxy_setup).
+"""Manage Authelia users on the proxy host.
+
+Passwords are typed here and go nowhere else: not to Ansible, not to Git.
+An owner needs the password and a second factor on every published name.
+A guest logs in with the password alone, reaches only the listed services
+and removes itself after a number of hours.
+"""
+{% raw %}
+import argparse
+import datetime
+import getpass
+import os
+import re
+import shutil
+import subprocess
+import sys
+import tempfile
+
+import yaml
+
+{% endraw %}
+CONFIG_DIR = os.environ.get("AUTHELIA_USER_CONFIG_DIR", "{{ nginx_proxy_root_dir }}/authelia/config")
+IMAGE = "{{ nginx_proxy_authelia_image }}"
+GUEST_NAMES = {{ nginx_proxy_authelia_guest_names | default([]) | list | tojson }}
+GUEST_HOURS = {{ nginx_proxy_authelia_guest_hours | default(24) | int }}
+{% raw %}
+USERS = os.path.join(CONFIG_DIR, "users.yml")
+# Tests run the helper unprivileged against a temporary directory.
+TESTING = os.environ.get("AUTHELIA_USER_TESTING") == "1"
+MIN_PASSWORD = 12
+
+
+def fail(message, code=1):
+    print(message, file=sys.stderr)
+    sys.exit(code)
+
+
+def load():
+    if not os.path.exists(USERS):
+        return {}
+    with open(USERS) as handle:
+        data = yaml.safe_load(handle) or {}
+    return data.get("users") or {}
+
+
+def save(users):
+    if os.path.exists(USERS):
+        stamp = datetime.datetime.now().strftime("%Y%m%d%H%M%S")
+        shutil.copy2(USERS, f"{USERS}.{stamp}")
+    handle, temporary = tempfile.mkstemp(dir=CONFIG_DIR, prefix=".users-")
+    with os.fdopen(handle, "w") as out:
+        yaml.safe_dump({"users": users}, out, default_flow_style=False, sort_keys=True)
+    os.chmod(temporary, 0o600)
+    os.replace(temporary, USERS)
+
+
+def check_name(username):
+    if not re.fullmatch(r"[a-z][a-z0-9._-]{1,31}", username):
+        fail("invalid username: lower-case letters, digits, dot, dash, underscore; 2 to 32 characters", 2)
+
+
+def ask_password(username):
+    if sys.stdin.isatty():
+        first = getpass.getpass(f"Password for {username}: ")
+        second = getpass.getpass("Repeat: ")
+    else:
+        first = sys.stdin.readline().rstrip("\n")
+        second = sys.stdin.readline().rstrip("\n")
+    if first != second:
+        fail("passwords differ")
+    if len(first) < MIN_PASSWORD:
+        fail(f"use at least {MIN_PASSWORD} characters")
+    return first
+
+
+def digest(password):
+    # The password reaches the container through its environment, not its arguments.
+    result = subprocess.run(
+        ["docker", "run", "--rm", "-e", "AUTHELIA_NEW_PASSWORD", IMAGE, "sh", "-c",
+         'authelia crypto hash generate argon2 --password "$AUTHELIA_NEW_PASSWORD" --no-confirm'],
+        env=dict(os.environ, AUTHELIA_NEW_PASSWORD=password), capture_output=True, text=True, check=False)
+    match = re.search(r"^Digest: (\$argon2id\$\S+)$", result.stdout, re.MULTILINE)
+    if not match:
+        fail("could not create the password hash: " + result.stderr.strip()[:200])
+    return match.group(1)
+
+
+def timer_unit(username):
+    return f"authelia-guest-{username}"
+
+
+def cancel_timer(username):
+    if TESTING:
+        return
+    for suffix in (".timer", ".service"):
+        subprocess.run(["systemctl", "stop", timer_unit(username) + suffix], capture_output=True, check=False)
+        subprocess.run(["systemctl", "reset-failed", timer_unit(username) + suffix], capture_output=True, check=False)
+
+
+def schedule_removal(username, hours):
+    if TESTING:
+        print(f"(test mode) would remove {username} in {hours} h")
+        return
+    result = subprocess.run(
+        ["systemd-run", f"--unit={timer_unit(username)}", f"--on-active={hours}h",
+         "--description", f"Remove Authelia guest {username}",
+         os.path.realpath(sys.argv[0]), "remove", username], capture_output=True, text=True, check=False)
+    if result.returncode:
+        fail("the account was created, but its removal could not be scheduled:\n" + result.stderr.strip())
+
+
+def command_owner(args):
+    check_name(args.username)
+    if re.search(r"\s|[\"']", args.email):
+        fail("invalid email", 2)
+    users = load()
+    if "guests" in (users.get(args.username) or {}).get("groups", []):
+        fail(f"{args.username} is a guest; remove it first")
+    users[args.username] = {
+        "displayname": args.display or args.username, "password": digest(ask_password(args.username)),
+        "email": args.email, "groups": ["owners"]}
+    save(users)
+    print(f"owner {args.username} written to {USERS}")
+    print("Authelia picks the file up by itself. Then open the portal, log in and register the")
+    print(f"one-time-code app; the confirmation code appears in {CONFIG_DIR}/notification.txt")
+
+
+def command_guest(args):
+    check_name(args.username)
+    services = [name.strip() for name in args.services.split(",") if name.strip()]
+    if not services:
+        fail("give at least one service", 2)
+    refused = [name for name in services if name not in GUEST_NAMES]
+    if refused:
+        fail(f"not open to guests: {', '.join(refused)}. Allowed: {', '.join(GUEST_NAMES) or 'none'}", 2)
+    if args.hours < 0 or args.hours > 24 * 30:
+        fail("hours must be between 0 and 720", 2)
+    users = load()
+    existing = users.get(args.username)
+    if existing and "guests" not in existing.get("groups", []):
+        fail(f"{args.username} exists and is not a guest; refusing to turn it into one")
+    users[args.username] = {
+        "displayname": f"Guest {args.username}", "password": digest(ask_password(args.username)),
+        "email": f"operator@example.com",
+        "groups": ["guests"] + [f"guest-{name}" for name in sorted(set(services))]}
+    save(users)
+    cancel_timer(args.username)
+    print(f"guest {args.username}: {', '.join(sorted(set(services)))}; password only")
+    if args.hours:
+        schedule_removal(args.username, args.hours)
+        print(f"removes itself in {args.hours} h; sooner with: authelia-user remove {args.username}")
+    else:
+        print(f"no expiry; remove with: authelia-user remove {args.username}")
+
+
+def command_remove(args):
+    users = load()
+    if args.username not in users:
+        fail(f"no such user: {args.username}")
+    remaining_owners = [name for name, user in users.items()
+                        if "guests" not in user.get("groups", []) and name != args.username]
+    if "guests" not in users[args.username].get("groups", []) and not remaining_owners and not args.force:
+        fail("this is the last non-guest user; repeat with --force to remove it anyway")
+    del users[args.username]
+    save(users)
+    cancel_timer(args.username)
+    print(f"removed {args.username}; existing sessions stop working at the next request")
+
+
+def command_list(_args):
+    users = load()
+    if not users:
+        print("no users")
+        return
+    for name, user in sorted(users.items()):
+        groups = user.get("groups", [])
+        if "guests" in groups:
+            services = ", ".join(sorted(g[len("guest-"):] for g in groups if g.startswith("guest-")))
+            kind = f"guest   password only   {services or '(no services)'}"
+        else:
+            kind = "owner   password + second factor   all published names"
+        print(f"{name:<20} {kind}{'   DISABLED' if user.get('disabled') else ''}")
+
+
+def main():
+    parser = argparse.ArgumentParser(prog="authelia-user", description=__doc__.split("\n\n")[0])
+    sub = parser.add_subparsers(dest="command", required=True)
+    owner = sub.add_parser("owner", help="add an owner or change an owner's password")
+    owner.add_argument("username"); owner.add_argument("email"); owner.add_argument("display", nargs="?")
+    owner.set_defaults(run=command_owner)
+    guest = sub.add_parser("guest", help="add a guest with a password and a list of services")
+    guest.add_argument("username")
+    guest.add_argument("services", help="comma-separated, from: " + (", ".join(GUEST_NAMES) or "none"))
+    guest.add_argument("--hours", type=int, default=GUEST_HOURS,
+                       help=f"remove after this many hours (default {GUEST_HOURS}; 0 keeps the account)")
+    guest.set_defaults(run=command_guest)
+    remove = sub.add_parser("remove", help="remove a user now")
+    remove.add_argument("username"); remove.add_argument("--force", action="store_true")
+    remove.set_defaults(run=command_remove)
+    sub.add_parser("list", help="show users").set_defaults(run=command_list)
+    args = parser.parse_args()
+    if os.geteuid() != 0 and not TESTING:
+        fail("run with sudo")
+    os.umask(0o077)
+    args.run(args)
+
+
+if __name__ == "__main__":
+    main()
+{% endraw %}

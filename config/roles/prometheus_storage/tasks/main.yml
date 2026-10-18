@@ -1,0 +1,92 @@
+---
+- name: Read prepared data disk identity
+  ansible.builtin.command:
+    argv:
+      - blkid
+      - -o
+      - export
+      - "{{ prometheus_storage_device }}"
+  register: prometheus_storage_identity
+  changed_when: false
+
+- name: Require an explicitly prepared ext4 data disk
+  ansible.builtin.assert:
+    that:
+      - "'TYPE=ext4' in prometheus_storage_identity.stdout_lines"
+      - "('LABEL=' ~ prometheus_storage_label) in prometheus_storage_identity.stdout_lines"
+      - "prometheus_storage_identity.stdout is search('(?m)^UUID=')"
+    fail_msg: Prepare and verify the dedicated data disk first; this role never formats disks.
+
+- name: Mount the data disk by filesystem UUID
+  ansible.posix.mount:
+    path: "{{ prometheus_storage_mount }}"
+    src: "UUID={{ (prometheus_storage_identity.stdout_lines | select('match', '^UUID=') | first).split('=', 1)[1] }}"
+    fstype: ext4
+    opts: defaults,nofail,x-systemd.device-timeout=15s
+    state: mounted
+
+- name: Verify that the data mount is active
+  ansible.builtin.command:
+    argv: [mountpoint, -q, "{{ prometheus_storage_mount }}"]
+  changed_when: false
+
+- name: Inspect original and migrated WAL directories
+  ansible.builtin.stat:
+    path: "{{ item }}/wal"
+  loop:
+    - "{{ prometheus_storage_legacy_data }}"
+    - "{{ prometheus_storage_data }}"
+  register: prometheus_storage_wal
+  when: prometheus_storage_activate | bool
+
+- name: Refuse to replace an existing database with an empty directory
+  ansible.builtin.assert:
+    that:
+      - not prometheus_storage_wal.results[0].stat.exists or prometheus_storage_wal.results[1].stat.exists
+      - prometheus_storage_wal.results[1].stat.exists or prometheus_storage_allow_empty | bool
+    fail_msg: Stop Prometheus and copy its database before activating the data mount.
+  when: prometheus_storage_activate | bool
+
+- name: Create the data directory for a new installation
+  ansible.builtin.file:
+    path: "{{ prometheus_storage_data }}"
+    state: directory
+    owner: "65534"
+    group: "65534"
+    mode: "0755"
+  when:
+    - prometheus_storage_activate | bool
+    - prometheus_storage_allow_empty | bool
+
+- name: Create Docker service override directory
+  ansible.builtin.file:
+    path: /etc/systemd/system/docker.service.d
+    state: directory
+    mode: "0755"
+
+- name: Require the data mount before Docker starts
+  ansible.builtin.copy:
+    dest: /etc/systemd/system/docker.service.d/prometheus-storage.conf
+    mode: "0644"
+    content: |
+      [Unit]
+      RequiresMountsFor={{ prometheus_storage_mount }}
+  register: prometheus_storage_docker_unit
+
+- name: Reload service dependencies without restarting Docker
+  ansible.builtin.systemd_service:
+    daemon_reload: true
+  when: prometheus_storage_docker_unit.changed
+
+- name: Ensure Compose directory exists
+  ansible.builtin.file:
+    path: "{{ prometheus_storage_compose_dir }}"
+    state: directory
+    mode: "0755"
+
+- name: Bind Prometheus to the mounted data directory
+  ansible.builtin.template:
+    src: docker-compose.override.yml.j2
+    dest: "{{ prometheus_storage_compose_dir }}/docker-compose.override.yml"
+    mode: "0644"
+  when: prometheus_storage_activate | bool

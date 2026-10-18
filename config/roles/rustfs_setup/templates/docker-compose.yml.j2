@@ -1,0 +1,34 @@
+# /config/roles/rustfs_setup/templates/docker-compose.yml.j2
+# File managed by Ansible.
+services:
+  rustfs-server:
+    image: {{ rustfs_image }}
+    container_name: rustfs-server
+    restart: unless-stopped
+
+    # NOTE:
+    # These variables should be defined in your file
+    # config/secrets/ansible/extra_vars.sops.yml
+    environment:
+      RUSTFS_VOLUMES: "/data"
+      RUSTFS_ADDRESS: "{{ rustfs_address }}"
+      RUSTFS_CONSOLE_ENABLE: "true"
+      RUSTFS_CONSOLE_ADDRESS: "{{ rustfs_console_address }}"
+      RUSTFS_ACCESS_KEY: {{ rustfs.root_user | mandatory | to_json }}
+      RUSTFS_SECRET_KEY: {{ rustfs.root_password | mandatory | to_json }}
+
+    ports:
+      - "9000:9000" # S3 API
+      - "9001:9001" # Console
+
+    volumes:
+      - "{{ rustfs_data_dir }}:/data"
+      - "{{ rustfs_config_dir }}:/config"
+      - "{{ rustfs_logs_dir }}:/logs"
+
+    networks:
+      - app-network
+
+networks:
+  app-network:
+    driver: bridge

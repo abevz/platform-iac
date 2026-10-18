@@ -1,0 +1,372 @@
+groups:
+  - name: lab-host-base
+    rules:
+      - alert: MonitoringNodeExporterDown
+        expr: up{job="node-exporter"} == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: Node exporter is down
+          description: monitoring-node-exporter is not reachable for 2 minutes.
+
+{% if monitoring_proxmox_cadvisor_port_resolved | int > 0 %}
+      - alert: MonitoringHostCadvisorDown
+        expr: up{job="proxmox-cadvisor"} == 0 or absent(up{job="proxmox-cadvisor"})
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: Host cAdvisor is down
+          description: Per-workload metrics of the Proxmox host are missing for 5 minutes. Check host-cadvisor.service on the hypervisor.
+
+{% endif %}
+      - alert: MonitoringPveExporterDown
+        expr: up{job="pve-exporter"} == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: PVE exporter is down
+          description: monitoring-pve-exporter is not reachable for 2 minutes.
+
+      # up == 0 returns nothing (and resolves) when a target disappears from the
+      # scrape config or service discovery; absent() covers that case.
+      - alert: MonitoringNodeExporterMissing
+        expr: absent(up{job="node-exporter"})
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: Node exporter target is missing
+          description: No up series for job node-exporter for 5 minutes (target removed or discovery broken).
+
+      - alert: MonitoringPveExporterMissing
+        expr: absent(up{job="pve-exporter"})
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: PVE exporter target is missing
+          description: No up series for job pve-exporter for 5 minutes (target removed or discovery broken).
+
+      # Visible in the Prometheus UI only: with no Alertmanager it cannot be delivered.
+      - alert: PrometheusNotConnectedToAlertmanager
+        expr: prometheus_notifications_alertmanagers_discovered < 1
+        for: 10m
+        labels:
+          severity: critical
+        annotations:
+          summary: Prometheus has no Alertmanager
+          description: Alerts are evaluated but cannot be sent anywhere.
+
+      - alert: PrometheusNotificationsFailing
+        expr: rate(prometheus_notifications_errors_total[5m]) > 0
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: Prometheus fails to send alerts to Alertmanager
+          description: Errors while sending notifications to Alertmanager for 10 minutes.
+
+      - alert: DiskUsageHigh
+        expr: |
+          100 * (1 - (node_filesystem_avail_bytes{fstype!~"tmpfs|overlay",mountpoint!~"/run.*|/var/lib/docker.*"} / node_filesystem_size_bytes{fstype!~"tmpfs|overlay",mountpoint!~"/run.*|/var/lib/docker.*"})) > {{ monitoring_alert_thresholds.disk_warn_pct }}
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: Disk usage warning
+          description: Disk usage is above {{ monitoring_alert_thresholds.disk_warn_pct }}%.
+
+      - alert: ProxmoxThinPoolUsageHigh
+        expr: |
+          100 * pve_disk_usage_bytes{id="storage/lab-host/local-lvm"}
+          / (pve_disk_size_bytes{id="storage/lab-host/local-lvm"} > 0) > 85
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: Proxmox local-lvm thin pool usage warning
+          description: >-
+            {% raw %}{{ $labels.id }} usage is {{ printf "%.2f" $value }}%, above 85% for 15 minutes.{% endraw %}
+            Check lvs -a pve and pvesm status on the Proxmox host. Storage changes require separate authorization.
+
+      - alert: ProxmoxThinPoolUsageCritical
+        expr: |
+          100 * pve_disk_usage_bytes{id="storage/lab-host/local-lvm"}
+          / (pve_disk_size_bytes{id="storage/lab-host/local-lvm"} > 0) > 95
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: Proxmox local-lvm thin pool usage critical
+          description: >-
+            {% raw %}{{ $labels.id }} usage is {{ printf "%.2f" $value }}%, above 95% for 5 minutes.{% endraw %}
+            Check lvs -a pve and pvesm status on the Proxmox host. Storage changes require separate authorization.
+
+      - alert: DiskUsageCritical
+        expr: |
+          100 * (1 - (node_filesystem_avail_bytes{fstype!~"tmpfs|overlay",mountpoint!~"/run.*|/var/lib/docker.*"} / node_filesystem_size_bytes{fstype!~"tmpfs|overlay",mountpoint!~"/run.*|/var/lib/docker.*"})) > {{ monitoring_alert_thresholds.disk_crit_pct }}
+        for: 10m
+        labels:
+          severity: critical
+        annotations:
+          summary: Disk usage critical
+          description: Disk usage is above {{ monitoring_alert_thresholds.disk_crit_pct }}%.
+
+      - alert: CertificateExpiringSoon
+        expr: min((probe_ssl_earliest_cert_expiry - time()) / 86400) < 21
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: TLS certificate expires soon
+          description: Certificate for one of monitored endpoints expires in less than 21 days.
+
+      - alert: CertificateExpiringCritical
+        expr: min((probe_ssl_earliest_cert_expiry - time()) / 86400) < 7
+        for: 15m
+        labels:
+          severity: critical
+        annotations:
+          summary: TLS certificate expires very soon
+          description: Certificate for one of monitored endpoints expires in less than 7 days.
+
+{% if monitoring_k8s_security_alerts_enabled | default(false) %}
+  - name: kubernetes-security
+    rules:
+      # Nightly shutdowns are expected. A reachable node enables availability
+      # checks, except for 15 minutes after any reachable node has booted.
+      # Missing boot metrics do not suppress failures on an otherwise live cluster.
+      - record: trivy:cluster_monitoring_ready
+        expr: >-
+          (max by (cluster) (up{job=~".+-nodes"}) == 1)
+          unless on (cluster) (
+            time() - max by (cluster) (
+              node_boot_time_seconds{job=~".+-nodes"}
+              and on (cluster, job, instance) (up{job=~".+-nodes"} == 1)
+            ) < 900
+          )
+
+      # Deduplicate workload/container reports before counting cluster findings.
+      - record: trivy:critical_findings:sum
+        expr: sum by (cluster) (max by (cluster, image_registry, image_repository, image_tag, image_digest) (trivy_image_vulnerabilities{severity="Critical"}))
+      - record: trivy:critical_images:sum
+        expr: sum by (cluster) (max by (cluster, image_registry, image_repository, image_tag, image_digest) (trivy_image_vulnerabilities{severity="Critical"}) > bool 0)
+
+      # Preserve the latest successful scan across report TTL deletion/recreation.
+      - record: trivy:image_scan_timestamp_seconds:max
+        expr: max by (cluster, image_digest) (trivy_report_updated_timestamp_seconds{image_digest!=""})
+      - record: trivy:running_images:info
+        expr: >-
+          max by (cluster, namespace, image, image_digest) (
+            label_replace(
+              kube_pod_container_info{image_id=~".*sha256:[a-f0-9]{64}"}
+              and on (cluster, namespace, pod, container) (kube_pod_container_status_running == 1),
+              "image_digest", "$1", "image_id", ".*(sha256:[a-f0-9]{64})"
+            )
+          )
+
+      # Compare hourly peaks so brief report gaps yesterday do not look like growth.
+      # Missing history is not a zero baseline; held alerts may outlive the condition.
+      - alert: TrivyCriticalGrowth
+        expr: >-
+          (max_over_time(trivy:critical_findings:sum[1h])
+            > max_over_time(trivy:critical_findings:sum[1h] offset 24h))
+          or (max_over_time(trivy:critical_images:sum[1h])
+            > max_over_time(trivy:critical_images:sum[1h] offset 24h))
+        for: 15m
+        keep_firing_for: 30m
+        labels:
+          source: trivy
+          severity: critical
+        annotations:
+          summary: Critical vulnerability exposure grew since yesterday
+          description: >-
+            {% raw %}{{ $labels.cluster }}: Hourly peak Critical findings or affected images exceeded the corresponding peak 24 hours ago for 15 minutes.
+            Inspect the Critical image and namespace panels on lab-host Pulse.{% endraw %}
+          runbook_url: https://aquasecurity.github.io/trivy-operator/latest/tutorials/integrations/metrics/
+
+      # Stable labels keep one notification group per cluster as counts change.
+      - alert: TrivyDailyDigest
+        expr: trivy:critical_images:sum >= 0
+        labels:
+          source: trivy
+          severity: info
+        annotations:
+          summary: Daily Critical vulnerability digest
+          description: |-
+            {% raw %}{{ $labels.cluster }}: {{ $value }} images with Critical findings.
+            Five worst images (deduplicated across workloads):
+            {{ range query (printf "sort_desc(topk(5, max by (image_registry, image_repository, image_tag, image_digest) (trivy_image_vulnerabilities{severity=\"Critical\",cluster=%q}) > 0))" $labels.cluster) }}{{ .Labels.image_registry }}/{{ .Labels.image_repository }}:{{ .Labels.image_tag }} ({{ .Labels.image_digest }}): {{ .Value }} Critical
+            {{ end }}{% endraw %}
+
+      - alert: TrivyScanJobFailed
+        expr: >-
+          max by (cluster, namespace, job_name, reason) (
+            max_over_time(kube_job_status_failed{job_name=~"scan-vulnerabilityreport-.+|node-collector-.+"}[5m])
+            and on (cluster, namespace, job_name)
+            (time() - max_over_time(kube_job_created{job_name=~"scan-vulnerabilityreport-.+|node-collector-.+"}[5m]) < 1800)
+          ) > 0
+        keep_firing_for: 30m
+        labels:
+          source: trivy
+          severity: warning
+        annotations:
+          summary: Trivy scan job failed
+          description: >-
+            {% raw %}{{ $labels.cluster }}: scan Job {{ $labels.namespace }}/{{ $labels.job_name }} reported failed pods
+            (reason: {{ if $labels.reason }}{{ $labels.reason }}{{ else }}not exposed by kube-state-metrics{{ end }}).
+            Inspect pod termination states and Operator logs for the image and scanner error.
+            This warning is held for 30 minutes after the last matching failure; resolution does not confirm a successful rescan.{% endraw %}
+          runbook_url: https://aquasecurity.github.io/trivy-operator/latest/getting-started/installation/troubleshooting/
+
+      - alert: TrivyScanOOMKilled
+        expr: >-
+          max by (cluster) (
+            max_over_time(kube_pod_container_status_last_terminated_reason{pod=~"scan-vulnerabilityreport-.+|node-collector-.+|trivy-operator-.+", reason="OOMKilled"}[5m])
+            and on (cluster, namespace, pod, container, uid)
+            (time() - max_over_time(kube_pod_container_status_last_terminated_timestamp{pod=~"scan-vulnerabilityreport-.+|node-collector-.+|trivy-operator-.+"}[5m]) < 1800)
+          ) > 0
+          or max by (cluster) (
+            max_over_time(kube_pod_container_status_terminated_reason{pod=~"scan-vulnerabilityreport-.+|node-collector-.+", reason="OOMKilled"}[5m])
+            and on (cluster, namespace, pod, uid)
+            (time() - max_over_time(kube_pod_created{pod=~"scan-vulnerabilityreport-.+|node-collector-.+"}[5m]) < 1800)
+          ) > 0
+          or max by (cluster) (
+            (
+              max_over_time(kube_pod_init_container_status_last_terminated_reason{pod=~"scan-vulnerabilityreport-.+|node-collector-.+", reason="OOMKilled"}[5m])
+              or max_over_time(kube_pod_init_container_status_terminated_reason{pod=~"scan-vulnerabilityreport-.+|node-collector-.+", reason="OOMKilled"}[5m])
+            )
+            and on (cluster, namespace, pod, uid)
+            (time() - max_over_time(kube_pod_created{pod=~"scan-vulnerabilityreport-.+|node-collector-.+"}[5m]) < 1800)
+          ) > 0
+        labels:
+          source: trivy
+          severity: critical
+        annotations:
+          summary: Trivy scan or Operator was OOMKilled
+          description: >-
+            {% raw %}Recent OOMKilled termination observed in {{ $labels.cluster }}.
+            Init-container OOMs are limited to pods created within 30 minutes because kube-state-metrics has no init termination timestamp.
+            Check scanner versus Operator memory limits before increasing resources.{% endraw %}
+          runbook_url: https://aquasecurity.github.io/trivy-operator/latest/getting-started/installation/troubleshooting/
+
+      - alert: TrivyReconciliationErrors
+        expr: >-
+          sum by (cluster) (increase(controller_runtime_reconcile_errors_total{job=~".+-trivy"}[5m])) > 0
+        for: 2m
+        labels:
+          source: trivy
+          severity: critical
+        annotations:
+          summary: Trivy cannot reconcile workloads or scan results
+          description: >-
+            {% raw %}Operator reconciliation errors in {{ $labels.cluster }} during the last five minutes.
+            Inspect Operator logs and CRD/report compatibility.{% endraw %}
+          runbook_url: https://aquasecurity.github.io/trivy-operator/latest/getting-started/installation/troubleshooting/
+
+{% for cluster in monitoring_k8s_clusters | default([]) %}
+{% if cluster.vault_k8s_role is defined and cluster.api_server is defined %}
+      - alert: TrivyImageInventoryUnavailable
+        expr: >-
+          (
+            absent(up{cluster="{{ cluster.name }}",job="{{ cluster.name }}-kube-state-metrics"})
+            or up{job="{{ cluster.name }}-kube-state-metrics"} == 0
+          ) and on (cluster) trivy:cluster_monitoring_ready
+        for: 10m
+        labels:
+          source: trivy
+          severity: warning
+          cluster: {{ cluster.name }}
+        annotations:
+          summary: Running image inventory is unavailable
+          description: >-
+            {{ cluster.name }}: kube-state-metrics scrape is missing or failed for 10 minutes.
+            Trivy running-image freshness coverage is unavailable; restore the container inventory scrape.
+
+      - alert: TrivyReportMetricsUnavailable
+        expr: >-
+          (
+            absent(up{cluster="{{ cluster.name }}",job="{{ cluster.name }}-trivy-reports"})
+            or up{job="{{ cluster.name }}-trivy-reports"} == 0
+            or (absent(trivy_report_created_timestamp_seconds{cluster="{{ cluster.name }}"})
+              and on () (count(trivy_image_vulnerabilities{cluster="{{ cluster.name }}"}) > 0))
+          ) and on (cluster) trivy:cluster_monitoring_ready
+        for: 10m
+        labels:
+          source: trivy
+          severity: warning
+          cluster: {{ cluster.name }}
+        annotations:
+          summary: Trivy report age monitoring is unavailable
+          description: >-
+            {{ cluster.name }}: report metrics scrape failed or report timestamp collection is empty despite existing vulnerability metrics.
+            Check trivy-report-metrics availability, RBAC and informer logs; report freshness is unknown.
+
+      - alert: TrivyImageScanStale
+        expr: >-
+          trivy:running_images:info{cluster="{{ cluster.name }}"}
+          unless on (cluster, image_digest)
+          (time() - max_over_time(trivy:image_scan_timestamp_seconds:max{cluster="{{ cluster.name }}"}[{{ (monitoring_trivy_report_max_age_seconds | int) + 21600 }}s])
+            <= {{ monitoring_trivy_report_max_age_seconds }})
+        for: 30m
+        labels:
+          source: trivy
+          severity: warning
+        annotations:
+          summary: Running image has no fresh Trivy scan
+          description: >-
+            {% raw %}{{ $labels.cluster }}: {{ $labels.namespace }} image {{ $labels.image }} ({{ $labels.image_digest }}) has no known fresh scan.{% endraw %}
+            Maximum scan age is {{ monitoring_trivy_report_max_age_seconds }} seconds; condition persisted for 30 minutes.
+            This includes running images never observed in report timestamp history. Check failed scans and refresh settings.
+
+      - alert: TrivyReportTimestampMissing
+        expr: >-
+          trivy_report_created_timestamp_seconds{cluster="{{ cluster.name }}"}
+          unless on (cluster, namespace, report)
+          trivy_report_updated_timestamp_seconds{cluster="{{ cluster.name }}"}
+        for: 30m
+        labels:
+          source: trivy
+          severity: warning
+        annotations:
+          summary: Trivy report has no usable scan timestamp
+          description: >-
+            {% raw %}{{ $labels.cluster }}: {{ $labels.namespace }}/{{ $labels.report }} exists without an exported update timestamp.
+            Inspect report.updateTimestamp and the report metrics logs; its age cannot be verified.{% endraw %}
+
+      - alert: TrivyReportsMissing
+        expr: >-
+          absent(trivy_image_vulnerabilities{cluster="{{ cluster.name }}"})
+          and on () (max(up{job="{{ cluster.name }}-trivy"}) == 1)
+        for: 30m
+        labels:
+          source: trivy
+          severity: warning
+          cluster: {{ cluster.name }}
+        annotations:
+          summary: Trivy vulnerability reports are missing
+          description: >-
+            {{ cluster.name }}: no vulnerability report metrics for 30 minutes while the Operator scrape is healthy.
+            Check VulnerabilityReports and scan failures. This detects complete report absence, not report age or partial coverage.
+          runbook_url: https://aquasecurity.github.io/trivy-operator/latest/getting-started/installation/troubleshooting/
+
+      - alert: TrivyOperatorUnavailable
+        expr: >-
+          (
+            absent(up{cluster="{{ cluster.name }}",job="{{ cluster.name }}-trivy"}) or up{job="{{ cluster.name }}-trivy"} == 0
+          ) and on (cluster) trivy:cluster_monitoring_ready
+        for: 2m
+        labels:
+          source: trivy
+          severity: critical
+          cluster: {{ cluster.name }}
+        annotations:
+          summary: Trivy Operator metrics are unavailable
+          description: No successful scrape from {{ cluster.name }} Trivy for two minutes while cluster nodes are reachable and outside the 15-minute boot grace; findings may be stale.
+          runbook_url: https://aquasecurity.github.io/trivy-operator/latest/getting-started/installation/troubleshooting/
+{% endif %}
+{% endfor %}
+{% endif %}

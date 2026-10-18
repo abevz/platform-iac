@@ -1,0 +1,527 @@
+{
+  "annotations": {
+    "list": [
+      {
+        "builtIn": 1,
+        "datasource": {
+          "type": "grafana",
+          "uid": "-- Grafana --"
+        },
+        "enable": true,
+        "hide": true,
+        "iconColor": "rgba(0, 211, 255, 1)",
+        "name": "Annotations & Alerts",
+        "type": "dashboard"
+      }
+    ]
+  },
+  "editable": true,
+  "graphTooltip": 1,
+  "panels": [
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [{ "type": "value", "options": { "0": { "text": "DOWN" }, "1": { "text": "UP" } } }],
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "red", "value": null }, { "color": "green", "value": 1 }] }
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 4, "w": 3, "x": 0, "y": 0 },
+      "id": 1,
+      "options": { "colorMode": "background", "graphMode": "none", "justifyMode": "center", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false } },
+      "targets": [{ "expr": "max(up{job=\"node-exporter\",instance=\"{{ monitoring_proxmox_target_resolved }}:9100\"})", "refId": "A" }],
+      "title": "Host",
+      "type": "stat"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] },
+      "gridPos": { "h": 4, "w": 3, "x": 3, "y": 0 },
+      "id": 2,
+      "options": { "colorMode": "value", "graphMode": "none", "justifyMode": "center", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false } },
+      "targets": [{ "expr": "count(pve_guest_info)", "refId": "A" }],
+      "title": "VM/CT Count",
+      "type": "stat"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }, { "color": "orange", "value": 1 }, { "color": "red", "value": 3 }] }
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 4, "w": 3, "x": 6, "y": 0 },
+      "id": 3,
+      "options": { "colorMode": "background", "graphMode": "none", "justifyMode": "center", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false } },
+      "targets": [{ "expr": "sum(node_systemd_unit_state{instance=\"{{ monitoring_proxmox_target_resolved }}:9100\",state=\"failed\"} > 0) or vector(0)", "refId": "A" }],
+      "title": "Failed Units",
+      "type": "stat"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "orange", "value": 70 },
+              { "color": "red", "value": 90 }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 4, "w": 3, "x": 9, "y": 0 },
+      "id": 16,
+      "options": { "colorMode": "value", "graphMode": "area", "justifyMode": "center", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false } },
+      "targets": [{ "expr": "100 - (avg(rate(node_cpu_seconds_total{instance=\"{{ monitoring_proxmox_target_resolved }}:9100\",mode=\"idle\"}[5m])) * 100)", "refId": "A" }],
+      "title": "CPU Used",
+      "type": "stat"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "orange", "value": 75 },
+              { "color": "red", "value": 90 }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 4, "w": 3, "x": 12, "y": 0 },
+      "id": 17,
+      "options": { "colorMode": "value", "graphMode": "area", "justifyMode": "center", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false } },
+      "targets": [{ "expr": "(1 - (node_memory_MemAvailable_bytes{instance=\"{{ monitoring_proxmox_target_resolved }}:9100\"} / node_memory_MemTotal_bytes{instance=\"{{ monitoring_proxmox_target_resolved }}:9100\"})) * 100", "refId": "A" }],
+      "title": "RAM Used",
+      "type": "stat"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }, { "color": "orange", "value": 85 }, { "color": "red", "value": 92 }] }
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 4, "w": 3, "x": 15, "y": 0 },
+      "id": 4,
+      "options": { "colorMode": "value", "graphMode": "area", "justifyMode": "center", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false } },
+      "targets": [{ "expr": "max(100 * (1 - (node_filesystem_avail_bytes{instance=\"{{ monitoring_proxmox_target_resolved }}:9100\",fstype!~\"tmpfs|overlay\",mountpoint=\"/\"} / node_filesystem_size_bytes{instance=\"{{ monitoring_proxmox_target_resolved }}:9100\",fstype!~\"tmpfs|overlay\",mountpoint=\"/\"})))", "refId": "A" }],
+      "title": "Disk Used /",
+      "type": "stat"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "d",
+          "mappings": [{ "type": "value", "options": { "-1": { "text": "N/A" } } }],
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "red", "value": null }, { "color": "orange", "value": 7 }, { "color": "green", "value": 21 }] }
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 4, "w": 3, "x": 18, "y": 0 },
+      "id": 5,
+      "options": { "colorMode": "value", "graphMode": "none", "justifyMode": "center", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false } },
+      "targets": [{ "expr": "min((probe_ssl_earliest_cert_expiry - time()) / 86400) or vector(-1)", "refId": "A" }],
+      "title": "Cert Days Left",
+      "type": "stat"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }, { "color": "orange", "value": 1 }, { "color": "red", "value": 3 }] }
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 4, "w": 3, "x": 21, "y": 0 },
+      "id": 6,
+      "options": { "colorMode": "background", "graphMode": "none", "justifyMode": "center", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false } },
+      "targets": [{ "expr": "sum(ALERTS{alertstate=\"firing\",alertname!=\"TrivyDailyDigest\"}) or vector(0)", "refId": "A" }],
+      "title": "Alerts Firing",
+      "type": "stat"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "description": "CPU cores used on the Proxmox host, split by who runs the work. Needs host cAdvisor (role proxmox_cadvisor).",
+      "fieldConfig": { "defaults": { "unit": "short", "custom": { "fillOpacity": 30, "stacking": { "mode": "normal" } } }, "overrides": [] },
+      "gridPos": { "h": 8, "w": 8, "x": 0, "y": 4 },
+      "id": 23,
+      "targets": [
+        { "expr": "sum(rate(container_cpu_usage_seconds_total{job=\"proxmox-cadvisor\",id=\"/qemu.slice\"}[5m]))", "legendFormat": "VMs", "refId": "A" },
+        { "expr": "sum(rate(container_cpu_usage_seconds_total{job=\"proxmox-cadvisor\",id=\"/lxc\"}[5m]))", "legendFormat": "LXC containers", "refId": "B" },
+        { "expr": "sum(rate(container_cpu_usage_seconds_total{job=\"proxmox-cadvisor\",name!=\"\"}[5m]))", "legendFormat": "Docker on host", "refId": "C" },
+        { "expr": "sum(rate(container_cpu_usage_seconds_total{job=\"proxmox-cadvisor\",id=\"/system.slice\"}[5m])) - (sum(rate(container_cpu_usage_seconds_total{job=\"proxmox-cadvisor\",name!=\"\"}[5m])) or vector(0))", "legendFormat": "host services", "refId": "D" },
+        { "expr": "sum(rate(container_cpu_usage_seconds_total{job=\"proxmox-cadvisor\",id=\"/user.slice\"}[5m]))", "legendFormat": "user sessions", "refId": "E" }
+      ],
+      "title": "Host CPU by Workload (cores)",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "description": "What runs directly on the hypervisor and how many cores it takes: Docker containers by name and the busiest systemd services. VM load is on the Proxmox VM CPU panel.",
+      "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] },
+      "gridPos": { "h": 8, "w": 8, "x": 8, "y": 4 },
+      "id": 24,
+      "targets": [
+        { "expr": "sum by(name) (rate(container_cpu_usage_seconds_total{job=\"proxmox-cadvisor\",name!=\"\"}[5m]))", "legendFormat": "docker: {% raw %}{{name}}{% endraw %}", "refId": "A" },
+        { "expr": "topk(6, sum by(id) (rate(container_cpu_usage_seconds_total{job=\"proxmox-cadvisor\",id=~\"/system.slice/[^/]+\\\\.service\"}[5m])))", "legendFormat": "{% raw %}{{id}}{% endraw %}", "refId": "B" }
+      ],
+      "title": "Host Containers and Services CPU (cores)",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "description": "The number on the Alerts Firing tile, broken down by alert name.",
+      "fieldConfig": { "defaults": { "custom": { "align": "auto" } }, "overrides": [] },
+      "gridPos": { "h": 8, "w": 8, "x": 16, "y": 4 },
+      "id": 25,
+      "options": { "showHeader": true, "sortBy": [{ "displayName": "Firing", "desc": true }] },
+      "targets": [{ "expr": "count by(alertname, severity) (ALERTS{alertstate=\"firing\",alertname!=\"TrivyDailyDigest\"})", "format": "table", "instant": true, "refId": "A" }],
+      "title": "Firing Alerts by Name",
+      "transformations": [
+        { "id": "organize", "options": { "excludeByName": { "Time": true }, "indexByName": { "alertname": 0, "severity": 1, "Value": 2 }, "renameByName": { "Value": "Firing", "alertname": "Alert", "severity": "Severity" } } }
+      ],
+      "type": "table"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "percent" }, "overrides": [] },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 12 },
+      "id": 7,
+      "targets": [{ "expr": "100 - (avg(rate(node_cpu_seconds_total{instance=\"{{ monitoring_proxmox_target_resolved }}:9100\",mode=\"idle\"}[5m])) * 100)", "legendFormat": "lab-host", "refId": "A" }],
+      "title": "CPU Trend",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "percent" }, "overrides": [] },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 12 },
+      "id": 8,
+      "targets": [{ "expr": "(1 - (node_memory_MemAvailable_bytes{instance=\"{{ monitoring_proxmox_target_resolved }}:9100\"} / node_memory_MemTotal_bytes{instance=\"{{ monitoring_proxmox_target_resolved }}:9100\"})) * 100", "legendFormat": "lab-host", "refId": "A" }],
+      "title": "RAM Trend",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "Bps" }, "overrides": [] },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 20 },
+      "id": 9,
+      "targets": [
+        { "expr": "sum(rate(node_network_receive_bytes_total{instance=\"{{ monitoring_proxmox_target_resolved }}:9100\",device!~\"lo|docker.*|veth.*\"}[5m]))", "legendFormat": "RX", "refId": "A" },
+        { "expr": "sum(rate(node_network_transmit_bytes_total{instance=\"{{ monitoring_proxmox_target_resolved }}:9100\",device!~\"lo|docker.*|veth.*\"}[5m]))", "legendFormat": "TX", "refId": "B" }
+      ],
+      "title": "Network I/O",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "Bps" }, "overrides": [] },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 20 },
+      "id": 10,
+      "targets": [
+        { "expr": "sum(rate(node_disk_read_bytes_total{instance=\"{{ monitoring_proxmox_target_resolved }}:9100\",device!~\"loop.*|ram.*\"}[5m]))", "legendFormat": "Read", "refId": "A" },
+        { "expr": "sum(rate(node_disk_written_bytes_total{instance=\"{{ monitoring_proxmox_target_resolved }}:9100\",device!~\"loop.*|ram.*\"}[5m]))", "legendFormat": "Write", "refId": "B" }
+      ],
+      "title": "Disk I/O",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "celsius" }, "overrides": [] },
+      "gridPos": { "h": 8, "w": 8, "x": 0, "y": 28 },
+      "id": 11,
+      "targets": [
+        { "expr": "avg by(chip, sensor) ((node_hwmon_temp_celsius{instance=\"{{ monitoring_proxmox_target_resolved }}:9100\",sensor!~\"fan.*\"} > 0) and (node_hwmon_temp_celsius{instance=\"{{ monitoring_proxmox_target_resolved }}:9100\",sensor!~\"fan.*\"} < 120))", "legendFormat": "{% raw %}{{chip}}{% endraw %} / {% raw %}{{sensor}}{% endraw %}", "refId": "A" }
+      ],
+      "title": "Temperatures",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "percent" }, "overrides": [] },
+      "gridPos": { "h": 8, "w": 8, "x": 16, "y": 28 },
+      "id": 12,
+      "targets": [
+        { "expr": "100 * pve_cpu_usage_ratio{instance=\"{{ monitoring_proxmox_target_resolved }}\",id=~\"(qemu|lxc)/.*\"} * on(instance,id) group_left(name,type) pve_guest_info{instance=\"{{ monitoring_proxmox_target_resolved }}\"}", "legendFormat": "{% raw %}{{name}}{% endraw %}", "refId": "A" }
+      ],
+      "title": "Proxmox VM CPU %",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 44 },
+      "id": 13,
+      "targets": [
+        { "expr": "sum(node_systemd_unit_state{instance=\"{{ monitoring_proxmox_target_resolved }}:9100\",state=\"failed\"} > 0) or vector(0)", "legendFormat": "failed units", "refId": "A" },
+        { "expr": "max(up{job=\"pve-exporter\"})", "legendFormat": "pve target", "refId": "B" }
+      ],
+      "title": "Operator Signals",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 44 },
+      "id": 14,
+      "targets": [
+        {
+          "expr": "ALERTS{alertstate=\"firing\",alertname!=\"TrivyDailyDigest\"}",
+          "legendFormat": "{% raw %}{{alertname}}{% endraw %} ({% raw %}{{severity}}{% endraw %})",
+          "refId": "A"
+        }
+      ],
+      "title": "Alert Timeline",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "rpm" }, "overrides": [] },
+      "gridPos": { "h": 8, "w": 8, "x": 8, "y": 28 },
+      "id": 15,
+      "targets": [
+        { "expr": "node_hwmon_fan_rpm{instance=\"{{ monitoring_proxmox_target_resolved }}:9100\",chip=\"platform_asus_ec_sensors\",sensor=\"fan1\"}", "legendFormat": "VRM HS fan", "refId": "A" },
+        { "expr": "node_hwmon_fan_rpm{instance=\"{{ monitoring_proxmox_target_resolved }}:9100\",chip=\"platform_asus_ec_sensors\",sensor=\"fan2\"}", "legendFormat": "Chipset fan", "refId": "B" },
+        { "expr": "node_hwmon_fan_rpm{instance=\"{{ monitoring_proxmox_target_resolved }}:9100\",chip=\"platform_nct6775_656\",sensor=\"fan1\"}", "legendFormat": "NCT fan1", "refId": "C" },
+        { "expr": "node_hwmon_fan_rpm{instance=\"{{ monitoring_proxmox_target_resolved }}:9100\",chip=\"platform_nct6775_656\",sensor=\"fan2\"}", "legendFormat": "NCT fan2", "refId": "D" }
+      ],
+      "title": "Fan RPM",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 36 },
+      "id": 18,
+      "options": {
+        "showHeader": true
+      },
+      "targets": [
+        {
+          "expr": "node_systemd_unit_state{instance=\"{{ monitoring_proxmox_target_resolved }}:9100\",state=\"failed\"} > 0",
+          "format": "table",
+          "instant": true,
+          "refId": "A"
+        }
+      ],
+      "title": "Failed Unit Details",
+      "transformations": [
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Time": true,
+              "Value": false,
+              "__name__": true,
+              "cpu": true,
+              "instance": false,
+              "job": true,
+              "state": false
+            },
+            "indexByName": {},
+            "renameByName": {
+              "Value": "failed",
+              "instance": "host",
+              "name": "unit"
+            }
+          }
+        }
+      ],
+      "type": "table"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "percent" }, "overrides": [] },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 36 },
+      "id": 19,
+      "targets": [
+        { "expr": "100 * (pve_memory_usage_bytes{instance=\"{{ monitoring_proxmox_target_resolved }}\",id=~\"(qemu|lxc)/.*\"} / pve_memory_size_bytes{instance=\"{{ monitoring_proxmox_target_resolved }}\",id=~\"(qemu|lxc)/.*\"}) * on(instance,id) group_left(name,type) pve_guest_info{instance=\"{{ monitoring_proxmox_target_resolved }}\"}", "legendFormat": "{% raw %}{{name}}{% endraw %}", "refId": "A" }
+      ],
+      "title": "Proxmox VM RAM %",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 52 },
+      "id": 20,
+      "targets": [
+        {
+          "expr": "node_hwmon_temp_celsius{instance=\"{{ monitoring_proxmox_target_resolved }}:9100\",chip=\"platform_asus_ec_sensors\",sensor=\"temp1\"}",
+          "legendFormat": "Chipset temp (C)",
+          "refId": "A"
+        },
+        {
+          "expr": "node_hwmon_fan_rpm{instance=\"{{ monitoring_proxmox_target_resolved }}:9100\",chip=\"platform_asus_ec_sensors\",sensor=\"fan2\"}",
+          "legendFormat": "Chipset fan RPM",
+          "refId": "B"
+        }
+      ],
+      "title": "Noise / Thermal (Chipset)",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "percent" }, "overrides": [] },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 52 },
+      "id": 21,
+      "targets": [
+        {
+          "expr": "100 * (pve_disk_usage_bytes{instance=\"{{ monitoring_proxmox_target_resolved }}\",id=~\"(qemu|lxc)/.*\"} / pve_disk_size_bytes{instance=\"{{ monitoring_proxmox_target_resolved }}\",id=~\"(qemu|lxc)/.*\"}) * on(instance,id) group_left(name,type) pve_guest_info{instance=\"{{ monitoring_proxmox_target_resolved }}\"}",
+          "legendFormat": "{% raw %}{{name}}{% endraw %}",
+          "refId": "A"
+        }
+      ],
+      "title": "Proxmox VM Disk %",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "percent" }, "overrides": [] },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 60 },
+      "id": 22,
+      "targets": [
+        {
+          "expr": "topk(5, 100 * (pve_disk_usage_bytes{instance=\"{{ monitoring_proxmox_target_resolved }}\",id=~\"(qemu|lxc)/.*\"} / pve_disk_size_bytes{instance=\"{{ monitoring_proxmox_target_resolved }}\",id=~\"(qemu|lxc)/.*\"}) * on(instance,id) group_left(name,type) pve_guest_info{instance=\"{{ monitoring_proxmox_target_resolved }}\"})",
+          "legendFormat": "{% raw %}{{name}}{% endraw %}",
+          "refId": "A"
+        }
+      ],
+      "title": "Top 5 VM Disk %",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 10,
+        "w": 12,
+        "x": 0,
+        "y": 68
+      },
+      "id": 26,
+      "options": {
+        "showHeader": true,
+        "sortBy": [
+          {
+            "displayName": "Critical",
+            "desc": true
+          }
+        ]
+      },
+      "targets": [
+        {
+          "expr": "max by (cluster, image_registry, image_repository, image_tag, image_digest) (trivy_image_vulnerabilities{severity=\"Critical\"}) > 0",
+          "format": "table",
+          "instant": true,
+          "refId": "A"
+        }
+      ],
+      "title": "Images with Critical Findings",
+      "transformations": [
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Time": true,
+              "__name__": true
+            },
+            "renameByName": {
+              "Value": "Critical"
+            }
+          }
+        }
+      ],
+      "type": "table"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 10,
+        "w": 12,
+        "x": 12,
+        "y": 68
+      },
+      "id": 27,
+      "options": {
+        "showHeader": true,
+        "sortBy": [
+          {
+            "displayName": "Critical",
+            "desc": true
+          }
+        ]
+      },
+      "targets": [
+        {
+          "expr": "sum by (cluster, namespace) (max by (cluster, namespace, image_registry, image_repository, image_tag, image_digest) (trivy_image_vulnerabilities{severity=\"Critical\"}))",
+          "format": "table",
+          "instant": true,
+          "refId": "A"
+        }
+      ],
+      "title": "Critical Findings by Namespace",
+      "transformations": [
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Time": true,
+              "__name__": true
+            },
+            "renameByName": {
+              "Value": "Critical"
+            }
+          }
+        }
+      ],
+      "type": "table"
+    }
+  ],
+  "refresh": "30s",
+  "schemaVersion": 39,
+  "style": "dark",
+  "tags": ["lab-host", "monitoring", "pulse"],
+  "templating": { "list": [] },
+  "time": { "from": "now-6h", "to": "now" },
+  "title": "lab-host Pulse",
+  "uid": "lab-host-overview",
+  "version": 11
+}

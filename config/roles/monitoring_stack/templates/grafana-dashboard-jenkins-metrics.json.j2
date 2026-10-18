@@ -1,0 +1,118 @@
+{
+  "annotations": {
+    "list": [
+      {
+        "builtIn": 1,
+        "datasource": {
+          "type": "grafana",
+          "uid": "-- Grafana --"
+        },
+        "enable": true,
+        "hide": true,
+        "iconColor": "rgba(0, 211, 255, 1)",
+        "name": "Annotations & Alerts",
+        "type": "dashboard"
+      }
+    ]
+  },
+  "editable": true,
+  "graphTooltip": 1,
+  "panels": [
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] },
+      "gridPos": { "h": 4, "w": 6, "x": 0, "y": 0 },
+      "id": 1,
+      "options": { "colorMode": "value", "graphMode": "none", "justifyMode": "center", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false } },
+      "targets": [{ "expr": "jenkins_job_count_value or {{ monitoring_jenkins_metrics_namespace_resolved }}_jenkins_job_count_value", "refId": "A" }],
+      "title": "Jobs",
+      "type": "stat"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] },
+      "gridPos": { "h": 4, "w": 6, "x": 6, "y": 0 },
+      "id": 2,
+      "options": { "colorMode": "value", "graphMode": "none", "justifyMode": "center", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false } },
+      "targets": [{ "expr": "jenkins_queue_size_value or {{ monitoring_jenkins_metrics_namespace_resolved }}_jenkins_queue_size_value", "refId": "A" }],
+      "title": "Queue Size",
+      "type": "stat"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] },
+      "gridPos": { "h": 4, "w": 6, "x": 12, "y": 0 },
+      "id": 3,
+      "options": { "colorMode": "value", "graphMode": "none", "justifyMode": "center", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false } },
+      "targets": [{ "expr": "jenkins_executor_count_value or {{ monitoring_jenkins_metrics_namespace_resolved }}_jenkins_executor_count_value", "refId": "A" }],
+      "title": "Executors",
+      "type": "stat"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] },
+      "gridPos": { "h": 4, "w": 6, "x": 18, "y": 0 },
+      "id": 4,
+      "options": { "colorMode": "value", "graphMode": "none", "justifyMode": "center", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false } },
+      "targets": [{ "expr": "jenkins_executor_free_value or {{ monitoring_jenkins_metrics_namespace_resolved }}_jenkins_executor_free_value", "refId": "A" }],
+      "title": "Free Executors",
+      "type": "stat"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 4 },
+      "id": 5,
+      "targets": [{ "expr": "jenkins_queue_size_value or {{ monitoring_jenkins_metrics_namespace_resolved }}_jenkins_queue_size_value", "legendFormat": "queue", "refId": "A" }],
+      "title": "Queue Size Trend",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 4 },
+      "id": 6,
+      "targets": [
+        { "expr": "jenkins_executor_count_value or {{ monitoring_jenkins_metrics_namespace_resolved }}_jenkins_executor_count_value", "legendFormat": "total", "refId": "A" },
+        { "expr": "jenkins_executor_in_use_value or {{ monitoring_jenkins_metrics_namespace_resolved }}_jenkins_executor_in_use_value", "legendFormat": "in_use", "refId": "B" },
+        { "expr": "jenkins_executor_free_value or {{ monitoring_jenkins_metrics_namespace_resolved }}_jenkins_executor_free_value", "legendFormat": "free", "refId": "C" }
+      ],
+      "title": "Executor Usage",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 12 },
+      "id": 7,
+      "targets": [
+        { "expr": "jenkins_node_online_value or {{ monitoring_jenkins_metrics_namespace_resolved }}_jenkins_node_online_value", "legendFormat": "online", "refId": "A" },
+        { "expr": "jenkins_node_offline_value or {{ monitoring_jenkins_metrics_namespace_resolved }}_jenkins_node_offline_value", "legendFormat": "offline", "refId": "B" }
+      ],
+      "title": "Node Availability",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 12 },
+      "id": 8,
+      "targets": [
+        { "expr": "jenkins_plugins_active or {{ monitoring_jenkins_metrics_namespace_resolved }}_jenkins_plugins_active", "legendFormat": "active_plugins", "refId": "A" },
+        { "expr": "jenkins_project_count_value or {{ monitoring_jenkins_metrics_namespace_resolved }}_jenkins_project_count_value", "legendFormat": "projects", "refId": "B" }
+      ],
+      "title": "Jenkins Inventory",
+      "type": "timeseries"
+    }
+  ],
+  "refresh": "30s",
+  "schemaVersion": 39,
+  "style": "dark",
+  "tags": ["jenkins", "prometheus"],
+  "templating": { "list": [] },
+  "time": { "from": "now-24h", "to": "now" },
+  "timezone": "browser",
+  "title": "Jenkins Metrics",
+  "uid": "jenkins-metrics",
+  "version": 1
+}

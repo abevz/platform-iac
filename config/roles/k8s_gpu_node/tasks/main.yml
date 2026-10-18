@@ -1,0 +1,90 @@
+---
+# GPU worker preparation: NVIDIA driver, container toolkit, containerd runtime,
+# kubelet taint/labels and the model directory. Runs before `kubeadm join`.
+
+- name: Install ubuntu-drivers
+  ansible.builtin.apt:
+    name: ubuntu-drivers-common
+    state: present
+    update_cache: true
+    cache_valid_time: 3600
+  tags: [gpu_driver]
+
+- name: Check whether the NVIDIA driver branch is installed
+  ansible.builtin.command: "dpkg-query -W nvidia-headless-no-dkms-{{ nvidia_driver_branch }}"
+  register: gpu_driver_query
+  changed_when: false
+  failed_when: false
+  check_mode: false
+  tags: [gpu_driver]
+
+- name: Install NVIDIA driver (headless, prebuilt kernel modules)
+  ansible.builtin.command: "ubuntu-drivers install --gpgpu nvidia:{{ nvidia_driver_branch }}"
+  environment:
+    DEBIAN_FRONTEND: noninteractive
+  when: gpu_driver_query.rc != 0
+  register: gpu_driver_install
+  changed_when: true
+  tags: [gpu_driver]
+
+- name: Install nvidia-smi
+  ansible.builtin.apt:
+    name: "nvidia-utils-{{ nvidia_driver_branch }}"
+    state: present
+  tags: [gpu_driver]
+
+- name: Reboot to load the NVIDIA kernel modules
+  ansible.builtin.reboot:
+    reboot_timeout: 600
+  when: gpu_driver_install is changed
+  tags: [gpu_driver]
+
+- name: Add NVIDIA container toolkit GPG key
+  ansible.builtin.shell:
+    cmd: >-
+      set -o pipefail &&
+      curl -fsSL https://nvidia.github.io/libnvidia-container/gpgkey
+      | gpg --dearmor --yes -o /usr/share/keyrings/nvidia-container-toolkit-keyring.gpg
+    executable: /bin/bash
+    creates: /usr/share/keyrings/nvidia-container-toolkit-keyring.gpg
+  tags: [gpu_toolkit]
+
+- name: Add NVIDIA container toolkit repository
+  ansible.builtin.copy:
+    dest: /etc/apt/sources.list.d/nvidia-container-toolkit.list
+    content: |
+      deb [signed-by=/usr/share/keyrings/nvidia-container-toolkit-keyring.gpg] https://nvidia.github.io/libnvidia-container/stable/deb/$(ARCH) /
+    mode: "0644"
+  tags: [gpu_toolkit]
+
+- name: Install NVIDIA container toolkit
+  ansible.builtin.apt:
+    name: nvidia-container-toolkit
+    state: present
+    update_cache: true
+  tags: [gpu_toolkit]
+
+# The nvidia runtime itself is declared in k8s_bootstrap_node's containerd template
+# (guarded by the k8s_gpu_worker group). A conf.d drop-in, as written by
+# `nvidia-ctk runtime configure`, replaces the whole CRI section on import.
+- name: Remove nvidia-ctk containerd drop-in
+  ansible.builtin.file:
+    path: /etc/containerd/conf.d/99-nvidia.toml
+    state: absent
+  notify: Restart containerd
+  tags: [gpu_toolkit]
+
+- name: Taint and label the node at kubelet registration
+  ansible.builtin.copy:
+    dest: /etc/default/kubelet
+    content: "KUBELET_EXTRA_ARGS={{ gpu_kubelet_extra_args }}\n"
+    mode: "0644"
+  notify: Restart kubelet
+  tags: [gpu_kubelet]
+
+- name: Create the model directory
+  ansible.builtin.file:
+    path: "{{ gpu_models_dir }}"
+    state: directory
+    mode: "0755"
+  tags: [gpu_models]

@@ -1,0 +1,12 @@
+.terraform/
+.terraform.lock.hcl
+__pycache__/
+.cache/
+.ansible/
+*.tfstate*
+*.tfplan
+*.sops.*
+*.key
+*.pem
+*.crt
+secrets/

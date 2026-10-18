@@ -1,0 +1,7 @@
+---
+- name: Setup RustFS backup to GDrive (rclone crypt sync)
+  hosts: all
+  become: true
+
+  roles:
+    - role: rustfs_backup

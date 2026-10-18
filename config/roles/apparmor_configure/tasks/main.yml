@@ -1,0 +1,94 @@
+# config/roles/apparmor_configure/tasks/main.yml
+# /config/roles/apparmor_configure/tasks/main.yml
+---
+- name: Check if AppArmor is available
+  ansible.builtin.stat:
+    path: /sys/kernel/security/apparmor
+  register: apparmor_check
+
+- name: Install full AppArmor utilities package
+  ansible.builtin.package:
+    name:
+      - apparmor
+      - apparmor-utils
+      - apparmor-profiles
+      - apparmor-profiles-extra
+    state: "{{ addon_state | default('present') }}"
+  when: apparmor_check.stat.exists
+
+- name: Enable and start AppArmor service
+  ansible.builtin.systemd:
+    name: apparmor
+    enabled: yes
+    state: "{{ 'started' if addon_state == 'present' else 'stopped' }}"
+  when: apparmor_check.stat.exists
+
+- name: Manage Kubernetes profiles directory
+  ansible.builtin.file:
+    path: /etc/apparmor.d/kubernetes
+    state: "{{ 'directory' if addon_state == 'present' else 'absent' }}"
+    mode: '0755'
+  when: apparmor_check.stat.exists
+
+- name: Manage 'k8s-strict' profile
+  ansible.builtin.copy:
+    content: |
+      #include <tunables/global>
+      profile k8s-strict flags=(attach_disconnected,mediate_deleted) {
+        #include <abstractions/base>
+        /etc/hosts r, /etc/resolv.conf r, /etc/nsswitch.conf r,
+        /etc/passwd r, /etc/group r, /usr/bin/** ix, /bin/** ix,
+        /sbin/** ix, /lib{,32,64}/** mr, /usr/lib{,32,64}/** mr,
+        deny capability sys_admin, deny capability sys_module,
+        deny capability sys_rawio, deny capability sys_time,
+        deny capability sys_nice, deny capability sys_resource,
+        deny capability sys_pacct, deny capability sys_ptrace,
+        deny capability sys_chroot, deny capability setuid,
+        deny capability setgid, deny capability setpcap,
+        deny capability linux_immutable, deny capability net_bind_service,
+        deny capability net_broadcast, deny capability net_admin,
+        deny capability net_raw, deny /proc/sys/** w, deny /sys/** w,
+        deny /dev/mem r, deny /dev/kmem r, deny /dev/port r,
+        deny /boot/** r, /tmp/** rw, /var/tmp/** rw,
+      }
+    dest: /etc/apparmor.d/kubernetes/k8s-strict
+    mode: '0644'
+    state: "{{ addon_state | default('present') }}"
+  when: apparmor_check.stat.exists
+  notify: reload_apparmor_profiles
+
+- name: Manage 'k8s-permissive' profile
+  ansible.builtin.copy:
+    content: |
+      #include <tunables/global>
+      profile k8s-permissive flags=(attach_disconnected,mediate_deleted,complain) {
+        #include <abstractions/base>
+        /** rwlkm,
+        deny capability sys_module, deny capability sys_rawio,
+        deny /dev/mem r, deny /dev/kmem r, deny /boot/** r,
+      }
+    dest: /etc/apparmor.d/kubernetes/k8s-permissive
+    mode: '0644'
+    state: "{{ addon_state | default('present') }}"
+  when: apparmor_check.stat.exists
+  notify: reload_apparmor_profiles
+
+- name: Manage k8s-nginx-default profile
+  # (Move this profile from k8s_bootstrap_node here)
+  ansible.builtin.copy:
+    src: k8s-nginx-default
+    dest: /etc/apparmor.d/kubernetes/k8s-nginx-default
+    mode: '0644'
+    state: "{{ addon_state | default('present') }}"
+  when: apparmor_check.stat.exists
+  notify: reload_apparmor_profiles
+
+- name: Display result
+  ansible.builtin.debug:
+    msg: "AppArmor ({{ addon_state | default('present') }}) complete."
+  when: apparmor_check.stat.exists
+
+- name: Show AppArmor unavailable message
+  ansible.builtin.debug:
+    msg: "AppArmor is not available on this system (Kernel module missing)"
+  when: not apparmor_check.stat.exists

@@ -1,0 +1,103 @@
+# infra/dev/harbor/variables.tf
+# --- PROVIDER VARIABLES (FROM SOPS) ---
+variable "proxmox_api_url" {
+  type      = string
+  sensitive = true
+}
+variable "proxmox_api_username" {
+  type      = string
+  sensitive = true
+}
+variable "proxmox_api_password" {
+  type      = string
+  sensitive = true
+}
+variable "proxmox_ssh_user" {
+  type      = string
+  sensitive = true
+}
+variable "proxmox_ssh_private_key" {
+  type      = string
+  sensitive = true
+}
+variable "proxmox_node_name" {
+  type    = string
+  default = "lab-host"
+}
+variable "proxmox_ssh_address" {
+  type    = string
+  default = "lab-host.example.com"
+}
+variable "proxmox_ssh_port" {
+  type      = number
+  sensitive = true
+}
+variable "vm_template_id" {
+  type    = number
+  default = 9420
+}
+variable "vm_bridge" {
+  type    = string
+  default = "vmbr0"
+}
+variable "proxmox_snippet_storage" {
+  type    = string
+  default = "local"
+}
+
+# --- Ansible Variables ---
+variable "vm_user" {
+  type    = string
+  default = ""
+}
+variable "ssh_public_key" {
+  type    = string
+  default = "ssh-rsa AAAA..."
+}
+
+# --- Node Counts (Single VM) ---
+variable "control_plane_count" {
+  description = "Number of Harbor VMs"
+  type        = number
+  default     = 1
+}
+
+# --- VM Specifications ---
+variable "vm_id" {
+  description = "VMID you want to assign"
+  type        = number
+  default     = 103 # 👈 *** YOUR VMID ***
+}
+variable "cp_cores" {
+  type    = number
+  default = 4
+}
+variable "cp_memory" {
+  type    = number
+  default = 8192
+}
+variable "cp_disk_size" {
+  type    = number
+  default = 100
+}
+variable "control_plane_ips" {
+  description = "Static IPs for Harbor VM"
+  type        = list(string)
+  default     = ["<HARBOR-IP>"] # 👈 *** YOUR IP ADDRESS ***
+}
+variable "gateway" {
+  type    = string
+  default = "<LAN-GATEWAY-IP>"
+}
+variable "ip_prefix_length" {
+  type    = number
+  default = 24
+}
+variable "vm_started" {
+  type    = bool
+  default = true
+}
+variable "vm_dns_server" {
+  type    = string
+  default = "<PIHOLE-IP>"
+}

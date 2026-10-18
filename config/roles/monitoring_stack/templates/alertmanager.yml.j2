@@ -1,0 +1,80 @@
+global:
+  resolve_timeout: 5m
+
+route:
+{% if monitoring_telegram_bot_token_resolved | length > 0 and monitoring_telegram_chat_id_resolved | length > 0 %}
+  receiver: telegram
+{% else %}
+  receiver: default
+{% endif %}
+  group_by: ["alertname", "severity"]
+  group_wait: 30s
+  group_interval: 5m
+  repeat_interval: 3h
+{% if monitoring_telegram_bot_token_resolved | length > 0 and monitoring_telegram_chat_id_resolved | length > 0 %}
+  routes:
+    - matchers: ['alertname="TrivyDailyDigest"', 'source="trivy"']
+      receiver: telegram-trivy-digest
+      group_by: ["alertname", "cluster"]
+      group_wait: 30s
+      group_interval: 24h
+      repeat_interval: 24h
+    - matchers: ['source="falco"']
+      receiver: telegram-security
+      # Falcosidekick 2.32 sends rule; newer releases also send alertname.
+      group_by: ["rule", "cluster", "severity"]
+      group_wait: 10s
+      group_interval: 1m
+      repeat_interval: 3h
+    - matchers: ['source="trivy"', 'severity="critical"']
+      receiver: telegram-security
+      group_by: ["alertname", "cluster", "severity"]
+      group_wait: 10s
+      group_interval: 5m
+      repeat_interval: 3h
+    - matchers: ['source="trivy"', 'severity="warning"']
+      receiver: telegram-security
+      group_by: ["alertname", "cluster", "severity"]
+      group_wait: 5m
+      group_interval: 30m
+      repeat_interval: 24h
+{% endif %}
+
+receivers:
+  - name: default
+{% if monitoring_telegram_bot_token_resolved | length > 0 and monitoring_telegram_chat_id_resolved | length > 0 %}
+  - name: telegram
+    telegram_configs:
+      - api_url: {{ monitoring_alertmanager_telegram_api_url }}
+        bot_token: {{ monitoring_telegram_bot_token_resolved }}
+        chat_id: {{ monitoring_telegram_chat_id_resolved }}
+        parse_mode: HTML
+        send_resolved: true
+  - name: telegram-trivy-digest
+    telegram_configs:
+      - api_url: {{ monitoring_alertmanager_telegram_api_url }}
+        bot_token: {{ monitoring_telegram_bot_token_resolved }}
+        chat_id: {{ monitoring_telegram_chat_id_resolved }}
+        parse_mode: ""
+        send_resolved: false
+        message: |-
+          {% raw %}{{ range .Alerts }}{{ .Annotations.summary }}
+          {{ .Annotations.description }}{{ end }}{% endraw %}
+
+  - name: telegram-security
+    telegram_configs:
+      - api_url: {{ monitoring_alertmanager_telegram_api_url }}
+        bot_token: {{ monitoring_telegram_bot_token_resolved }}
+        chat_id: {{ monitoring_telegram_chat_id_resolved }}
+        # Plain text avoids HTML parsing failures on process arguments.
+        parse_mode: ""
+        send_resolved: true
+        message: |-
+          {% raw %}{{ .Status | toUpper }} | {{ .CommonLabels.source }} | {{ .CommonLabels.cluster }}
+          {{ or .CommonLabels.alertname .CommonLabels.rule }}: {{ len .Alerts }} alert(s)
+          {{ range $index, $alert := .Alerts }}{{ if lt $index 5 }}
+          {{ or $alert.Annotations.summary $alert.Labels.rule }}
+          {{ printf "%.500s" $alert.Annotations.description }}
+          {{ end }}{{ end }}
+          {{ if gt (len .Alerts) 5 }}Showing the first five alerts; inspect Alertmanager for the full group.{{ end }}{% endraw %}
+{% endif %}

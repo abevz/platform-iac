@@ -1,0 +1,31 @@
+#!/bin/bash
+# Managed by Ansible (platform-iac)
+
+ACTION=$1
+# Требуется jq для парсинга вывода niri
+CURRENT=$(niri msg -j keyboard-layouts | jq '.[] | select(.is_active) | .idx')
+
+case $ACTION in
+  "toggle")
+    # Логика: Если 0(US) -> 1(RU). Иначе (RU/UA/PL) -> 0(US)
+    if [ "$CURRENT" -eq "0" ]; then
+      niri msg action set-keyboard-layout 1
+      notify-send -t 1000 -u low "Layout" "🇷🇺 RU (Russian)"
+    else
+      niri msg action set-keyboard-layout 0
+      notify-send -t 1000 -u low "Layout" "🇺🇸 EN (English)"
+    fi
+    ;;
+  "ua")
+    niri msg action set-keyboard-layout 2
+    notify-send -t 1000 -u low "Layout" "🇺🇦 UA (Ukrainian)"
+    ;;
+  "pl")
+    niri msg action set-keyboard-layout 3
+    notify-send -t 1000 -u low "Layout" "🇵🇱 PL (Polish)"
+    ;;
+  *)
+    echo "Usage: $0 {toggle|ua|pl}"
+    exit 1
+    ;;
+esac
